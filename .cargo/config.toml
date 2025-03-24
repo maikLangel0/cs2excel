@@ -1,0 +1,2 @@
+[build]
+rustflags = ["-C", "link-args=/STACK:134217728"]  # 128MB stack

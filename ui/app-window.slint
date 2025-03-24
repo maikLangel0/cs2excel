@@ -1,0 +1,1023 @@
+import { Button, VerticalBox, CheckBox, HorizontalBox, Slider, LineEdit, TextEdit, ProgressIndicator } from "std-widgets.slint";
+
+export struct UserInfoUI {
+    prefer_markets: string, 
+    ignore_urls: string, 
+    steamid: string, 
+    pause_time_ms: float, 
+    appid: string, 
+    steamloginsecure: string, // "" if None 
+    percent_threshold: string, 
+    update_prices: bool, 
+    fetch_steam: bool
+}
+
+export struct SheetInfoUI {
+    path_to_sheet: string,
+    row_start_table: string,
+    row_start_write_in_table: string,
+    row_stop_write_in_table: string, // "" if None
+    sheet_name: string,
+    rowcol_usd_to_x: string,
+    rowcol_date: string,
+    col_url: string,
+    col_market: string,
+    col_price: string,
+    col_quantity: string,
+    col_gun_sticker_case: string,
+    col_skin_name: string,
+    col_wear: string,
+}
+
+component RoundRectangle inherits Rectangle {
+    border-radius: 20px;
+    clip: true;
+}
+
+component hr inherits Rectangle{
+    height: 1px;
+    background: white;
+    opacity: 0.7;
+}
+
+component Descriptors inherits Text {
+    font-size: 20px;
+    font-weight: 200;
+    font-family: "Times New Roman";
+    wrap: word-wrap;
+}
+
+component MultiLineTextInput inherits TextEdit {
+    wrap: word-wrap;
+    horizontal-alignment: left;
+}
+
+export component AppWindow inherits Window {
+    property <color> muted-navy-green: #2f492d;
+    property <color> muted-navy-blue: #2D2F49;
+    property <color> muted-maroon: #492D2F;
+    
+    property <length> rect-width: 480px;
+    property <length> rect-height-small: 120px;  //
+    property <length> rect-height-normal: 220px; // 120 + 20 + 220 + 20 + 320 + 20 = 720px which is the width of the window
+    property <length> rect-height-big: 320px;    //
+    property <length> pad-main-window: 10px;
+
+    property <length> element-height: 25px;
+    property <length> pad-elements: 20px;
+
+    property <length> LineEdit-font-size: 16px;
+
+    in property <image> background-image;
+    in property <float> progress: 0.00;
+    in property <string> gui-output-text;
+    
+    in-out property <float> pause-time-ms: 1500;
+    in-out property <float> volume: 0.0;
+    in-out property <bool> btn-run-enabled: true;
+
+    // Creating the UserInfoUI and SheetInfoUI structs for the WIndow scope
+    in-out property <UserInfoUI> user-info;
+    in-out property <SheetInfoUI> sheet-info;
+    
+    in-out property <string> btn-name-of-sheet: "No Excel File Selected...";
+    in-out property <string> path-to-sheet: "";
+
+    callback try-time-conversion(string) -> float;
+    callback update-volume(float);
+
+    callback select-excel-file();
+    callback load();
+    callback save(UserInfoUI, SheetInfoUI);
+    callback start-excel-write(UserInfoUI, SheetInfoUI);
+
+    background: muted-navy-green;
+    default-font-family: "Times New Roman";
+    min-height: 720px;
+    min-width: 1280px;
+    preferred-height: 720px;
+    preferred-width: 1280px;
+    title: "CS2 Inventory To .xlsx | By Mikael Isaksen | SteamID: 76561198389123475";
+    icon: background-image;
+
+    // Background image
+    Image {
+        width: 100%;
+        height: 100%;
+        opacity: 0.2;
+        image-fit: fill;
+        source: background-image;
+    }
+    
+    // Horizontal Layout for the whole UI
+    HorizontalLayout {
+        alignment: start;
+        padding: root.pad-main-window;
+
+        // Left Column
+        VerticalLayout {
+            spacing: 20px;
+            alignment: center;
+
+            // Top, small size rectangle
+            RoundRectangle {
+                width: rect-width;
+                height: rect-height-small;
+                background: muted-navy-blue;
+                
+                // XLSX FILE SELECT BUTTON
+                Button {
+                    text: root.btn-name-of-sheet;
+                    
+                    width: rect-width - pad-elements;
+                    height: element-height;
+                    y: pad-main-window;
+                
+                    clicked => {
+                        // Callback that pops up a fileselect
+                        root.select-excel-file();
+
+                        // Sets sheet-infos sheetpath to path-to-sheet
+                        // which was set by the callback on the rust side
+                        sheet-info.path-to-sheet = path-to-sheet;
+                    }
+                }
+
+                hr { 
+                    width: rect-width - pad-elements;
+                    y: element-height + pad-elements / 1.5;
+                }
+
+                // Sheet to update/edit
+                HorizontalLayout {
+                    height: element-height;
+                    width: rect-width;
+                    y: pad-elements + element-height;
+                    x: pad-main-window;
+
+                    Descriptors {
+                        text: "Sheet To Update/Edit";
+                        width: rect-width / 2 - pad-main-window;
+                        height: element-height;
+                    }
+                    
+                    sheet-name := LineEdit {
+                        width: rect-width / 2 - pad-main-window;
+                        placeholder-text: "sheet name";
+                        text: sheet-info.sheet-name;
+                        font-size: LineEdit-font-size;
+                        height: element-height;
+                        horizontal-alignment: center;
+                    }
+                }
+
+                hr { 
+                    width: rect-width - pad-elements;
+                    y: element-height * 2 + pad-elements * 2 / 1.5;
+                }
+
+                // Percent Threshold
+                HorizontalLayout {
+                    height: element-height;
+                    width: rect-width;
+                    y: rect-height-small - element-height - pad-elements * 0.5;
+                    x: pad-main-window;
+
+                    Descriptors {
+                        text: "Percent Threshold";
+                        width: rect-width / 2 - pad-main-window;
+                        height: element-height;
+                    }
+
+                    percent_threshold := LineEdit {
+                        width: rect-width / 2 - pad-main-window;
+                        placeholder-text: "% diff from market to market";
+                        text: user-info.percent-threshold;
+                        font-size: LineEdit-font-size;
+                        height: element-height;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+
+            // Center, big size rectangle
+            RoundRectangle {
+                width: rect-width;
+                height: rect-height-big;
+                background: muted-maroon;
+
+                // AppID + LineEdit
+                HorizontalLayout {
+                    width: rect-width - pad-elements;
+                    height: element-height;
+                    y: element-height - pad-elements;
+                    x: pad-main-window;
+
+                    Descriptors {
+                        text: "AppID";
+                        width: rect-width / 2 - pad-main-window;
+                        height: element-height;
+                    }
+
+                    appid := LineEdit {
+                        width: rect-width / 2 - pad-main-window;
+                        placeholder-text: "appid";
+                        text: user-info.appid;
+                        font-size: LineEdit-font-size;
+                        height: element-height;
+                        horizontal-alignment: center;
+                    }
+                }
+
+                hr { 
+                    width: rect-width - pad-elements;
+                    y: element-height + pad-elements / 1.5;
+                }
+
+                // SteamID + LineEdit
+                HorizontalLayout {
+                    height: element-height;
+                    width: rect-width;
+                    y: pad-elements + element-height;
+                    x: pad-main-window;
+
+                    Descriptors {
+                        text: "SteamID";
+                        width: rect-width / 2 - pad-main-window;
+                        height: element-height;
+                    }
+
+                    steamid := LineEdit {
+                        width: rect-width / 2 - pad-main-window;
+                        placeholder-text: "steamid";
+                        text: user-info.steamid;
+                        font-size: LineEdit-font-size;
+                        height: element-height;
+                        horizontal-alignment: center;
+                    }
+                }
+
+                hr { 
+                    width: rect-width - pad-elements;
+                    y: element-height * 2 + pad-elements * 2 / 1.5 + 1px;
+                }
+
+                // Fetch from steam + checkbox
+                HorizontalLayout {
+                    height: element-height;
+                    width: rect-width;
+                    y: pad-elements * 3 + element-height;
+                    x: pad-main-window;
+
+                    Descriptors {
+                        text: "Fetch From Steam?";
+                        width: rect-width / 1.43;
+                        height: element-height;
+                    }
+
+                    fetch-steam := CheckBox {
+                        checked: user-info.fetch-steam;
+                    }
+                }
+
+                hr {
+                    width: rect-width - pad-elements;
+                    y: element-height * 3 + pad-elements * 2 + 2px;
+                }
+
+                // Add/Update prices + checkbox
+                HorizontalLayout {
+                    height: element-height;
+                    width: rect-width;
+                    y: pad-elements * 5 + element-height;
+                    x: pad-main-window;
+
+                    Descriptors {
+                        text: "Add/Update Prices?";
+                        width: rect-width / 1.43;
+                        height: element-height;
+                    }
+
+                    update-prices := CheckBox {
+                        checked: user-info.update-prices;
+                    } 
+                }
+
+                hr {
+                    width: rect-width - pad-elements;
+                    y: element-height * 4 + pad-elements * 4 / 1.5 + 4px;
+                }
+
+                // Time between updates + Slider
+                HorizontalLayout {
+                    height: element-height;
+                    width: rect-width;
+                    y: pad-elements * 7 + element-height;
+                    x: pad-main-window;
+
+                    Descriptors {
+                        text: "Time Between Updates (ms)";
+                        width: rect-width / 1.8;
+                        height: element-height;
+                    }
+
+                    pause-time-ms-float := Slider {
+                        minimum: 1000;
+                        maximum: 5000;
+
+                        width: rect-width / 3;
+
+                        value: pause-time-ms;
+                        
+                        changed(value) => {
+                            pause-time-ms = value;
+                            pause-time-ms-text.text = value;
+                        }
+                    } 
+                }
+    
+                // Time between updates manual input
+                HorizontalLayout {
+                    height: element-height;
+                    width: rect-width;
+                    y: pad-elements * 9 + element-height;
+                    alignment: center;
+
+                    pause-time-ms-text := LineEdit {
+                        horizontal-alignment: center;
+                        text: pause-time-ms-float.value;
+                        font-size: LineEdit-font-size;
+                        
+                        edited(text) => {
+                            pause-time-ms = try-time-conversion(text);
+                            pause-time-ms-float.value = pause-time-ms;
+                        }
+                    }
+                }
+
+                hr {
+                    width: rect-width - pad-elements;
+                    y: element-height * 6 + pad-elements * 4 + 6px;
+                }
+
+                // SteamLoginSecure
+                HorizontalLayout {
+                    height: element-height;
+                    width: rect-width;
+                    y: pad-elements * 11 + element-height;
+                    x: pad-main-window;
+                    
+                    Descriptors {
+                        text: "SteamLoginSecure [?]";
+                        width: rect-width / 2 - pad-main-window;
+                    }
+
+                    steamloginsecure := LineEdit {
+                        width: rect-width / 2 - pad-main-window;
+                        placeholder-text: "SteamLoginSecure";
+                        text: user-info.steamloginsecure;
+                        font-size: LineEdit-font-size;
+                        height: element-height;
+                        horizontal-alignment: center;
+                    }
+                }
+
+                // Information text SteamLoginSecure
+                HorizontalLayout {
+                    height: element-height;
+                    width: rect-width;
+                    y: pad-elements * 13 + element-height;
+                    alignment: center;
+                    
+                    Descriptors {
+                        text: "(keep empty to use SteamLoginSecure from Firefox)";
+                        font-italic: true;
+                        font-weight: 50;
+                    }
+                }   
+            }
+
+            // Bottom, medium size rectangle
+            RoundRectangle {
+                width: rect-width;
+                height: rect-height-normal;
+                background: muted-navy-blue;
+
+                // Flavour text
+                HorizontalLayout {
+                    height: element-height;
+                    width: rect-width;
+                    y: element-height - pad-elements;
+                    alignment: center;
+
+                    Descriptors {
+                        text: "Price Checking URLs To Ignore";
+                    }
+                }
+
+                // Ignore-urls
+                ignore-urls := MultiLineTextInput {
+                    width: rect-width - pad-main-window * 2;
+                    height: element-height * 4;
+                    x: pad-main-window;
+                    y: element-height + pad-elements / 1.5;
+
+                    font-size: LineEdit-font-size;
+                    text: user-info.ignore-urls;
+                    placeholder-text: "https://csgoskins.gg/items/... , https://csgoskins.gg/items/..";
+                }
+
+                // Description text
+                HorizontalLayout {
+                    height: element-height;
+                    width: rect-width;
+                    y: pad-elements * 6 + element-height;
+                    alignment: center;
+                    
+                    Descriptors {
+                        text: "Seperate Each URL With A Comma ( , )";
+                        font-italic: true;
+                        font-weight: 50;
+                    }
+                }   
+
+                hr {
+                    width: rect-width - pad-elements;
+                    y: element-height * 5 + pad-elements * 4 / 1.75 + 4px;
+                }
+
+                // Cell Usd To X Conversion
+                HorizontalLayout {
+                    height: element-height;
+                    width: rect-width;
+                    y: pad-elements * 8 + element-height;
+                    x: pad-main-window;
+
+                    Descriptors {
+                        text: "Cell | USD To X Conversion";
+                        width: rect-width / 2 - pad-main-window;
+                        height: element-height;
+                    }
+                    
+                    rowcol-usd-to-x := LineEdit {
+                        width: rect-width / 2 - pad-main-window;
+                        placeholder-text: "example: '1' (for USD to USD), H8";
+                        text: sheet-info.rowcol-usd-to-x;
+                        font-size: LineEdit-font-size - 2px;
+                        height: element-height;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+        } 
+
+        // Center Column
+        VerticalLayout {
+            property <length> magik-len-for-dis-only:
+                root.width - rect-width * 2 - pad-main-window * 2;
+
+            width: magik-len-for-dis-only;
+            padding-left: 10px;
+            spacing: 20px;
+            
+            // Small rectangle
+            RoundRectangle {
+                background: muted-maroon;
+                width: magik-len-for-dis-only - pad-main-window * 2;
+                height: rect-height-small;
+                
+                // EXEC BUTTON CALLING THE start-select-write CALLBACK
+                Button {
+                    text: "Run Program";
+                    width: magik-len-for-dis-only - pad-elements * 2;
+                    height: element-height;
+                    y: pad-main-window;
+                    enabled: btn-run-enabled;
+
+                    clicked => {
+                        user-info.appid = appid.text;
+                        user-info.steamid = steamid.text;
+                        user-info.fetch-steam = fetch-steam.checked;
+                        user-info.update-prices = update-prices.checked;
+                        user-info.pause-time-ms = pause-time-ms;
+                        user-info.steamloginsecure = steamloginsecure.text;
+                        user-info.percent-threshold = percent_threshold.text;
+                        user-info.ignore-urls = ignore-urls.text;
+                        user-info.prefer-markets = prefer-markets.text;
+
+                        sheet-info.path-to-sheet = path-to-sheet;
+                        sheet-info.sheet-name = sheet-name.text;
+
+                        sheet-info.col-gun-sticker-case = col-gun-sticker-case.text;
+                        sheet-info.col-skin-name = col-skin-name.text;
+                        sheet-info.col-wear = col-wear.text;
+                        sheet-info.col-quantity = col-quantity.text;
+                        sheet-info.col-price = col-price.text;
+                        sheet-info.col-market = col-market.text;
+                        sheet-info.col-url = col-url.text;
+
+                        sheet-info.row-start-table = row-start-table.text;
+                        sheet-info.row-start-write-in-table = row-start-write-in-table.text;
+                        sheet-info.row-stop-write-in-table = row-stop-write-in-table.text;
+
+                        sheet-info.rowcol-date = rowcol-date.text;
+                        sheet-info.rowcol-usd-to-x = rowcol-usd-to-x.text;
+
+                        start-excel-write(user-info, sheet-info);
+                    }
+                }
+
+                // Progress bar for execution of price updates
+                ProgressIndicator {
+                    progress: root.progress;
+                    width: magik-len-for-dis-only - pad-elements * 2;
+                    height: {
+                        if (root.progress == 0.00) { 0px } 
+                        else                      { element-height } 
+                    };
+                    y: pad-main-window;
+                }
+
+                // Save Button
+                Button {
+                    text: "Save";
+                    width: magik-len-for-dis-only - pad-elements * 2;
+                    height: element-height;
+                    y: pad-elements + element-height + 3px;
+                    clicked => { 
+                        user-info.appid = appid.text;
+                        user-info.steamid = steamid.text;
+                        user-info.fetch-steam = fetch-steam.checked;
+                        user-info.update-prices = update-prices.checked;
+                        user-info.pause-time-ms = pause-time-ms;
+                        user-info.steamloginsecure = steamloginsecure.text;
+                        user-info.percent-threshold = percent_threshold.text;
+                        user-info.ignore-urls = ignore-urls.text;
+                        user-info.prefer-markets = prefer-markets.text;
+
+                        sheet-info.path-to-sheet = path-to-sheet;
+                        sheet-info.sheet-name = sheet-name.text;
+
+                        sheet-info.col-gun-sticker-case = col-gun-sticker-case.text;
+                        sheet-info.col-skin-name = col-skin-name.text;
+                        sheet-info.col-wear = col-wear.text;
+                        sheet-info.col-quantity = col-quantity.text;
+                        sheet-info.col-price = col-price.text;
+                        sheet-info.col-market = col-market.text;
+                        sheet-info.col-url = col-url.text;
+
+                        sheet-info.row-start-table = row-start-table.text;
+                        sheet-info.row-start-write-in-table = row-start-write-in-table.text;
+                        sheet-info.row-stop-write-in-table = row-stop-write-in-table.text;
+
+                        sheet-info.rowcol-date = rowcol-date.text;
+                        sheet-info.rowcol-usd-to-x = rowcol-usd-to-x.text;
+
+                        save(user-info, sheet-info)
+                    }
+                }
+
+                // Load Button
+                Button {
+                    text: "Load";
+                    width: magik-len-for-dis-only - pad-elements * 2;
+                    height: element-height;
+                    y: rect-height-small - element-height - pad-elements * 0.5;
+
+                    clicked => { load() }
+                }
+
+                // Descriptors {
+                    // width: magik-len-for-dis-only - pad-elements * 2;
+                    // height: element-height;
+                    // y: (parent.height - pad-main-window * 2) - pad-main-window;
+                    // vertical-alignment: center;
+                    // horizontal-alignment: center;
+
+                    // text: {
+                        // if (root.progress == 0) { "..." } 
+                        // else                    { root.progress + "%" }
+                    // };
+                // }
+            }
+
+            // ! Just to create space in the middle !
+            Rectangle {
+                width: magik-len-for-dis-only - pad-main-window * 2;
+                height: root.height - rect-height-small - rect-height-normal - pad-main-window * 6;
+                opacity: 0.0;
+            }
+
+            // GUI Output and Volume Rectangle
+            RoundRectangle {
+                width: magik-len-for-dis-only - pad-main-window * 2;
+                height: rect-height-normal;
+                background: muted-maroon;
+
+                // GUI Output Field
+                MultiLineTextInput {
+                    width: magik-len-for-dis-only - pad-elements * 2;
+                    height: (rect-height-normal - pad-main-window * 2) / 1.14;
+                    y: pad-main-window;
+                    read-only: true;
+                    font-size: 14px;
+
+                    horizontal-alignment: center;
+                    text: root.gui-output-text;
+                }
+
+                // Music volume slider
+                Slider { 
+                    minimum: 0.0;
+                    maximum: 1.0;
+            
+                    width: 200px;
+                    
+                    y: (rect-height-normal - pad-main-window * 2) / 1.5 + element-height * 2.3;
+            
+                    value: root.volume;
+            
+                    changed(value) => {
+                        update-volume(value);
+                        root.volume = value;
+                    }
+                }
+            }
+        }
+
+        // Right Column
+        VerticalLayout {
+            spacing: 20px;
+            alignment: center;
+            
+            // Top, small size Rectangle
+            RoundRectangle {
+                background: muted-navy-blue;
+                width: rect-width;
+                height: rect-height-small;
+
+                // Table Start
+                HorizontalLayout {
+                    width: rect-width - pad-elements;
+                    height: element-height;
+                    y: pad-main-window;
+
+                    Descriptors {
+                        text: "Row | Start Of Table";
+                        width: rect-width / 2 - pad-main-window;
+                        height: element-height;
+                    }
+                    
+                    row-start-table := LineEdit {
+                        width: rect-width / 2 - pad-main-window;
+                        placeholder-text: "example: 42";
+                        text: sheet-info.row-start-table;
+                        font-size: LineEdit-font-size;
+                        height: element-height;
+                        horizontal-alignment: center;
+                    }
+                }
+
+                hr { 
+                    width: rect-width - pad-elements;
+                    y: element-height + pad-elements / 1.5;
+                }
+
+                // Write Start
+                HorizontalLayout {
+                    height: element-height;
+                    width: rect-width;
+                    y: pad-elements + element-height;
+                    x: pad-main-window;
+
+                    Descriptors {
+                        text: "Row | Start Of Writing";
+                        width: rect-width / 2 - pad-main-window;
+                        height: element-height;
+                    }
+                    
+                    row-start-write-in-table := LineEdit {
+                        width: rect-width / 2 - pad-main-window;
+                        placeholder-text: "example: '1' for first row in table";
+                        text: sheet-info.row-start-write-in-table;
+                        font-size: LineEdit-font-size - 2px;
+                        height: element-height;
+                        horizontal-alignment: center;
+                    }
+                }
+
+                hr { 
+                    width: rect-width - pad-elements;
+                    y: element-height * 2 + pad-elements * 2 / 1.5;
+                }
+
+                // Write Stop
+                HorizontalLayout {
+                    height: element-height;
+                    width: rect-width;
+                    y: rect-height-small - element-height - pad-elements * 0.5;
+                    x: pad-main-window;
+
+                    Descriptors {
+                        text: "Row | End Of Writing [?]";
+                        width: rect-width / 2 - pad-main-window;
+                        height: element-height;
+                    }
+
+                    row-stop-write-in-table := LineEdit {
+                        width: rect-width / 2 - pad-main-window;
+                        placeholder-text: "Keep empty to write to the whole table";
+                        text: sheet-info.row-stop-write-in-table;
+                        font-size: LineEdit-font-size - 4.1px;
+                        height: element-height;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+
+            // Center, big size rectangle
+            RoundRectangle {
+                width: rect-width;
+                height: rect-height-big;
+                background: muted-maroon;
+
+                // Gun Sticker Case
+                HorizontalLayout {
+                    width: rect-width - pad-elements;
+                    height: element-height;
+                    y: element-height - pad-elements;
+                    x: pad-main-window;
+
+                    Descriptors {
+                        text: "Column | Gun/Sticker/Case";
+                        width: rect-width / 2 - pad-main-window;
+                        height: element-height;
+                    }
+
+                    col-gun-sticker-case := LineEdit {
+                        width: rect-width / 2 - pad-main-window;
+                        placeholder-text: "example: A";
+                        text: sheet-info.col-gun-sticker-case;
+                        font-size: LineEdit-font-size;
+                        height: element-height;
+                        horizontal-alignment: center;
+                    }
+                }
+
+                hr { 
+                    width: rect-width - pad-elements;
+                    y: element-height + pad-elements / 1.5;
+                }
+
+                // Skin Name
+                HorizontalLayout {
+                    height: element-height;
+                    width: rect-width;
+                    y: pad-elements + element-height;
+                    x: pad-main-window;
+
+                    Descriptors {
+                        text: "Column | Skin/Name";
+                        width: rect-width / 2 - pad-main-window;
+                        height: element-height;
+                    }
+
+                    col-skin-name := LineEdit {
+                        width: rect-width / 2 - pad-main-window;
+                        placeholder-text: "example: B";
+                        font-size: LineEdit-font-size;
+                        text: sheet-info.col-skin-name;
+                        height: element-height;
+                        horizontal-alignment: center;
+                    }
+                }
+
+                hr { 
+                    width: rect-width - pad-elements;
+                    y: element-height * 2 + pad-elements * 2 / 1.5 + 1px;
+                }
+
+                // Column Wear
+                HorizontalLayout {
+                    height: element-height;
+                    width: rect-width;
+                    y: pad-elements * 3 + element-height;
+                    x: pad-main-window;
+
+                    Descriptors {
+                        text: "Column | Name Of Wear";
+                        width: rect-width / 2 - pad-main-window;
+                        height: element-height;
+                    }
+
+                    col-wear := LineEdit {
+                        width: rect-width / 2 - pad-main-window;
+                        placeholder-text: "example: C";
+                        font-size: LineEdit-font-size;
+                        text: sheet-info.col-wear;
+                        height: element-height;
+                        horizontal-alignment: center;
+                    }
+                }
+
+                hr {
+                    width: rect-width - pad-elements;
+                    y: element-height * 3 + pad-elements * 2 + 2px;
+                }
+
+                // Column Quantity
+                HorizontalLayout {
+                    height: element-height;
+                    width: rect-width;
+                    y: pad-elements * 5 + element-height;
+                    x: pad-main-window;
+
+                    Descriptors {
+                        text: "Column | Quantity";
+                        width: rect-width / 2 - pad-main-window;
+                        height: element-height;
+                    }
+
+                    col-quantity := LineEdit {
+                        width: rect-width / 2 - pad-main-window;
+                        placeholder-text: "example: D";
+                        text: sheet-info.col-quantity;
+                        font-size: LineEdit-font-size;
+                        height: element-height;
+                        horizontal-alignment: center;
+                    }
+                }
+
+                hr {
+                    width: rect-width - pad-elements;
+                    y: element-height * 4 + pad-elements * 4 / 1.5 + 4px;
+                }
+
+                // Column Price
+                HorizontalLayout {
+                    height: element-height;
+                    width: rect-width;
+                    y: pad-elements * 7 + element-height;
+                    x: pad-main-window;
+
+                    Descriptors {
+                        text: "Column | Price";
+                        width: rect-width / 2 - pad-main-window;
+                        height: element-height;
+                    }
+
+                    col-price := LineEdit {
+                        width: rect-width / 2 - pad-main-window;
+                        placeholder-text: "example: E";
+                        text: sheet-info.col-price;
+                        font-size: LineEdit-font-size;
+                        height: element-height;
+                        horizontal-alignment: center;
+                    }
+                }
+
+                hr {
+                    width: rect-width - pad-elements;
+                    y: element-height * 5 + pad-elements * 5 / 1.5 + 5px;
+                }
+    
+                // Column Market
+                HorizontalLayout {
+                    height: element-height;
+                    width: rect-width;
+                    y: pad-elements * 9 + element-height;
+                    x: pad-main-window;
+
+                    Descriptors {
+                        text: "Column | Market [?]";
+                        width: rect-width / 2 - pad-main-window;
+                        height: element-height;
+                    }
+
+                    col-market := LineEdit {
+                        width: rect-width / 2 - pad-main-window;
+                        placeholder-text: "example: F";
+                        text: sheet-info.col-market;
+                        font-size: LineEdit-font-size;
+                        height: element-height;
+                        horizontal-alignment: center;
+                    }
+                }
+
+                hr {
+                    width: rect-width - pad-elements;
+                    y: element-height * 6 + pad-elements * 4 + 6px;
+                }
+
+                // Column URL
+                HorizontalLayout {
+                    height: element-height;
+                    width: rect-width;
+                    y: pad-elements * 11 + element-height;
+                    x: pad-main-window;
+                    
+                    Descriptors {
+                        text: "Column | URL";
+                        width: rect-width / 2 - pad-main-window;
+                    }
+
+                    col-url := LineEdit {
+                        width: rect-width / 2 - pad-main-window;
+                        placeholder-text: "example: G";
+                        text: sheet-info.col-url;
+                        font-size: LineEdit-font-size;
+                        height: element-height;
+                        horizontal-alignment: center;
+                    }
+                }
+
+                // Information text
+                HorizontalLayout {
+                    height: element-height;
+                    width: rect-width;
+                    y: pad-elements * 13 + element-height;
+                    alignment: center;
+                    
+                    Descriptors {
+                        text: "(everything but Market is mandatory)";
+                        font-italic: true;
+                        font-weight: 50;
+                    }
+                }   
+            }
+
+            // Bottom, middle size rectangle
+            RoundRectangle {
+                width: rect-width;
+                height: rect-height-normal;
+                background: muted-navy-blue;
+
+                // Flavour text
+                HorizontalLayout {
+                    height: element-height;
+                    width: rect-width;
+                    y: element-height - pad-elements;
+                    alignment: center;
+
+                    Descriptors {
+                        text: "Preferred Markets (From Most To Least)";
+                    }
+                }
+
+                // Prefer Markets
+                prefer-markets := MultiLineTextInput {
+                    width: rect-width - pad-main-window * 2;
+                    height: element-height * 4;
+                    x: pad-main-window;
+                    y: element-height + pad-elements / 1.5;
+
+                    font-size: LineEdit-font-size;
+                    text: user-info.prefer-markets;
+                    placeholder-text: "gamerpay, buff163, dmarket, buff market, csfloat, etc...";
+                }
+
+                // Description text
+                HorizontalLayout {
+                    height: element-height;
+                    width: rect-width;
+                    y: pad-elements * 6 + element-height;
+                    alignment: center;
+                    
+                    Descriptors {
+                        text: "Seperate Each Market With A Comma ( , )";
+                        font-italic: true;
+                        font-weight: 50;
+                    }
+                }   
+
+                hr {
+                    width: rect-width - pad-elements;
+                    y: element-height * 5 + pad-elements * 4 / 1.75 + 4px;
+                }
+
+                // Sheet to update
+                HorizontalLayout {
+                    height: element-height;
+                    width: rect-width;
+                    y: pad-elements * 8 + element-height;
+                    x: pad-main-window;
+
+                    Descriptors {
+                        text: "Cell | Date/Time [?]";
+                        width: rect-width / 2 - pad-main-window;
+                        height: element-height;
+                    }
+                    
+                    rowcol-date := LineEdit {
+                        width: rect-width / 2 - pad-main-window;
+                        placeholder-text: "example: $H$8, H8, $H8, H$8";
+                        text: sheet-info.rowcol-date;
+                        font-size: LineEdit-font-size;
+                        height: element-height;
+                        horizontal-alignment: center;
+                    }
+                }
+            }
+        }
+    }   
+}

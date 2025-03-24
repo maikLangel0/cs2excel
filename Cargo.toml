@@ -1,0 +1,28 @@
+[package]
+name = "CS2EXCEL"
+version = "0.1.4"
+edition = "2024"
+
+[dependencies]
+rusqlite = { version = "0.34.0" }
+whoami = { version = "1.5.2" }
+serde = { version = "1.0.219", features = ["derive"] }
+serde_json = {version = "1.0.140"}
+reqwest = {version = "0.12.15", features = ["json"] }
+tokio = {version = "1.44.1" }
+scraper = { version = "0.23.1" }
+indexmap = { version = "2.8.0" }
+regex = { version = "1.11.1" }
+umya-spreadsheet = { version = "2.2.3" } 
+reqwest_cookie_store = { version = "0.8.0" }
+chrono = { version = "0.4.40" }
+slint = {version = "1.8.0"}
+rfd = {version = "0.15.3"}
+rodio = {version = "0.20.1"}
+image = { version = "0.25.5" }
+async-compat = {version = "0.2.4"}
+rand = {version = "0.9.0"}
+
+[build-dependencies]
+slint-build = "1.8.0"
+winresource = "0.1.20"
