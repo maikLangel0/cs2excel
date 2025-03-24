@@ -1,0 +1,1 @@
+My personal way to keep track of the quantity and value of my cs2 skins and items using excel. This keeps track of whats in my cs2 steam inventory aswell as automatically pricechecks the items given the users' preferred method(s)
