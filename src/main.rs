@@ -328,6 +328,10 @@ fn get_user_info_sheet_info(user_ui: &UserInfoUI, sheet_ui: &SheetInfoUI) -> Res
         err_text.push_str("Column market is invalid, needs to be only A-Z letter(s) or empty.\n");
     }
 
+    if !err_text.is_empty() {
+        return Err( err_text )
+    }
+
     let user = UserInfo {
         appid,
         steamid,
@@ -364,11 +368,7 @@ fn get_user_info_sheet_info(user_ui: &UserInfoUI, sheet_ui: &SheetInfoUI) -> Res
         },
         row_stop_write_in_table
     };
-
-    if !err_text.is_empty() {
-        return Err( err_text )
-    }
-
+    
     Ok((user, sheet))
 }
 
