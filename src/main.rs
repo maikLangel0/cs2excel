@@ -206,7 +206,7 @@ fn set_user_info_sheet_info(user: &UserInfo, params: &SheetInfo, app: &slint::We
 }
 
 // Helper function to sanitize and convert from UserInfoUI -> UserInfo & SheetInfoUI -> SheetInfo
-fn get_user_info_sheet_info(user_ui: &UserInfoUI, sheet_ui: &SheetInfoUI) -> (UserInfo, SheetInfo, String) {    
+fn get_user_info_sheet_info(user_ui: &UserInfoUI, sheet_ui: &SheetInfoUI) -> Result<(UserInfo, SheetInfo), String> {    
     let mut err_text = String::new();
 
     if sheet_ui.sheet_name.is_empty() { err_text.push_str("Sheet to update/edit cannot be empty.\n") };
@@ -365,7 +365,11 @@ fn get_user_info_sheet_info(user_ui: &UserInfoUI, sheet_ui: &SheetInfoUI) -> (Us
         row_stop_write_in_table
     };
 
-    (user, sheet, err_text)
+    if !err_text.is_empty() {
+        return Err( err_text )
+    }
+
+    Ok((user, sheet))
 }
 
 fn gui() -> Result<(), Box<dyn Error>> {
@@ -407,40 +411,45 @@ fn gui() -> Result<(), Box<dyn Error>> {
     app.on_start_excel_write( {
         let app_weak = app_weak.clone();
 
-        move |user, sheet| {
-            let (user_choices, sheet_choices, err_text) = get_user_info_sheet_info(&user, &sheet);
+        move |user_ui, sheet_ui| {
+            match get_user_info_sheet_info(&user_ui, &sheet_ui) {
+                Ok((user, sheet)) => {
+                    dprintln!("USER: {:#?}\n\nSHEET: {:#?}", user, sheet);
+                    
+                    let app = app_weak.upgrade().unwrap();
+                    app.set_btn_run_enabled(false);
 
-            // err text is empty == good to go!
-            if err_text.is_empty() {
-                let app = app_weak.upgrade().unwrap();
-                app.set_btn_run_enabled(false);
-                
-                let app_weak = app_weak.clone();
-                let _ = slint::spawn_local( 
-                    Compat::new( 
-                        async move {
-                            match excelling(&user_choices, &sheet_choices, &app_weak).await {
-                                Ok(_) => { dprintln!("Finished successfully!") },
-                                Err(e) => { 
-                                    app_weak.upgrade()
-                                        .unwrap()
-                                        .set_gui_output_text( 
-                                            format!("Error! : {}", e).into() 
-                                        );
-                                    eprintln!("Error! : {}", e);
+                    let app_weak = app_weak.clone();
+                    let _ = slint::spawn_local( 
+                        
+                        Compat::new( 
+                            async move {
+                                
+                                match excelling(&user, &sheet, &app_weak).await {
+                                    Ok(_) => { dprintln!("Finished successfully!") },
+                                    Err(e) => { 
+                                        app_weak.upgrade()
+                                            .unwrap()
+                                            .set_gui_output_text( 
+                                                format!("Error! : {}", e).into() 
+                                            );
+                                        eprintln!("Error! : {}", e);
+                                    }
                                 }
-                            }
-                            app.set_progress( 0.0 );
-                            app.set_btn_run_enabled(true);
-                        }
-                    )
-                );
-            } // err text not empty veri bad veri bad
-            else {
-                let app = app_weak.upgrade().unwrap();
+                                app.set_progress( 0.0 );
+                                app.set_btn_run_enabled(true);
 
-                app.set_gui_output_text( "".into() );
-                app.set_gui_output_text( err_text.into() );
+                            }
+                        )
+
+                    ); 
+                },
+                Err(err_text) => {
+                    let app = app_weak.upgrade().unwrap();
+
+                    app.set_gui_output_text( "".into() );
+                    app.set_gui_output_text( err_text.into() );
+                }
             }
         }
     });
@@ -509,28 +518,29 @@ fn gui() -> Result<(), Box<dyn Error>> {
         let app = app_weak.upgrade().unwrap();
 
         move |user_ui, sheet_ui| {
-            let (user, sheet, err_text) = get_user_info_sheet_info(&user_ui, &sheet_ui);
-            if !err_text.is_empty() {
-                app.set_gui_output_text( err_text.into() );
-                return;
-            }
+            match get_user_info_sheet_info(&user_ui, &sheet_ui) {
+                Ok((user, sheet)) => {
+                    let data = SaveLoad {user, sheet};
 
-            let data = SaveLoad {user, sheet};
+                    // Uses fileDialog crate to pick file and convert it to string
+                    let file_path = FileDialog::new()
+                        .add_filter("JSON Files", &["json"])
+                        .set_title("Save .json file")
+                        .save_file();
 
-            // Uses fileDialog crate to pick file and convert it to string
-            let file_path = FileDialog::new()
-                .add_filter("JSON Files", &["json"])
-                .set_title("Save .json file")
-                .save_file();
-
-            if let Some(path) = file_path {
-                if let Ok(file) = File::create(path) {
-                    if serde_json::to_writer_pretty(&file, &data).is_ok() {
-                        app.set_gui_output_text( "Saved successfully!".into() );
+                    if let Some(path) = file_path {
+                        if let Ok(file) = File::create(path) {
+                            if serde_json::to_writer_pretty(&file, &data).is_ok() {
+                                app.set_gui_output_text( "Saved successfully!".into() );
+                            }
+                            else { app.set_gui_output_text( "Error! : Save Failed.".into() ) }
+                        } else { app.set_gui_output_text( "Error! : Failed to create new file.".into() ) }
                     }
-                    else { app.set_gui_output_text( "Error! : Save Failed.".into() ) }
-                } else { app.set_gui_output_text( "Error! : Failed to create new file.".into() ) }
-            }
+                },
+                Err(err_text) => {
+                    app.set_gui_output_text( err_text.into() )
+                }
+            } 
         }
     });
 
