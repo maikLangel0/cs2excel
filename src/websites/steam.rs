@@ -29,7 +29,7 @@ impl SteamInventory {
             return Err( "Oopsie JSON data is null! steamID and/or gameID might be wrong double check pls thank you!".into() );
         }
 
-        let data = from_value::<SteamJson>(steam_response)?;
+        let data = from_value::<SteamJson>(steam_response).map_err(|e| format!("Parsing the json data from steam into the SteamJson struct did not work!\n{}", e) )?;
         Ok(SteamInventory { data })
     }
 
@@ -44,7 +44,9 @@ impl SteamInventory {
         // Should be safe to unwrap here as steam would need to change the JSON for this to panic
         for asset in &self.data.assets {
             for desc in &self.data.descriptions {
-                if asset.get("classid").unwrap() == desc.get("classid").unwrap() { //if "classid"s correlate, can fetch metadata for the skin/item from item_descriptions
+                if asset.get("classid").ok_or( format!("'classid' not found in the asset |{:#?}| from the steam json WHAT", asset.as_str()) )? 
+                == desc.get("classid").ok_or(  format!("'classid' not found in the description |{:#?}| from the steam json WHAT", desc.as_str()) )? 
+                { //if "classid"s correlate, can fetch metadata for the skin/item from item_descriptions
                     let empty : Vec<Value> = Vec::new();
                     let tradable: i64 = desc.get("tradable").and_then( |v| v.as_i64() ).unwrap_or( 0 ); 
                     let owner: &Vec<Value> = desc.get("owner_descriptions").and_then( |v| v.as_array() ).unwrap_or( &empty ); 

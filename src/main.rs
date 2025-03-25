@@ -287,10 +287,9 @@ fn get_user_info_sheet_info(user_ui: &UserInfoUI, sheet_ui: &SheetInfoUI) -> Res
     let rowcol_usd_to_x = { 
         let utx = sheet_ui.rowcol_usd_to_x.trim().to_string();
         
-        if ( !utx.chars().rev().take(1).any( |c| c.is_numeric() ) && utx.len() != 1          ) ||
-           ( !utx.chars().take(1).any( |c| c.is_alphabetic() || c == '$' ) && utx.len() != 1 ) {
+        if ( !utx.chars().rev().take(1).any( |c| c.is_numeric() ) && utx.len() != 1 ) || ( !utx.chars().take(1).any( |c| c.is_alphabetic() || c == '$' ) && utx.len() != 1 ) {
             err_text.push_str("Cell USD to x conversion is invalid, needs to be valid Cell coordinates, or 1.\n");
-            String::from("1")
+            utx
         } else {
             utx
         }
@@ -303,7 +302,7 @@ fn get_user_info_sheet_info(user_ui: &UserInfoUI, sheet_ui: &SheetInfoUI) -> Res
             if ( !date.chars().rev().take(1).any( |c| c.is_numeric() ) && date.len() != 1          ) ||
                ( !date.chars().take(1).any( |c| c.is_alphabetic() || c == '$' ) && date.len() != 1 ) {
                 err_text.push_str("Cell date is invalid, needs to be valid Cell coordinates, or 1.\n");
-                Some(String::from("1"))
+                None
             } 
             else { Some(date) }
         } else { None }
@@ -360,9 +359,7 @@ fn get_user_info_sheet_info(user_ui: &UserInfoUI, sheet_ui: &SheetInfoUI) -> Res
         col_wear: sheet_ui.col_wear.trim().to_string(),
         col_price: sheet_ui.col_price.trim().to_string(),
         col_quantity: sheet_ui.col_quantity.trim().to_string(),
-
         rowcol_date,
-        
         col_market: if sheet_ui.col_market.is_empty() { None } else {
             Some( sheet_ui.col_market.trim().to_string() )
         },

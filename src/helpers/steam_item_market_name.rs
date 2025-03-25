@@ -13,7 +13,7 @@ pub fn cs_get_metadata_from_market_name(s_m_n: &str) -> Result<[String; 3], Box<
     let mut skin_name;
     let mut wear: String = String::new();
 
-    let mut name = String::with_capacity(s_m_n.len());
+    let mut name = String::with_capacity( s_m_n.len() );
 
     for c in s_m_n.chars() {
         match c {
@@ -40,7 +40,7 @@ pub fn cs_get_metadata_from_market_name(s_m_n: &str) -> Result<[String; 3], Box<
 
         let p_len = parts.len();
 
-        // Charms and patches ()
+        // Charms and patches
         if name.starts_with("charm") || name.starts_with("patch") {
             gun_sticker_case = parts[0].clone();
             skin_name = parts[1..].join(" ");
@@ -221,5 +221,5 @@ pub fn cs_get_metadata_from_market_name(s_m_n: &str) -> Result<[String; 3], Box<
             .unwrap_or(&"")
             .to_string();
     }   
-    return Ok([gun_sticker_case, skin_name, wear]);
+    Ok([gun_sticker_case, skin_name, wear])
 }
