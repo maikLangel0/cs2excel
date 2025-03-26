@@ -6,7 +6,10 @@ pub static SPECIAL: LazyLock<HashSet<&'static str>> = LazyLock::new(|| HashSet::
 ]));
 
 pub static WEARS: LazyLock<HashSet<&'static str>> = LazyLock::new(|| HashSet::from([
-    "factory new", "minimal wear", "field-tested", "well-worn", "battle-scarred"
+    "factory new", "minimal wear", "field-tested", "well-worn", "battle-scarred", "battle green",
+    "bazooka pink", "blood red", "brick red", "cash green", "desert amber", "dust brown", "frog green", 
+    "jungle green", "monarch blue", "monster purple", "princess pink", "shark white", "swat blue", 
+    "tiger orange", "tracer yellow", "violent violet", "war pig pink", "wire blue"
 ]));
 
 pub static FINISHES: LazyLock<HashSet<&'static str>> = LazyLock::new(|| HashSet::from([
@@ -24,5 +27,5 @@ pub static WEAPON_ABBRIV: LazyLock<HashMap<&'static str, &'static str>> = LazyLo
     ("sg 553", "sg"), ("ssg 08", "ssg"), ("usp-s", "usp"), ("m4a1-s", "m4a1"),
     ("glock-18", "glock"), ("xm1014", "xm"), ("ump-45", "ump"), ("zeus x27", "zeus"),
     ("ak-47", "ak"), ("tec-9", "tec9"), ("m9 bayonet", "m9"), ("cz-75 auto", "cz"),
-    ("g3sg1", "g3")
+    ("g3sg1", "g3"), ("sealed graffiti", "graffiti")
 ]));

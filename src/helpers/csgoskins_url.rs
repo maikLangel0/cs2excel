@@ -8,7 +8,7 @@ pub fn create_csgoskins_urls(s_m_n: &str) -> Result<String, Box<dyn Error>> {
 
     for c in s_m_n.chars() {
         match c {
-            '\'' | '™' | '★' | '.' | '&' | '$' => continue,
+            '\'' | '™' | '★' | '.' | '&' | '$' | ':' | '+' => continue,
             _ => name.push(c.to_ascii_lowercase())
         }
     }
@@ -31,7 +31,7 @@ pub fn create_csgoskins_urls(s_m_n: &str) -> Result<String, Box<dyn Error>> {
     
         let parts = name.split("(")
             .map(|n| n.to_string())
-            .collect::<Vec<String>>();
+            .collect::<Vec<_>>();
 
         let wear = parts[1][0..parts[1].len() - 1]
             .to_string();
@@ -72,6 +72,10 @@ pub fn create_csgoskins_urls(s_m_n: &str) -> Result<String, Box<dyn Error>> {
             &wear.replace(" ", "-")
         )
         .replace("--", "-"));
+    }
+    // annoying edgecase where swap tool and statrak music boxes do not format the same as other stattrak items
+    else if name.ends_with("swap tool") || name.ends_with("box") {
+        url = name.replace(" ", "-");
     }
 
     else {
