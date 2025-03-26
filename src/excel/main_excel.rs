@@ -230,20 +230,6 @@ async fn cs_excel(user: &UserInfo, excel: &SheetInfo, app_weak: &slint::Weak<App
         }
     }
 
-    /* Thought behind this: 
-    row_start_table is the absolute row where the table begins (Ex: row 40).
-    row_start_write_in_table specifies which row INSIDE THE TABLE to start writing at.
-    Since us hue-mans count table rows from 1, but machines count from 0,
-        I subtract 1 to align the logic with spreadsheet row numbering.
-    */
-    let row_write = (excel.row_start_table + excel.row_start_write_in_table) as usize - 1;
-    
-    let row_stop: usize;
-    if let Some(stop) = excel.row_stop_write_in_table {
-        if stop < row_write as u32 { row_stop = row_write } 
-        else                       { row_stop = (excel.row_start_table + stop) as usize - 1 }
-    } else                         { row_stop = sheet_urls_quantities.len() }
-
     // EITHER fetch conversion rate from spreadsheet, or if excel.rowcol_usd_to_x is only numbers, use that as conversion rate
     // Had to make dumbass workaround cuz for some reason get_value_number() wouldn't work twice in a row...
     let convertion_rate: f64;
@@ -259,7 +245,22 @@ async fn cs_excel(user: &UserInfo, excel: &SheetInfo, app_weak: &slint::Weak<App
             .map_err(|_| "Failed to parse conversion rate as an f64 of custom conversion rate fetched from spreadsheet." )?
     }
 
+    /* Thought behind this: 
+    row_start_table is the absolute row where the table begins (Ex: row 40).
+    row_start_write_in_table specifies which row INSIDE THE TABLE to start writing at.
+    Since us hue-mans count table rows from 1, but machines count from 0,
+        I subtract 1 to align the logic with spreadsheet row numbering.
+    */
+    let row_write = (excel.row_start_table + excel.row_start_write_in_table) as usize - 1;
+    
+    let row_stop: usize;
+    if let Some(stop) = excel.row_stop_write_in_table {
+        if stop < row_write as u32 { row_stop = row_write } 
+        else                       { row_stop = (excel.row_start_table + stop) as usize - 1 }
+    } else                         { row_stop = sheet_urls_quantities.len() + 1 }                   // <------ EXPERIMENTAL
+
     let iterations = row_stop + 1 - row_write;
+    dprintln!("ITERATIONS: {}\n", iterations);
 
     // Second loop. Updates prices and market (if market is set) in sheet
     // THIS IS ONLY FOR CSGOSKINS.GG AS OF NOW.
@@ -370,19 +371,13 @@ async fn cs_excel(user: &UserInfo, excel: &SheetInfo, app_weak: &slint::Weak<App
         if !date.trim().is_empty() {
             let time = Local::now()
                 .format("%d/%m/%Y %H:%M:%S")
-                .to_string();   
+                .to_string();
 
-            dprintln!("Checking date cell value");
-
-            if sheet.get_cell( date.as_str() ).is_some() {
-                sheet.get_cell_value_mut( date.as_str() )
-                    .set_value_string(&time);
-            } else {
-                output_text.push_str( &format!("Date was not written as coordinates given are invalid: {}\n", date) );
-            }
+            sheet.get_cell_value_mut( date.as_str() ) // THIS WILL CRASH IF CELL VALUE IS TOO LARGE!
+                .set_value_string(&time);
         }
     }
-    // TODO: MAKE THE ABOVE CODE SAFE SO IT DOESNT PANIC MAIN!
+    // TODO: MAKE THE ABOVE CODE SAFE SO IT DOESNT PANIC MAIN! realized this isnt possible as library doesnt have a way to fetch values and return an option or result :(
 
     // WRITING TO THE SPREADSHEET WOWIE
     writer::xlsx::write(&book, &excel.path_to_sheet)?;
