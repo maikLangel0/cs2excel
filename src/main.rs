@@ -1,5 +1,5 @@
 mod excel;
-use excel::get_spreadsheet;
+use excel::{get_exceldata, get_spreadsheet};
 
 mod models;
 use models::{
@@ -30,10 +30,10 @@ use umya_spreadsheet::{Spreadsheet, Worksheet};
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
     // Path to my main invest: C:\Users\Mikae\OneDrive\Skrivebord\workbook
-    let sheet: SheetInfo = SHEET.clone();
+    let excel: SheetInfo = SHEET.clone();
     let user: UserInfo = USER.clone();
 
-    is_sheetinfo_valid(&sheet)?;
+    is_sheetinfo_valid(&excel)?;
 
     if !user.update_prices && !user.update_steam {
         // just to test encode produces the same result
@@ -68,18 +68,25 @@ async fn main() -> Result<(), Box<dyn Error>> {
     // BIG BRAIN; READ THE EXCEL SPREADSHEET FIRST TO GET ALL THE INFO AND THEN GET PRICES WOWOWO
     
     // Getting the Worksheet from either existing book or new book
-    let mut book: Spreadsheet = get_spreadsheet(&sheet.path_to_sheet)?;
+    let mut book: Spreadsheet = get_spreadsheet(&excel.path_to_sheet)?;
     let sheet: &mut Worksheet = {
-        if let Some(sn) = &sheet.sheet_name { 
+        if let Some(sn) = &excel.sheet_name { 
             if let Some(buk) = book.get_sheet_by_name_mut(sn) { buk } 
             else {
                 println!("WARNING: Automatically fetched first sheet in spreadsheet because {} was not found.", sn);
                 book.get_sheet_mut(&0).ok_or_else(|| format!(
-                    "Failed to get the first sheet in the spreadsheet with path: \n{:?}", sheet.path_to_sheet)
+                    "Failed to get the first sheet in the spreadsheet with path: \n{:?}", excel.path_to_sheet)
                 )? 
             }  
         } else { book.get_sheet_mut(&0).ok_or("Failed to get first sheet provided by new_file creation.")? }
     };
+
+    let exceldata = get_exceldata(sheet, &excel)?;
+    println!("{:#?}", exceldata);
+
+    if exceldata.is_empty() {
+        return Ok(());
+    }
 
     let rate: f64 = get_exchange_rate(&user.usd_to_x).await?;
     let steamcookie: Option<String> = get_steamloginsecure(&user.steamloginsecure);

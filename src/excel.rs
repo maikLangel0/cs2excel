@@ -26,5 +26,63 @@ pub fn set_spreadsheet(path: &Option<PathBuf>, book: Spreadsheet) -> Result<(), 
 }
 
 pub fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo) -> Result<Vec<ExcelData>, String> {
-    todo!()
+    let mut exceldata: Vec<ExcelData> = Vec::new();
+    let mut iter = excel.row_start_write_in_table;
+
+    loop {
+        let name_cell = format!("{}{}", excel.col_market_name, iter);
+        let price_cell = format!("{}{}", excel.col_price, iter);
+
+        let name = {
+            if let Some(cell) = sheet.get_cell(name_cell) {
+                cell.get_raw_value().to_string()
+            } else { break }
+        };
+
+        let price = {
+            if let Some(cell) = sheet.get_cell(price_cell) {
+                cell.get_raw_value()
+                    .to_string()
+                    .parse::<f64>()
+                    .map_err(|_| "Price failed parsing")?
+            } else { break }
+        };
+
+        let inspect_link = {
+            if let Some(inspect) = &excel.col_inspect_link {
+                let cell_inspect = format!("{}{}", inspect, &iter);
+
+                if let Some(cell) = sheet.get_cell(cell_inspect) {
+                    Some( cell.get_raw_value().to_string() )  
+                } 
+                else { None }
+            } else { None }
+        };
+
+        let quantity = {
+            if let Some(quant) = &excel.col_quantity {
+                let cell_quantity = format!("{}{}", quant, &iter);
+
+                if let Some(cell) = sheet.get_cell(cell_quantity) {
+                    Some( 
+                        cell.get_raw_value()
+                            .to_string()
+                            .parse::<f64>()
+                            .map_err(|_| "Quantity failed parsing")?
+                    )
+                }
+                else { None }
+            } else { None }
+        };
+
+        exceldata.push( ExcelData{ name, price, quantity, inspect_link } );
+       
+        iter += 1;
+    }
+
+    if exceldata.iter().all( |data| data.quantity.is_none() && data.inspect_link.is_none() ) && iter > 5 {
+        return Err( String::from("Both quantity and inspect_link column are completely empty!") );
+    }
+
+    Ok(exceldata)
 }
