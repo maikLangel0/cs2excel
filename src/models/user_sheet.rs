@@ -40,5 +40,8 @@ pub struct SheetInfo {
     pub col_quantity: Option<String>, // Column for the item quantity
     pub col_inspect_link: Option<String>,
     pub col_csgoskins_link: Option<String>,
-    pub col_special: Option<String>, // IF YOU WANT THE CORRECT DOPPLER PRICES, SET THIS ROW
+    pub col_phase: Option<String>, // IF YOU WANT THE CORRECT DOPPLER PRICES, SET THIS ROW
+    pub col_pattern: Option<String>,
+    pub col_float: Option<String>,
+
 }

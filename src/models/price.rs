@@ -101,8 +101,8 @@ impl Currencies {
 
 //--------------------
 
-#[derive(Debug, Serialize, Deserialize, EnumIter)]
-pub enum Dopplers {
+#[derive(Debug, Serialize, Deserialize, EnumIter, PartialEq)]
+pub enum Doppler {
     Phase1,
     Phase2,
     Phase3,
@@ -112,11 +112,11 @@ pub enum Dopplers {
     BlackPearl,
     Emerald
 }
-impl FromStr for Dopplers {
+impl FromStr for Doppler {
     type Err = String;
     
     fn from_str(s: &str) -> Result<Self, String> {
-        match s.to_lowercase().trim() {
+        match s.to_lowercase().split_whitespace().collect::<String>().as_str() {
             "phase1" => Ok(Self::Phase1),
             "phase2" => Ok(Self::Phase2),
             "phase3" => Ok(Self::Phase3),
@@ -129,17 +129,17 @@ impl FromStr for Dopplers {
         }
     }
 }
-impl Dopplers {
+impl Doppler {
     pub fn as_str(&self) -> &'static str {
         match self {
-            Dopplers::Sapphire => "Sapphire",
-            Dopplers::Ruby => "Ruby",
-            Dopplers::BlackPearl => "Black Pearl",
-            Dopplers::Emerald => "Emerald",
-            Dopplers::Phase1 => "Phase 1",
-            Dopplers::Phase2 => "Phase 2",
-            Dopplers::Phase3 => "Phase 3",
-            Dopplers::Phase4 => "Phase 4"
+            Doppler::Sapphire => "Sapphire",
+            Doppler::Ruby => "Ruby",
+            Doppler::BlackPearl => "Black Pearl",
+            Doppler::Emerald => "Emerald",
+            Doppler::Phase1 => "Phase 1",
+            Doppler::Phase2 => "Phase 2",
+            Doppler::Phase3 => "Phase 3",
+            Doppler::Phase4 => "Phase 4"
         }
     }
     pub fn to_string(&self) -> String {

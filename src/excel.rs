@@ -1,4 +1,5 @@
 use std::{error::Error, path::PathBuf};
+use indexmap::IndexMap;
 use umya_spreadsheet::{new_file, reader, writer, Spreadsheet, Worksheet, XlsxError};
 use whoami;
 
@@ -25,8 +26,10 @@ pub fn set_spreadsheet(path: &Option<PathBuf>, book: Spreadsheet) -> Result<(), 
     Ok(())
 }
 
-pub fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo) -> Result<Vec<ExcelData>, String> {
-    let mut exceldata: Vec<ExcelData> = Vec::new();
+// pub fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo) -> Result<Vec<ExcelData>, String> {
+pub fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo) -> Result<IndexMap< String, ExcelData >, String> {
+    // let mut exceldata: Vec<ExcelData> = Vec::new();
+    let mut exceldata: IndexMap<String, ExcelData> = IndexMap::new();
     let mut iter = excel.row_start_write_in_table;
 
     loop {
@@ -75,14 +78,26 @@ pub fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo) -> Result<Vec<Exc
             } else { None }
         };
 
-        exceldata.push( ExcelData{ name, price, quantity, inspect_link } );
-       
+        let phase = {
+            if let Some(special) = &excel.col_phase {
+                let cell_special = format!("{}{}", special, &iter);
+
+                if let Some(cell) = sheet.get_cell(cell_special) {
+                    Some( cell.get_raw_value().to_string() )
+                }
+                else { None }
+            } else { None }
+        };
+
+        // exceldata.push( ExcelData{ name, price, quantity, inspect_link, special } );
+        exceldata.insert(name, ExcelData{price, quantity, inspect_link, phase} );
+
         iter += 1;
     }
 
-    if exceldata.iter().all( |data| data.quantity.is_none() && data.inspect_link.is_none() ) && iter > 5 {
-        return Err( String::from("Both quantity and inspect_link column are completely empty!") );
-    }
+    // if exceldata.iter().all( |data| data.quantity.is_none() && data.inspect_link.is_none() ) && iter > 5 {
+        // return Err( String::from("Both quantity and inspect_link column are completely empty!") );
+    // }
 
     Ok(exceldata)
 }

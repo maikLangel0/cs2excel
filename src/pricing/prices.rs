@@ -14,10 +14,12 @@ use crate::{
 
 use super::price_csgotrader;
 
-pub async fn get_prices(user: &UserInfo, cs_inventory: &Vec<SteamData>, rate: f64) -> Result<Vec<ItemData>, String> {
+//pub async fn get_prices(user: &UserInfo, cs_inventory: &Vec<SteamData>, rate: f64) -> Result<Vec<ItemData>, String> {
+pub async fn get_prices(user: &UserInfo, cs_inventory: &Vec<SteamData>, rate: f64) -> Result<HashMap<String, ItemData>, String> {
     // Initialization woohoo
     let mut market_prices: Value;
-    let mut itemdata: Vec<ItemData> = Vec::new();
+    let mut itemdata: HashMap<String, ItemData> = HashMap::new();
+    //let mut itemdata: Vec<ItemData> = Vec::new();
     let mut all_market_prices: HashMap<String, Value> = HashMap::new();
     
     // Formaterer alle markeder til å være Vec<Sites> i stedet for å måtte bruke Sites::iter() 1/2 av gangene
@@ -42,22 +44,33 @@ pub async fn get_prices(user: &UserInfo, cs_inventory: &Vec<SteamData>, rate: f6
         // Hver iterasjon hentes prisen til item'et gitt navnet, dataen om selve markedet sine priser, og hvilken pristype man velger
         for market in &markets_to_check {
             if let Some(market_prices) = all_market_prices.get( market.as_str() ) {
-                if let Some(price) = price_csgotrader::get_price(&item.name, &market_prices, &PriceType::StartingAt, None) {
+                if let Some(price) = price_csgotrader::get_price(&item.name, &market_prices, &PriceType::StartingAt, &None) {
                     prices.insert(market.to_string(), price * rate);
                 }
             }
         }
 
-        itemdata.push( 
-            ItemData {
-                name: item.name.clone(),
-                asset_id: item.asset_id,
-                price: prices,
-                inspect_link: item.inspect_link.clone(),
-                quantity: item.quantity,
-            } 
+        // itemdata.push( 
+            // ItemData {
+                // name: item.name.clone(),
+                // asset_id: item.asset_id,
+                // price: prices,
+                // inspect_link: item.inspect_link.clone(),
+                // quantity: item.quantity,
+            // } 
+        // );
+
+        itemdata.insert(
+            item.name.clone(), 
+            ItemData { 
+                asset_id: item.asset_id, 
+                price: prices, 
+                inspect_link: item.inspect_link.clone(), 
+                quantity: item.quantity 
+            }
         );
     };
+
     Ok(itemdata)
 }
 
@@ -79,5 +92,5 @@ pub async fn get_itemdata(user: &UserInfo, steamdata: &SteamData, rate: f64, /* 
         all_market_prices.insert(market.to_string(), market_prices);
     }
 
-    Ok(ItemData { name: todo!(), asset_id: todo!(), price: todo!(), inspect_link: todo!(), quantity: todo!()  })
+    Ok(ItemData { asset_id: todo!(), price: todo!(), inspect_link: todo!(), quantity: todo!()  })
 }

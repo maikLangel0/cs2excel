@@ -61,13 +61,16 @@ pub async fn get_market_data(market: &Sites) -> Result<Value, String> {
 }
 
 //
-pub async fn get_iteminfo(inspect_link: String) -> Result<Value, String> {
+pub async fn get_iteminfo(inspect_link: &String) -> Result<Value, String> {
     let client = Client::new();
 
+    //println!("https://api.csgotrader.app/float?url={}", urlencoding::encode(inspect_link));
+
     // Sending the GET request trying to mimic the one used by the csgotrader.app extension
-    let response = client.get( format!("https://api.csgotrader.app/float?url={}", urlencoding::encode(&inspect_link) ))
+    let response = client.get( format!("https://api.csgotrader.app/float?url={}", urlencoding::encode(inspect_link) ))
         .headers( FIREFOX_CSGOTRADERAPP_HEADERS_DEFAULT.to_owned() )
         .header( header::HOST, "api.csgotrader.app" )
+        .header( header::ACCEPT_ENCODING, "gzip")
         .send()
         .await.map_err(|e| format!("Error sending GET request to the csgotraderapp price API. {}", e))?;
 
@@ -79,10 +82,14 @@ pub async fn get_iteminfo(inspect_link: String) -> Result<Value, String> {
     let mut raw_data = String::new();
     GzDecoder::new(&bytes[..])
         .read_to_string(&mut raw_data)
-        .map_err(|e| format!("Error decoding the gzipped bytes from the csgotraderapp API. {}", e))?;
+        .map_err(|e| format!("Error decoding the gzipped bytes from the csgotraderapp float API. {}", e))?;
 
-    let iteminfo: Value = serde_json::from_str(&raw_data)         
+    let value: Value = serde_json::from_str(&raw_data)         
         .map_err(|e| format!("Parsing the decoded gzip given the inspect link {:?} response to hashmap failed. {}", inspect_link, e))?;
+
+    let iteminfo = value.get("iteminfo")
+        .ok_or( String::from("Couldn't get iteminfo from csgotraderapp float API"))?
+        .clone();
 
     Ok(iteminfo)
 }

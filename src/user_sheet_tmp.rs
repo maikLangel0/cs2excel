@@ -16,15 +16,17 @@ pub static SHEET: LazyLock<SheetInfo> = LazyLock::new(|| {
         col_gun_sticker_case: Some( String::from("B") ),
         col_skin_name: Some( String::from("C") ),
         col_wear: Some( String::from("D") ),
-        col_special: Some( String::from( "E" )),
-        col_quantity: Some( String::from("F") ),
-        col_already_sold: Some( String::from("J") ),
-        col_price: String::from("M"),
-        col_market: Some( String::from("N") ),
-        col_inspect_link: Some( String::from("S") ),
-        col_csgoskins_link: Some( String::from("T") ),
-        rowcol_date: Some( String::from("$U$2") ),
-        rowcol_usd_to_x: Some( String::from("$U$3") ),
+        col_float: Some( String::from("E") ),
+        col_pattern: Some( String::from("F") ),
+        col_phase: Some( String::from("G") ),
+        col_quantity: Some( String::from("I") ),      // I
+        col_already_sold: Some( String::from("M") ),  // M
+        col_price: String::from("Q"),                 // Q
+        col_market: Some( String::from("R") ),        // R
+        col_inspect_link: Some( String::from("W") ),  // W
+        col_csgoskins_link: Some( String::from("X") ),// X
+        rowcol_date: Some( String::from("$Y$2") ),    // y
+        rowcol_usd_to_x: Some( String::from("$Y$3") ),
     }
 }); 
 
