@@ -553,44 +553,7 @@ fn gui() -> Result<(), Box<dyn Error>> {
 
 //#[tokio::main]
 fn main() -> Result<(), Box<dyn Error>> {
-
-    // let user = UserInfo{
-        // update_prices: true,
-        // fetch_steam: true,
-        // appid: 730,
-        // steamid: 76561198389123475,
-        // steamloginsecure: None,
-        // percent_threshold: 5, // If 0, take cheapest out of prefer_markets
-        // pause_time_ms: 1800,
-        // prefer_markets: vec!["csfloat", "buff163", "gamerpay", "buff market"]
-            // .iter()
-            // .map(|market| market.to_string())
-            // .collect(),
-        // ignore_urls: vec!["https://csgoskins.gg/items/ak-47-blue-laminate/field-tested", "https://csgoskins.gg/items/m4a1-s-guardian/minimal-wear", "https://csgoskins.gg/items/awp-sun-in-leo/factory-new"]
-            // .iter()
-            // .map(|url| url.to_string())
-            // .collect(),
-    // };
-// 
-    // let excel_params = SheetInfo {
-        // path_to_sheet: PathBuf::from("C:\\Users\\Mikae\\OneDrive\\Skrivebord\\rusty business\\http_stuff\\src\\workbook\\CS2_invest_sheet_alt_main.xlsx"),
-        // sheet_name: "Main".to_string(),
-        // row_start_table: 2,
-        // row_start_write_in_table: 1,
-        // row_stop_write_in_table: None,
-        // rowcol_usd_to_x: "T8".to_string(),
-        // rowcol_date: Some("$S$2".to_string()),
-        // col_url: "Q".to_string(),
-        // col_market: Some("".to_string()),
-        // col_price: "M".to_string(),
-        // col_quantity: "F".to_string(),
-        // col_gun_sticker_case: "A".to_string(),
-        // col_skin_name: "B".to_string(),
-        // col_wear: "C".to_string(),
-    // };
-
     gui()?;
-    
     Ok(())
 }
 
