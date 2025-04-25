@@ -1,4 +1,4 @@
-NOTE: DOES NOT WORK ANYMORE, THATS WHY ITS PUBLIC. 
+NOTE: DOES NOT WORK ANYMORE.
 
 This was made to be ethical, in the sense that overloading or sending a ton of requests at the same time was not possible out of respect to the website used. This was not distributed nor used en masse. 
 
