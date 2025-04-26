@@ -18,8 +18,9 @@ pub struct UserInfo {
     pub percent_threshold: u8, 
     pub group_simular_items: bool,
     pub sum_quantity_prices: bool,
-    pub update_prices: bool, 
-    pub update_steam: bool
+    pub fetch_more_iteminfo: bool,
+    pub fetch_prices: bool, 
+    pub fetch_steam: bool
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -36,6 +37,7 @@ pub struct SheetInfo {
     pub sheet_name: Option<String>, // Name of the sheet user wants to access
     pub col_already_sold: Option<String>, // IF PROVIDED, ignore updating price of stuff that is already sold
     pub col_market_name: String, // Column where the full market name to the site used to pricecheck is
+    pub col_asset_id: String, // UNIQUE IDENTIFIER!
     pub col_price: String, // Column for the price of item
     pub col_quantity: Option<String>, // Column for the item quantity
     pub col_inspect_link: Option<String>,

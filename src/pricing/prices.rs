@@ -44,7 +44,7 @@ pub async fn get_prices(user: &UserInfo, cs_inventory: &Vec<SteamData>, rate: f6
         // Hver iterasjon hentes prisen til item'et gitt navnet, dataen om selve markedet sine priser, og hvilken pristype man velger
         for market in &markets_to_check {
             if let Some(market_prices) = all_market_prices.get( market.as_str() ) {
-                if let Some(price) = price_csgotrader::get_price(&item.name, &market_prices, &PriceType::StartingAt, &None) {
+                if let Some(price) = price_csgotrader::get_price(&item.name, &market_prices, market, &PriceType::StartingAt, &None) {
                     prices.insert(market.to_string(), price * rate);
                 }
             }

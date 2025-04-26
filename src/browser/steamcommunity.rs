@@ -32,7 +32,7 @@ impl SteamInventory {
     /// 
     ///`marketable` is true if you only want items from inventory that can be traded and/or listed to the community market.
     pub fn get_steam_items(self: &SteamInventory, steamid: u64, group_simular_items: bool, marketable: bool) -> Result<Vec<SteamData>, String> { 
-        let mut market_names: Vec<( &str, Option<String>, u64 )> = Vec::new(); // name & inspect link & asset id
+        let mut market_names: Vec<( &str, Option<String>, u64, u64 )> = Vec::new(); // name & inspect link & asset id
         
         for asset in &self.data.assets {
             for desc in &self.data.descriptions {
@@ -60,6 +60,13 @@ impl SteamInventory {
                         .parse::<u64>()
                         .unwrap();
 
+                        let instance_id: u64 = asset.get("instanceid")
+                        .unwrap_or( &Value::Null )
+                        .as_str()
+                        .unwrap_or( &"0" )
+                        .parse::<u64>()
+                        .unwrap();
+
                     let inspect: Option<String> = desc.get("actions")
                         .and_then( |v| v.as_array() )
                         .and_then( |arr| arr.first() )
@@ -70,7 +77,7 @@ impl SteamInventory {
                             .replace( "%assetid%", &asset_id.to_string() )
                         );
 
-                    market_names.push( (market_name, inspect, asset_id) );
+                    market_names.push( (market_name, inspect, asset_id, instance_id) );
                     break;
                 }
             }
@@ -79,32 +86,34 @@ impl SteamInventory {
         let mut inventory: Vec<SteamData> = Vec::new();
         
         if group_simular_items {
-            let mut name_quantity: HashMap<&str, (u16, Option<String>, u64)> = HashMap::new();
+            let mut name_quantity: HashMap<&str, (u16, Option<String>, u64, u64)> = HashMap::new();
 
-            for (name, inspect_link, asset_id) in market_names {
-                let entry = name_quantity.entry(name).or_insert( (0, inspect_link.clone(), asset_id) );
+            for (name, inspect_link, asset_id, instance_id) in market_names {
+                let entry = name_quantity.entry(name).or_insert( (0, inspect_link.clone(), asset_id, instance_id) );
                 entry.0 += 1;
             }
 
-            for (name, (quantity, inspect_link, asset_id)) in name_quantity {
+            for (name, (quantity, inspect_link, asset_id, instance_id)) in name_quantity {
                 inventory.push( 
                     SteamData { 
                         name: name.to_string(), 
                         quantity: Some(quantity), 
                         inspect_link: { if quantity == 1 { inspect_link } else { None } }, 
-                        asset_id
+                        asset_id,
+                        instance_id
                     } 
                 );
             }
         } 
         else {    
-            for (name, inspect_link, asset_id) in market_names {
+            for (name, inspect_link, asset_id, instance_id) in market_names {
                 inventory.push(
                     SteamData { 
                         name: name.to_string(), 
                         quantity: None, 
                         inspect_link, 
-                        asset_id
+                        asset_id,
+                        instance_id
                     } 
                 );
             }

@@ -6,7 +6,6 @@ use strum::EnumIter;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub enum PricingMode {
-    CheapestIfAnyCheaperThanMostPreferred,
     Cheapest,
     MostExpensive,
     Hierarchical,
@@ -18,12 +17,9 @@ impl FromStr for PricingMode {
     fn from_str(s: &str) -> Result<Self, String> {
         match s.to_lowercase().as_str() {
             "cheapest" => Ok(Self::Cheapest),
-            "cheapestifanycheaperthanmostpreferred" => Ok(Self::CheapestIfAnyCheaperThanMostPreferred),
-            "cheaperthanpreferred" => Ok(Self::CheapestIfAnyCheaperThanMostPreferred),
             "mostexpensive" => Ok(Self::MostExpensive),
             "hierarchical" => Ok(Self::Hierarchical),
             "random" => Ok(Self::Random),
-            "cheapestif" => Ok(Self::CheapestIfAnyCheaperThanMostPreferred),
             "most" => Ok(Self::MostExpensive),
             "hier" => Ok(Self::Hierarchical),
             "r" => Ok(Self::Random),

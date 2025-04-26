@@ -1,30 +1,30 @@
 use serde_json::Value;
 
-use crate::models::price::{PriceType, Doppler};
+use crate::models::{price::{Doppler, PriceType}, web::Sites};
 
-pub fn get_price(item_name: &str, prices: &Value, want: &PriceType, phase: &Option<Doppler>) -> Option<f64> {
+pub fn get_price(item_name: &str, prices: &Value, market: &Sites, want: &PriceType, phase: &Option<Doppler>) -> Option<f64> {
     if let Some(p_one) = prices.get(item_name) { 
-        // If the json is key value pair (youpin)
+        // If the json is key value pair (youpin) | doesnt have doppler prices
         if p_one.is_f64() { return p_one.as_f64() }  
         
         // One layer deep
         else if p_one.is_object() { 
             
             // If doppler phase is provided, try and find the price of that phase
-            if let Some(doppler_phase) = phase {
-                if let Some(p_two) = p_one.get("doppler") { 
-                    if let Some(phase_price) = p_two.get( doppler_phase.as_str() ) {
-                        return phase_price.as_f64();
-                    }   
-                }
-            }
+            if let Some(dp_price) = doppler_price(
+                p_one, phase, item_name, market
+            ) { return Some(dp_price) }
 
             if let Some(p_two) = p_one.get("price") { return p_two.as_f64() }
             if let Some(p_two) = p_one.get( want.as_str() ) { 
+                if p_two.is_f64() { return p_two.as_f64() } // skinport
+
+                if let Some(dp_price) = doppler_price(
+                    p_two, phase, item_name, market
+                ) { return Some(dp_price) }   // buff163 doppler price
+
                 if let Some(p_three) = p_two.get("price") { return p_three.as_f64() } 
             }
-            
-            if let Some(p_two) = p_one.get("starting_at") { return p_two.as_f64() } // skinport
 
             let steam_prices: Vec<f64> = Vec::from( [p_one.get("last_24h"),  p_one.get("last_7d"), p_one.get("last_30d"), p_one.get("last_90d")] )
                 .iter()
@@ -36,5 +36,19 @@ pub fn get_price(item_name: &str, prices: &Value, want: &PriceType, phase: &Opti
             
         }
     } 
+    None
+}
+
+fn doppler_price(p: &Value, phase: &Option<Doppler>, item_name: &str, market: &Sites) -> Option<f64> {
+    if let Some(doppler_phase) = phase {
+        if let Some(p_two) = p.get("doppler") { 
+            if let Some(phase_price) = p_two.get( doppler_phase.as_str() ) {
+                
+                println!("NOTE: doppler of type {} found but did not have active price for item {} on the site {}", doppler_phase.as_str(), item_name, market.as_str() );
+                return phase_price.as_f64();
+
+            }   
+        }
+    }
     None
 }

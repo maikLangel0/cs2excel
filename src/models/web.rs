@@ -3,7 +3,7 @@ use std::sync::LazyLock;
 use std::fmt;
 use serde::{Deserialize, Serialize};
 use strum::EnumIter;
-use reqwest::header::{HeaderMap, HeaderValue, self};
+use reqwest::header::{self, HeaderMap, HeaderValue};
 use serde_json::Value;
 
 // ------------------------------------------------------------
@@ -73,6 +73,7 @@ pub struct SteamData {
     pub quantity: Option<u16>,
     pub inspect_link: Option<String>,
     pub asset_id: u64, // IF MODE IS !GROUP_SIMULAR_ITEMS, THIS IS UNIQUE IDENTIFIER
+    pub instance_id: u64, // Used POTENTIALLY for batched float getting
 }
 
 // ------------------------------------------------------------
@@ -88,27 +89,129 @@ pub struct SteamJson {
 
 // ------------------------------------------------------------
 
-pub static FIREFOX_CSGOTRADERAPP_HEADERS_DEFAULT: LazyLock<HeaderMap> = LazyLock::new( || {
+pub static FIREFOX_CSGOTRADERAPP_HEADERS_BASE: LazyLock<HeaderMap> = LazyLock::new( || {
     let mut headers = HeaderMap::new();
                 
-    headers.append( header::ACCEPT, "*/*".parse::<HeaderValue>().unwrap() );
-    headers.append( header::ACCEPT_LANGUAGE, "en-GB,en;q=0.5".parse::<HeaderValue>().unwrap() );
-    headers.append( header::CONNECTION, "keep-alive".parse::<HeaderValue>().unwrap() );
-    headers.append(
-        header::USER_AGENT, 
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:137.0) Gecko/20100101 Firefox/137.0"
-            .parse::<HeaderValue>().unwrap() 
-    );
-    headers.append( 
-        header::ORIGIN, 
-        "moz-extension://{988dd4f5-e8d5-49bf-a766-ff75b0e19fe2}"
-            .parse::<HeaderValue>().unwrap() 
-    );
+    headers.insert( header::ACCEPT, HeaderValue::from_static("*/*") );
+    headers.insert( header::ACCEPT_LANGUAGE, HeaderValue::from_static("en-GB,en;q=0.5") );
+    headers.insert( header::CONNECTION, HeaderValue::from_static("keep-alive") );
+    headers.insert( header::USER_AGENT, HeaderValue::from_static("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:137.0) Gecko/20100101 Firefox/137.0"));
+    headers.insert( header::ORIGIN, HeaderValue::from_static("moz-extension://988dd4f5-e8d5-49bf-a766-ff75b0e19fe2") );
+    headers.insert("Sec-Fetch-Dest", HeaderValue::from_static("empty"));
+    headers.insert("Sec-Fetch-Mode", HeaderValue::from_static("cors"));
+    headers.insert("Sec-Fetch-Site", HeaderValue::from_static("same-origin"));
+    headers.insert("Priority", HeaderValue::from_static("u=4"));
+    headers.insert("TE", HeaderValue::from_static("trailers"));
     // moz-extension - https://github.com/gergelyszabo94/csgo-trader-extension/blob/master/extension/webpack.config.js
     headers
 });
 
+pub static FIREFOX_CSGOTRADERAPP_HEADERS_DEFAULT: LazyLock<HeaderMap> = LazyLock::new(|| {
+    let mut headers = HeaderMap::new();
+    //let user_agent = FIREFOX_USER_AGENTS[ rand::random_range( 0..FIREFOX_USER_AGENTS.len() )];
+
+    headers.insert( header::ACCEPT, HeaderValue::from_static("*/*"));
+    headers.insert( header::ACCEPT_LANGUAGE, HeaderValue::from_static("en-GB,en;q=0.5"));
+    headers.insert( header::ACCEPT_ENCODING, HeaderValue::from_static("gzip, deflate, br, zstd"));
+    headers.insert( header::ORIGIN, HeaderValue::from_static("moz-extension://988dd4f5-e8d5-49bf-a766-ff75b0e19fe2") );
+    headers.insert( header::CONNECTION, HeaderValue::from_static("keep-alive") );
+    headers.insert("Sec-Fetch-Dest", HeaderValue::from_static("empty"));
+    headers.insert("Sec-Fetch-Mode", HeaderValue::from_static("cors"));
+    headers.insert("Sec-Fetch-Site", HeaderValue::from_static("same-origin"));
+    headers.insert("Priority", HeaderValue::from_static("u=4"));
+    headers.insert("TE", HeaderValue::from_static("trailers"));
+    headers
+});
+
+// pub static CLIENT_FIREFOX_CSGOTRADERAPP_DEFAULT: LazyLock<Client> = LazyLock::new(|| {
+    // Client::builder()
+        // .default_headers( FIREFOX_CSGOTRADERAPP_HEADERS_DEFAULT.clone() )
+        // .build()
+        // .expect("DEFAULT CLIENT BUILDER FAILED")
+// });
+
+pub static FIREFOX_USER_AGENTS: LazyLock<[&'static str; 66]> = LazyLock::new(|| [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:137.0) Gecko/20100101 Firefox/137.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:136.0) Gecko/20100101 Firefox/136.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:135.0) Gecko/20100101 Firefox/135.0",
+    "Mozilla/5.0 (Windows NT 11.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0",
+    "Mozilla/5.0 (Windows NT 11.0; Win64; x64; rv:139.0) Gecko/20100101 Firefox/139.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:137.0) Gecko/20100101 Firefox/137.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:136.0) Gecko/20100101 Firefox/136.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 11.6; rv:138.0) Gecko/20100101 Firefox/138.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 12.0; rv:139.0) Gecko/20100101 Firefox/139.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 12.1; rv:140.0) Gecko/20100101 Firefox/140.0",
+    "Mozilla/5.0 (X11; Linux x86_64; rv:135.0) Gecko/20100101 Firefox/135.0",
+    "Mozilla/5.0 (X11; Linux x86_64; rv:136.0) Gecko/20100101 Firefox/136.0",
+    "Mozilla/5.0 (X11; Linux x86_64; rv:137.0) Gecko/20100101 Firefox/137.0",
+    "Mozilla/5.0 (X11; Linux x86_64; rv:138.0) Gecko/20100101 Firefox/138.0",
+    "Mozilla/5.0 (X11; Linux x86_64; rv:139.0) Gecko/20100101 Firefox/139.0",
+    "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:135.0) Gecko/20100101 Firefox/135.0",
+    "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:136.0) Gecko/20100101 Firefox/136.0",
+    "Mozilla/5.0 (Windows NT 6.1; Win64; x64; rv:137.0) Gecko/20100101 Firefox/137.0",
+    "Mozilla/5.0 (Windows NT 6.3; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0",
+    "Mozilla/5.0 (Windows NT 6.3; Win64; x64; rv:139.0) Gecko/20100101 Firefox/139.0",
+    "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:137.0) Gecko/20100101 Firefox/137.0",
+    "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:136.0) Gecko/20100101 Firefox/136.0",
+    "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:138.0) Gecko/20100101 Firefox/138.0",
+    "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:139.0) Gecko/20100101 Firefox/139.0",
+    "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:135.0) Gecko/20100101 Firefox/135.0",
+    "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:136.0) Gecko/20100101 Firefox/136.0",
+    "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:137.0) Gecko/20100101 Firefox/137.0",
+    "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:138.0) Gecko/20100101 Firefox/138.0",
+    "Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:135.0) Gecko/20100101 Firefox/135.0",
+    "Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:136.0) Gecko/20100101 Firefox/136.0",
+    "Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:137.0) Gecko/20100101 Firefox/137.0",
+    "Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:138.0) Gecko/20100101 Firefox/138.0",
+    "Mozilla/5.0 (X11; Manjaro; Linux x86_64; rv:139.0) Gecko/20100101 Firefox/139.0",
+    "Mozilla/5.0 (X11; Arch; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0",
+    "Mozilla/5.0 (X11; Debian; Linux x86_64; rv:137.0) Gecko/20100101 Firefox/137.0",
+    "Mozilla/5.0 (X11; openSUSE; Linux x86_64; rv:136.0) Gecko/20100101 Firefox/136.0",
+    "Mozilla/5.0 (Windows NT 10.0; ARM64; rv:138.0) Gecko/20100101 Firefox/138.0",
+    "Mozilla/5.0 (Windows NT 11.0; ARM64; rv:139.0) Gecko/20100101 Firefox/139.0",
+    "Mozilla/5.0 (Windows NT 10.0; ARM64; rv:137.0) Gecko/20100101 Firefox/137.0",
+    "Mozilla/5.0 (Windows NT 11.0; ARM64; rv:140.0) Gecko/20100101 Firefox/140.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_0; rv:141.0) Gecko/20100101 Firefox/141.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 13_1; rv:142.0) Gecko/20100101 Firefox/142.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:141.0) Gecko/20100101 Firefox/141.0",
+    "Mozilla/5.0 (Windows NT 11.0; Win64; x64; rv:142.0) Gecko/20100101 Firefox/142.0",
+    "Mozilla/5.0 (X11; Linux x86_64; rv:141.0) Gecko/20100101 Firefox/141.0",
+    "Mozilla/5.0 (X11; Linux x86_64; rv:142.0) Gecko/20100101 Firefox/142.0",
+    "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:141.0) Gecko/20100101 Firefox/141.0",
+    "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:142.0) Gecko/20100101 Firefox/142.0",
+    "Mozilla/5.0 (Windows NT 6.3; Win64; x64; rv:141.0) Gecko/20100101 Firefox/141.0",
+    "Mozilla/5.0 (Windows NT 6.3; Win64; x64; rv:142.0) Gecko/20100101 Firefox/142.0",
+    "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:141.0) Gecko/20100101 Firefox/141.0",
+    "Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:141.0) Gecko/20100101 Firefox/141.0",
+    "Mozilla/5.0 (X11; Debian; Linux x86_64; rv:141.0) Gecko/20100101 Firefox/141.0",
+    "Mozilla/5.0 (X11; Manjaro; Linux x86_64; rv:142.0) Gecko/20100101 Firefox/142.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_0; rv:143.0) Gecko/20100101 Firefox/143.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:143.0) Gecko/20100101 Firefox/143.0",
+    "Mozilla/5.0 (X11; Linux x86_64; rv:143.0) Gecko/20100101 Firefox/143.0",
+    "Mozilla/5.0 (Windows NT 11.0; Win64; x64; rv:143.0) Gecko/20100101 Firefox/143.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_1; rv:144.0) Gecko/20100101 Firefox/144.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:144.0) Gecko/20100101 Firefox/144.0",
+    "Mozilla/5.0 (X11; Linux x86_64; rv:144.0) Gecko/20100101 Firefox/144.0",
+    "Mozilla/5.0 (Windows NT 11.0; Win64; x64; rv:144.0) Gecko/20100101 Firefox/144.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 15_0; rv:145.0) Gecko/20100101 Firefox/145.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:145.0) Gecko/20100101 Firefox/145.0",
+    "Mozilla/5.0 (X11; Linux x86_64; rv:145.0) Gecko/20100101 Firefox/145.0",
+    "Mozilla/5.0 (Windows NT 11.0; Win64; x64; rv:145.0) Gecko/20100101 Firefox/145.0",
+]);
+
 // ------------------------------------------------------------
+
+pub static SITE_HAS_DOPPLER: LazyLock<HashMap<Sites, bool>> = LazyLock::new(|| {
+    HashMap::from( [
+        (Sites::CSFLOAT, true),
+        (Sites::BUFF163, true),
+        (Sites::YOUPIN, false),
+        (Sites::CSMONEY, true),
+        (Sites::BITSKINS, false),
+        (Sites::SKINPORT, false),
+        (Sites::STEAM, false)] 
+    )
+});
 
 pub static BUFFIDS: LazyLock<HashMap<&'static str, u32>> = LazyLock::new( || 
     HashMap::from(
