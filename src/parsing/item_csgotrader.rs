@@ -1,6 +1,8 @@
+use std::str::FromStr;
+
 use serde_json::Value;
 
-use crate::models::{price::{Doppler, PriceType}, web::Sites};
+use crate::models::{price::{Doppler, PriceType}, web::{ExtraItemData, Sites, SteamData}};
 
 pub fn get_price(item_name: &str, prices: &Value, market: &Sites, want: &PriceType, phase: &Option<Doppler>) -> Option<f64> {
     if let Some(p_one) = prices.get(item_name) { 
@@ -51,4 +53,49 @@ fn doppler_price(p: &Value, phase: &Option<Doppler>, item_name: &str, market: &S
         }
     }
     None
+}
+
+pub fn parse_iteminfo_min(data: &Value, steamdata: &SteamData) -> Result<ExtraItemData, String> {
+    let name = steamdata.name.clone();
+
+    let float = {
+        let tmp = data.get("floatvalue")
+            .and_then(|f| f.as_f64() )
+            .ok_or_else(|| "floatvalue NOT FOUND")?;
+
+        if tmp == 0.0 { None } else { Some(tmp) }
+    };
+
+    let max_float = {
+        let tmp = data.get("max")
+            .and_then(|m| m.as_f64() )
+            .unwrap_or( 1.0 );
+
+        if tmp == 0.0 { None } else { Some(tmp) }
+    };
+
+    let min_float = {
+        let tmp = data.get("min")
+            .and_then(|m| m.as_f64() )
+            .unwrap_or( 0.0 );
+
+        if tmp == 0.0 && float.is_none() { None } else { Some(tmp) }
+    };
+
+    let phase = if let Some(dplr) = data.get("phase") { 
+        Some( Doppler::from_str( 
+            dplr.as_str().ok_or_else(|| "Dplr to string didnt work what.".to_string())? 
+        )? ) 
+    } else { None };
+
+    let paintseed = {
+        let tmp = data.get("paintseed")
+            .and_then(|p| p.as_f64() )
+            .map(|p| p as u16)
+        .ok_or_else(|| "paintseed NOT FOUND")?;
+    
+        if tmp == 0 { None } else { Some(tmp) }
+    };
+
+    Ok( ExtraItemData { name, float, max_float, min_float, phase, paintseed } )
 }

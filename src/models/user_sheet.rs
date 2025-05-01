@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
 
-use super::{price::{PricingMode, PricingProvider, Currencies}, web::Sites};
+use super::{price::{Currencies, PricingMode, PricingProvider}, web::{ItemInfoProvider, Sites}};
 
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -13,12 +13,12 @@ pub struct UserInfo {
     pub steamid: u64, 
     pub pricing_mode: PricingMode,
     pub pricing_provider: PricingProvider,
+    pub iteminfo_provider: Option<ItemInfoProvider>,
     pub usd_to_x: Option<Currencies>,
     pub steamloginsecure: Option<String>,    
     pub percent_threshold: u8, 
     pub group_simular_items: bool,
     pub sum_quantity_prices: bool,
-    pub fetch_more_iteminfo: bool,
     pub fetch_prices: bool, 
     pub fetch_steam: bool
 }

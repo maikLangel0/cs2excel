@@ -6,6 +6,8 @@ use strum::EnumIter;
 use reqwest::header::{self, HeaderMap, HeaderValue};
 use serde_json::Value;
 
+use super::price::Doppler;
+
 // ------------------------------------------------------------
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -89,6 +91,91 @@ pub struct SteamJson {
 
 // ------------------------------------------------------------
 
+#[derive(Debug)]
+pub struct ExtraItemData {
+    pub name: String,
+    pub float: Option<f64>,
+    pub max_float: Option<f64>,
+    pub min_float: Option<f64>,
+    pub phase: Option<Doppler>, // PAINTINDEX: dopplers, 
+    pub paintseed: Option<u16>  // Paintseed 
+}
+
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub enum ItemInfoProvider {
+    Csgotrader,
+    Csfloat
+}
+
+// ---------------------------------------------------------------------------
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct InspectLinks {
+    pub bulk_key: String,
+    pub links: Vec<InspectLink>
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct InspectLink {
+    pub link: String
+}
+
+// ---------------------------------------------------------------------------
+
+pub static PHASES: LazyLock<HashMap<u16, Doppler>> = LazyLock::new(|| {
+    HashMap::from([     
+        (415, Doppler::Ruby),
+        (416, Doppler::Sapphire),
+        (417, Doppler::BlackPearl),
+        (418, Doppler::Phase1),
+        (419, Doppler::Phase2),
+        (420, Doppler::Phase3),
+        (421, Doppler::Phase4),
+
+        // GLOCK GAMMA DOPPLER
+        (1119, Doppler::Emerald),
+        (1120, Doppler::Phase1),
+        (1121, Doppler::Phase2),
+        (1122, Doppler::Phase3),
+        (1123, Doppler::Phase4),
+
+        // KNIFE GAMMA DOPPLER
+        (568, Doppler::Emerald),
+        (569, Doppler::Phase1),
+        (570, Doppler::Phase2),
+        (571, Doppler::Phase3),
+        (572, Doppler::Phase4) 
+    ])
+});
+
+// ---------------------------------------------------------------------------
+
+pub static CSFLOAT_HEADERS_DEFAULT: LazyLock<HeaderMap<HeaderValue>> = LazyLock::new(|| {
+    let mut headers = HeaderMap::new();
+    headers.insert(header::HOST, HeaderValue::from_static("api.csfloat.com"));
+    headers.insert(header::USER_AGENT, HeaderValue::from_static("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:137.0) Gecko/20100101 Firefox/137.0"));
+    headers.insert(header::ACCEPT, HeaderValue::from_static("application/json, text/plain, */*"));
+    headers.insert(header::ACCEPT_LANGUAGE, HeaderValue::from_static("en-GB,en;q=0.5"));
+    headers.insert(header::ACCEPT_ENCODING, HeaderValue::from_static("gzip, deflate, br, zstd"));
+    headers.insert(header::REFERER, HeaderValue::from_static("https://csfloat.com/"));
+    headers.insert(header::ORIGIN, HeaderValue::from_static("https://csfloat.com"));
+    headers.insert("Sec-Fetch-Dest", HeaderValue::from_static("empty"));
+    headers.insert("Sec-Fetch-Mode", HeaderValue::from_static("cors"));
+    headers.insert("Sec-Fetch-Site", HeaderValue::from_static("same-site"));
+    headers.insert(header::CONNECTION, HeaderValue::from_static("keep-alive"));
+    headers
+});
+
+pub static CSFLOAT_HEADERS_MINIMAL: LazyLock<HeaderMap<HeaderValue>> = LazyLock::new(||  {
+    let mut headers = HeaderMap::new();
+    headers.insert(header::ORIGIN, HeaderValue::from_static("https://csfloat.com"));
+    headers
+});
+
+// ------------------------------------------------------------
+
 pub static FIREFOX_CSGOTRADERAPP_HEADERS_BASE: LazyLock<HeaderMap> = LazyLock::new( || {
     let mut headers = HeaderMap::new();
                 
@@ -108,8 +195,6 @@ pub static FIREFOX_CSGOTRADERAPP_HEADERS_BASE: LazyLock<HeaderMap> = LazyLock::n
 
 pub static FIREFOX_CSGOTRADERAPP_HEADERS_DEFAULT: LazyLock<HeaderMap> = LazyLock::new(|| {
     let mut headers = HeaderMap::new();
-    //let user_agent = FIREFOX_USER_AGENTS[ rand::random_range( 0..FIREFOX_USER_AGENTS.len() )];
-
     headers.insert( header::ACCEPT, HeaderValue::from_static("*/*"));
     headers.insert( header::ACCEPT_LANGUAGE, HeaderValue::from_static("en-GB,en;q=0.5"));
     headers.insert( header::ACCEPT_ENCODING, HeaderValue::from_static("gzip, deflate, br, zstd"));
@@ -122,6 +207,7 @@ pub static FIREFOX_CSGOTRADERAPP_HEADERS_DEFAULT: LazyLock<HeaderMap> = LazyLock
     headers.insert("TE", HeaderValue::from_static("trailers"));
     headers
 });
+
 
 // pub static CLIENT_FIREFOX_CSGOTRADERAPP_DEFAULT: LazyLock<Client> = LazyLock::new(|| {
     // Client::builder()

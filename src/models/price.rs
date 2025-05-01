@@ -97,7 +97,7 @@ impl Currencies {
 
 //--------------------
 
-#[derive(Debug, Serialize, Deserialize, EnumIter, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, EnumIter, PartialEq, Clone)]
 pub enum Doppler {
     Phase1,
     Phase2,

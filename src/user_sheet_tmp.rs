@@ -1,9 +1,7 @@
 use std::{path::PathBuf, sync::LazyLock};
 
 use crate::models::{
-    web::Sites, 
-    price::{PricingMode, PricingProvider, Currencies}, 
-    user_sheet::{UserInfo, SheetInfo}
+    price::{Currencies, PricingMode, PricingProvider}, user_sheet::{SheetInfo, UserInfo}, web::{ItemInfoProvider, Sites}
 };
 
 pub static SHEET: LazyLock<SheetInfo> = LazyLock::new(|| {
@@ -59,9 +57,10 @@ pub static USER: LazyLock<UserInfo> = LazyLock::new(|| {
         // prefer_markets: None,
         pricing_mode: PricingMode::Hierarchical,
         pricing_provider: PricingProvider::Csgotrader,
+        iteminfo_provider: Some( ItemInfoProvider::Csfloat ),
         usd_to_x: Some( Currencies::USD ),
         ignore_market_names: None,
-        pause_time_ms: 1000,
+        pause_time_ms: 2500,
         steamid: 76561198389123475, // Min
         // steamid: 76561198043837202,   // High-end inventory
         // steamid: 76561198060504649,   // Hjalmar sin inv
@@ -70,7 +69,6 @@ pub static USER: LazyLock<UserInfo> = LazyLock::new(|| {
         percent_threshold: 5,
         group_simular_items: true,
         sum_quantity_prices: true,
-        fetch_more_iteminfo: false,
         fetch_prices: true,
         fetch_steam: true 
     }
