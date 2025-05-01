@@ -126,7 +126,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     
                     // if exceldatas data has phase info AND user wants to fetch more iteminfo AND cs inventory's steamdata has an inspect link,
                     // don't update quantity and jump to next iteration of cs inv. Instead execute the logic underneath this match statement
-                    if data.phase.is_some() && user.iteminfo_provider.is_some() && steamdata.inspect_link.is_some() {}
+                    if data.phase.is_some() && user.iteminfo_provider.is_some() && steamdata.inspect_link.is_some() && user.iteminfo_provider.is_some() {}
                     else { 
                         update_quantity_exceldata(
                             &steamdata, 
