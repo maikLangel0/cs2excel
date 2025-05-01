@@ -200,10 +200,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
         } // If not group_simular_items
         else {
-            let index_of_item: usize = exceldata.iter()
-                .position(|e| e.asset_id == Some(steamdata.asset_id) && e.name == steamdata.name)
-                .unwrap_or( exceldata.len() );
-            let row: usize = index_of_item + excel.row_start_write_in_table as usize - 1;
+            let row: usize = exceldata.len() + excel.row_start_write_in_table as usize - 1;
 
             if exceldata.iter()
                 .find(|e| e.asset_id == Some(steamdata.asset_id) && e.name == steamdata.name)
