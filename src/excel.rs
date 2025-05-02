@@ -22,9 +22,7 @@ pub fn set_spreadsheet(path: &Option<PathBuf>, book: Spreadsheet) -> Result<(), 
 }
 
 pub fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo) -> Result<Vec<ExcelData>, String> {
-// pub fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo) -> Result<IndexMap< String, ExcelData >, String> {
     let mut exceldata: Vec<ExcelData> = Vec::new();
-    // let mut exceldata: IndexMap<String, ExcelData> = IndexMap::new();
     let mut iter = excel.row_start_write_in_table;
 
     loop {
@@ -33,16 +31,16 @@ pub fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo) -> Result<Vec<Exc
 
         let name: String = {
             if let Some(cell) = sheet.get_cell(name_cell) {
-                cell.get_raw_value().to_string()
+                let cell_value = cell.get_raw_value().to_string().trim().to_string();
+                if cell_value.is_empty() { break } else { cell_value }
             } else { break }
         };
 
         let price: f64 = {
             if let Some(cell) = sheet.get_cell(price_cell) {
-                cell.get_raw_value()
-                    .to_string()
-                    .parse::<f64>()
-                    .map_err(|_| "Price failed parsing")?
+                let cell_value = cell.get_raw_value().to_string().trim().to_string();
+                if cell_value.is_empty() { break } 
+                else { cell_value.parse::<f64>().map_err(|_| "Price failed parsing")? }
             } else { break }
         };
 
@@ -51,7 +49,7 @@ pub fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo) -> Result<Vec<Exc
                 let cell_inspect = format!("{}{}", inspect, &iter);
 
                 if let Some(cell) = sheet.get_cell(cell_inspect) {
-                    let cell_value = cell.get_raw_value().to_string();
+                    let cell_value = cell.get_raw_value().to_string().trim().to_string();
                     if cell_value.is_empty() { None } else { Some(cell_value) }
                 } 
                 else { None }
@@ -63,12 +61,10 @@ pub fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo) -> Result<Vec<Exc
                 let cell_quantity = format!("{}{}", quant, &iter);
 
                 if let Some(cell) = sheet.get_cell(cell_quantity) {
-                    Some( 
-                        cell.get_raw_value()
-                            .to_string()
-                            .parse::<u16>()
-                            .map_err(|_| "Quantity failed parsing")?
-                    )
+
+                    let cell_value = cell.get_raw_value().to_string().trim().to_string();
+                    if cell_value.is_ascii() { None } 
+                    else { Some(cell_value.parse::<u16>().map_err(|_| "Quantity failed parsing")?) }
                 }
                 else { None }
             } else { None }
@@ -79,7 +75,7 @@ pub fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo) -> Result<Vec<Exc
                 let cell_special = format!("{}{}", special, &iter);
 
                 if let Some(cell) = sheet.get_cell(cell_special) {
-                    let cell_value = cell.get_raw_value().to_string();
+                    let cell_value = cell.get_raw_value().to_string().trim().to_string();
                     if cell_value.is_empty() { None } else { Some(cell_value) }
                 }
                 else { None }
@@ -87,27 +83,20 @@ pub fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo) -> Result<Vec<Exc
         };
 
         let asset_id: Option<u64> = {
-            let cell_assetid = format!("{}{}", &excel.col_asset_id, &iter);
-            if let Some(cell) = sheet.get_cell(cell_assetid) {
-                Some( 
-                    cell.get_raw_value()
-                        .to_string()
-                        .parse::<u64>()
-                        .map_err(|_| "Assetid failed parsing")?
-                )
+            if let Some(ass_id) = &excel.col_asset_id {
+                let cell_assetid = format!("{}{}", &ass_id, &iter);
+                if let Some(cell) = sheet.get_cell(cell_assetid) {
+                     
+                    let cell_value = cell.get_raw_value().to_string().trim().to_string();
+                    if cell_value.is_empty() { None } 
+                    else { Some(cell_value.parse::<u64>().map_err(|_| "Assetid failed parsing")?) }    
+                } else { None }
             } else { None }
         };
 
-
         exceldata.push( ExcelData{ name, price, quantity, inspect_link, phase, asset_id } );
-        // exceldata.insert(name, ExcelData{price, quantity, inspect_link, phase} );
-
         iter += 1;
     }
-
-    // if exceldata.iter().all( |data| data.quantity.is_none() && data.inspect_link.is_none() ) && iter > 5 {
-        // return Err( String::from("Both quantity and inspect_link column are completely empty!") );
-    // }
 
     Ok(exceldata)
 }

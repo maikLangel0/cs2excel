@@ -2,7 +2,7 @@ use std::{collections::HashMap, io::Read, time::Duration};
 use reqwest::{header::{self, HeaderMap, HeaderValue}, Client};
 use flate2::read::GzDecoder;
 use serde_json::{self, Value};
-use crate::models::{user_sheet::UserInfo, web::{Sites, FIREFOX_CSGOTRADERAPP_HEADERS_BASE, FIREFOX_CSGOTRADERAPP_HEADERS_DEFAULT, FIREFOX_USER_AGENTS}};
+use crate::models::web::{Sites, FIREFOX_CSGOTRADERAPP_HEADERS_BASE, FIREFOX_CSGOTRADERAPP_HEADERS_DEFAULT, FIREFOX_USER_AGENTS};
 
 // USD is 1.0
 pub async fn get_exchange_rates() -> Result<HashMap<String, f64>, String> {

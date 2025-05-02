@@ -44,7 +44,7 @@ pub static SHEET: LazyLock<SheetInfo> = LazyLock::new(|| {
         col_price: String::from("Q"),                 // Q
         col_market: Some( String::from("R") ),        // R
         col_inspect_link: Some( String::from("W") ),  // W
-        col_asset_id: String::from( "X" ),            // X
+        col_asset_id: Some( String::from("X") ),            // X
         col_csgoskins_link: Some( String::from("Y") ),// Y
         rowcol_date: Some( String::from("$Z$2") ),    // Z
         rowcol_usd_to_x: Some( String::from("$Z$3") ),

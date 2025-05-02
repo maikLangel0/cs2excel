@@ -106,23 +106,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
     
     // -----------------------------------------------------------------------------------------------
-
+    // Inserting and/or updating quantity + adding prices for newly inserted items
     for steamdata in cs_inv {
         if !user.fetch_steam { break }
 
         println!("\nCURRENT STEAMDATA {:#?}", steamdata);
-        //println!("\nCURRENT STEAMDATA NAME: {}", steamdata.name);
 
         if user.group_simular_items {
-            assert!( excel.col_quantity.is_some() );
+            assert!(excel.col_quantity.is_some());
 
-            let index_of_item: usize = exceldata.iter()
-                .position(|e| e.name == steamdata.name)
-                .unwrap_or( exceldata.len() );
-            let row: usize = index_of_item + excel.row_start_write_in_table as usize - 1;
+            match exceldata.iter_mut().enumerate().find( |(_, e)| (e.name == steamdata.name) ) { 
+                Some((index, data)) => {
+                    
+                    // Skip item if item is in ignore market names
+                    if let Some(ignore) = &user.ignore_market_names { 
+                        if ignore.iter().any(|n| data.name == *n.trim() ) { continue; }
+                    }
 
-            match exceldata.iter_mut().find( |e| (e.name == steamdata.name) ) { 
-                Some(data) => {
+                    let row_in_excel: usize = index + excel.row_start_write_in_table as usize - 1;
                     
                     // if exceldatas data has phase info AND user wants to fetch more iteminfo AND cs inventory's steamdata has an inspect link,
                     // don't update quantity and jump to next iteration of cs inv. Instead execute the logic underneath this match statement
@@ -132,13 +133,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             &steamdata, 
                             &excel.col_quantity, 
                             data, 
-                            row, 
+                            row_in_excel, 
                             sheet
                         ); 
                         continue;
                     }
                 },
                 None => {
+                    let row_in_excel: usize = exceldata.len() + excel.row_start_write_in_table as usize - 1;
+
                     let extra_itemdata: Option<ExtraItemData> = if let Some(quant) = steamdata.quantity {
                         if quant == 1 || steamdata.name.contains( " doppler ") {
                             wrapper_fetch_iteminfo_via_itemprovider_persistent(
@@ -158,16 +161,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             &extra_itemdata,
                             &markets_to_check, 
                             &all_market_prices, 
-                            rate, row, sheet
+                            rate, row_in_excel, 
+                            sheet
                         ).await? 
                     );
                     continue;  
                 }
             }
-
-            assert!( excel.col_inspect_link.is_some() );
-            assert!( steamdata.inspect_link.is_some() );
-            assert!( user.iteminfo_provider.is_some() );
+            assert!(excel.col_inspect_link.is_some());
+            assert!(steamdata.inspect_link.is_some());
+            assert!(user.iteminfo_provider.is_some());
 
             // Only reached when exceldatas name is the same as steamdatas name AND 
             // exceldatas phase is something AND user wants to fetch more iteminfo AND 
@@ -178,33 +181,45 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 &excel.col_inspect_link, 
                 user.pause_time_ms, 
                 &steamdata
-            ).await?.ok_or_else(|| "should never happen")?;
+            ).await?.ok_or_else(|| "group_simular_items' path for dopplers failed WHAT")?;
 
-            let phase: Option<String> = extra_itemdata.phase
+            let phase: &Option<String> = &extra_itemdata.phase
+                .as_ref()
                 .and_then( |p| Some( p.as_str() ) )
                 .map( str::to_owned );
-        
-            let index_of_item: usize = exceldata.iter()
-                .position(|e| e.name == steamdata.name && e.phase == phase )
-                .unwrap_or( exceldata.len() );
-            let row: usize = index_of_item + excel.row_start_write_in_table as usize - 1;
 
-            match exceldata.iter_mut().find( |e| e.name == steamdata.name && e.phase == phase ) {
-                Some(data) => {
+            match exceldata.iter_mut().enumerate().find( |(_, e)| e.name == steamdata.name && e.phase == *phase ) {
+                Some((index, data)) => {
+                    let row_in_excel: usize = index + excel.row_start_write_in_table as usize - 1;
 
+                    update_quantity_exceldata(
+                        &steamdata, 
+                        &excel.col_quantity, 
+                        data, 
+                        row_in_excel, 
+                        sheet
+                    ); 
                 },
-                
                 None => {
+                    let row_in_excel: usize = exceldata.len() + excel.row_start_write_in_table as usize - 1;
 
+                    exceldata.push( 
+                        insert_new_exceldata(
+                            &user, &excel,
+                            &steamdata,
+                            &Some(extra_itemdata),
+                            &markets_to_check,
+                            &all_market_prices,
+                            rate, row_in_excel, 
+                            sheet
+                        ).await? 
+                    );
                 }
             }
-        } // If not group_simular_items
+        }      // If not group_simular_items
         else {
-            let row: usize = exceldata.len() + excel.row_start_write_in_table as usize - 1;
-
-            if exceldata.iter()
-                .find(|e| e.asset_id == Some(steamdata.asset_id) && e.name == steamdata.name)
-                .is_none() {
+            if exceldata.iter().find(|e| e.asset_id == Some(steamdata.asset_id) && e.name == steamdata.name).is_none() {
+                let row_in_excel: usize = exceldata.len() + excel.row_start_write_in_table as usize - 1;
 
                 let extra_itemdata: Option<ExtraItemData> = wrapper_fetch_iteminfo_via_itemprovider_persistent(
                     iteminfo_client, 
@@ -221,7 +236,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                         &extra_itemdata,
                         &markets_to_check,
                         &all_market_prices,
-                        rate, row, sheet
+                        rate, row_in_excel, 
+                        sheet
                     ).await? 
                 );
             }
@@ -289,12 +305,16 @@ fn is_user_input_valid(user: &UserInfo, excel: &SheetInfo) -> Result<(), String>
         return Err( String::from( "Phase of doppler knives will not be pricechecked correctly when reading over the spreadsheet in the future becuase col_phase is not set!" ))
     }
 
-    if user.pause_time_ms < 1 || user.pause_time_ms > 10000 {
+    if user.pause_time_ms < 1000 || user.pause_time_ms > 10000 {
         return Err( String::from("pause_time_ms is only allowed to be in range of 1000 (2 seconds) - 10000 (10 seconds).") )
     }
 
     if excel.col_quantity.is_none() && user.group_simular_items {
         return Err( String::from("col_quantity can't be None if you want to group simular items!") )
+    }
+
+    if excel.col_asset_id.is_none() && !user.group_simular_items {
+        return Err( String::from("col_asset_id can't be None if you don't want to group simular items!") )
     }
 
     Ok(())
@@ -304,18 +324,18 @@ fn update_quantity_exceldata(
     steamdata: &SteamData, 
     col_quantity: &Option<String>,
     data: &mut ExcelData, 
-    row: usize, 
+    row_in_excel: usize, 
     sheet: &mut Worksheet, 
 ) {
     if let Some(col_quantity) = col_quantity {
-        let cell_quantity = format!("{}{}", col_quantity, row);
+        let cell_quantity = format!("{}{}", col_quantity, row_in_excel);
         
         if let Some(steam_quantity) = steamdata.quantity {
             if let Some(data_quantity) = data.quantity { 
                 if data_quantity < steam_quantity {
                     data.quantity = Some(steam_quantity);
                     sheet.get_cell_value_mut( cell_quantity.as_ref() ).set_value_number(steam_quantity);
-                    println!("UPDATED {} QUANTITY TO {:?} | ROW {}\n", &steamdata.name, &data.quantity, &row);
+                    println!("UPDATED {} QUANTITY TO {:?} | ROW {}\n", &steamdata.name, &data.quantity, &row_in_excel);
                 }
             }
         }
@@ -330,7 +350,7 @@ async fn insert_new_exceldata(
     markets_to_check: &Vec<Sites>, 
     all_market_prices: &HashMap<String, Value>, 
     rate: f64, 
-    curr_row: usize,
+    row_in_excel: usize,
     sheet: &mut Worksheet
 ) -> Result<ExcelData, String> {
 
@@ -355,11 +375,12 @@ async fn insert_new_exceldata(
 
             let mut prices: Vec<MarketPrice> = Vec::new();
 
+            // Finds the prices for each market
             for market in markets_to_check {
 
                 // If site does not have doppler pricings AND doppler is something, SKIP
                 if phase.is_some() && !*SITE_HAS_DOPPLER.get(market)
-                    .ok_or_else(|| "Should never happen")? { continue; }
+                    .ok_or_else(|| "Didnt find market in SITE_HAS_DOPPLER what?")? { continue; }
                 
                 if let Some(market_prices) = all_market_prices.get( market.as_str() ) {
                     if let Some(price) = item_csgotrader::get_price(
@@ -371,33 +392,37 @@ async fn insert_new_exceldata(
                     ) { prices.push( MarketPrice { market: market.as_str(), price: price * rate } ) }    
                 }
             }
-            println!("{:#?}", prices);
 
             if prices.is_empty() { (Some("No Market(s) Found".to_string()), None) } 
             else {
                 match user.pricing_mode {
                     PricingMode::Cheapest => { 
                         prices.sort_by(|a,b| a.price.partial_cmp(&b.price).unwrap());
+
                         (Some(prices[0].market.to_string()), Some(prices[0].price))
                     },
                     PricingMode::MostExpensive => { 
                         prices.sort_by(|a,b| b.price.partial_cmp(&a.price).unwrap());
+
                         (Some(prices[0].market.to_string()), Some(prices[0].price))
                     },                          
                     PricingMode::Random => {
                         let wiener = prices.get(rand::random_range(0..prices.len()))
-                            .ok_or_else(|| "what")
+                            .ok_or_else(|| "PricingMode::Random failed what.")
                             .map(|mp| *mp)?;
+
                         (Some(wiener.market.to_string()), Some(wiener.price))
                     },
                     PricingMode::Hierarchical => { 
                         prices.sort_by(|a,b| a.price.partial_cmp(&b.price).unwrap());
                         let mut curr = MarketPrice { market: prices[0].market, price: prices[0].price };
+
                         for mp in prices.iter().skip(1) {
                             if curr.price > mp.price * user.percent_threshold as f64 { 
                                 curr = *mp 
                             }
                         }
+
                         (Some(curr.market.to_string()), Some(curr.price)) 
                     }
                 }
@@ -476,9 +501,4 @@ async fn wrapper_fetch_iteminfo_via_itemprovider_persistent(
     } else { Ok(None) }
 }
 
-/* 
-TODO:
-    FIX THE LOGIC OF WHEN WE WANT TO GROUP ITEMS, BUT ITS A DOPPLER WITH THE SAME NAME AS ONE IN THE SPREADSHEET
-    ALSO .find() ONLY TAKES FIRST ELEMENT FUCK
-    maybe make it so that group_simular_items does not need to have asset_id set (?)
-*/
+// TODO: FIX EDGECASE WHERE I WANT TO REMOVE THE ASSETID

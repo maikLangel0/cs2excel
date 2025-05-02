@@ -3,7 +3,7 @@ use std::{error::Error, time::Duration};
 use reqwest::{header::{self, HeaderValue}, Client};
 use serde_json::Value;
 
-use crate::models::web::{InspectLinks, ExtraItemData, CSFLOAT_HEADERS_DEFAULT, PHASES};
+use crate::models::web::{InspectLinks, CSFLOAT_HEADERS_DEFAULT};
 
 
 pub async fn fetch_iteminfo(
@@ -27,9 +27,7 @@ pub async fn fetch_iteminfo(
         return Err( 
             format!("GET Request failed! {} Response text: {:#?}", 
                 &response.status(), 
-                &response.text()
-                    .await
-                    .map_err(|_| String::from("Should never happen"))? 
+                &response.text().await.map_err(|_| String::from("Should never happen"))? 
             ).into() 
         ) 
     }
@@ -60,12 +58,12 @@ pub async fn fetch_iteminfo_persistent(
         match fetch_iteminfo(client, inspect_link).await {
             Ok(json) => { break Ok(json) }
             Err(e) => {
-                if attempt >= max_retries { break Err( "Exhausted all retries".into() )}
+                if attempt >= max_retries { break Err( "Exhausted all retries...".into() )}
                 println!("Error in single_fetch_request_persistent: {:?}",e);
                 
                 tokio::time::sleep( 
                     Duration::from_millis( 
-                        pause_time_millis * (attempt * 2 - attempt) as u64 
+                        pause_time_millis * 2 * (attempt * 2 - attempt) as u64 
                     ) 
                 ).await;
                 
