@@ -6,7 +6,7 @@ use crate::models::{
 
 pub static SHEET: LazyLock<SheetInfo> = LazyLock::new(|| {
     SheetInfo { 
-        path_to_sheet: Some( PathBuf::from("C:\\Users\\Mikae\\OneDrive\\Skrivebord\\workbook\\new\\swag_test_1.xlsx") ),
+        path_to_sheet: Some( PathBuf::from("C:\\Users\\Mikae\\OneDrive\\Skrivebord\\cs_invest\\CS2_invest_new_main.xlsx") ),
         row_stop_write_in_table: None,
         row_start_write_in_table: 2,
         sheet_name: Some( String::from("Sheet1") ),
@@ -14,17 +14,17 @@ pub static SHEET: LazyLock<SheetInfo> = LazyLock::new(|| {
         col_gun_sticker_case: Some( String::from("B") ),
         col_skin_name: Some( String::from("C") ),
         col_wear: Some( String::from("D") ),
-        col_float: Some( "E".to_string() ),
-        col_pattern: Some( "F".to_string() ),
-        col_phase: Some( String::from("H") ),
+        col_float: Some( String::from("E") ),
+        col_pattern: Some( String::from("F") ),
+        col_phase: Some( String::from("G") ),
         col_quantity: Some( String::from("I") ),      // I
-        col_sold: Some( String::from("M") ),          // M
-        col_price: String::from("Q"),                 // Q
-        col_market: Some( String::from("R") ),        // R
-        col_inspect_link: Some( String::from("W") ),  // W
-        col_asset_id: Some( String::from("X") ),      // X
-        col_csgoskins_link: Some( String::from("Y") ),// Y
-        rowcol_date: Some( String::from("$Z$2") ),    // Z
+        col_sold: Some( String::from("P") ),          // P
+        col_price: String::from("J"),                 // J
+        col_market: Some( String::from("K") ),        // K
+        col_inspect_link: Some( String::from("T") ),  // T
+        col_asset_id: None,                           // V
+        col_csgoskins_link: Some( String::from("U") ),// U
+        rowcol_date: Some( String::from("$W$2") ),    // W
         rowcol_usd_to_x: None,
     }
 }); 

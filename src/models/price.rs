@@ -138,7 +138,4 @@ impl Doppler {
             Doppler::Phase4 => "Phase 4"
         }
     }
-    pub fn to_string(&self) -> String {
-        self.as_str().to_string()
-    }
 }

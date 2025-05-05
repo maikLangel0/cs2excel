@@ -270,7 +270,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     for (i, data) in exceldata.iter().enumerate() {
         if !user.fetch_prices { break }
-        if i == exceldata_initial_length - 1 { break }
+        if i == exceldata_initial_length { break }
 
         if let Some(ignore) = &user.ingore_steam_names {
             for ignore_steam_name in ignore {
@@ -710,4 +710,3 @@ fn get_market_price(
         }
     }
 }
-// TODO: FIX EDGECASE WHERE I WANT TO REMOVE THE ASSETID

@@ -299,6 +299,7 @@ pub static SITE_HAS_DOPPLER: LazyLock<HashMap<Sites, bool>> = LazyLock::new(|| {
     )
 });
 
+/*
 pub static BUFFIDS: LazyLock<HashMap<&'static str, u32>> = LazyLock::new( || 
     HashMap::from(
     [
@@ -23272,3 +23273,4 @@ pub static BUFFIDS: LazyLock<HashMap<&'static str, u32>> = LazyLock::new( ||
         ("StatTrak™ Dual Berettas | Hydro Strike (Well-Worn),", 968485)
     ]
 ));
+*/

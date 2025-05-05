@@ -201,7 +201,7 @@ pub fn metadata_from_market_name(s_m_n: &str) -> [String; 3] {
     }
 
     // Music kits
-    else if name.starts_with("music kit") {
+    else if name.contains("music kit") {
         gun_sticker_case = String::from("music kit");
         
         let wear_temp = SPECIAL.iter()
