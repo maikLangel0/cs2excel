@@ -1,5 +1,5 @@
 mod excel;
-use excel::{get_exceldata, get_spreadsheet};
+use excel::{get_exceldata, get_spreadsheet, set_spreadsheet};
 
 mod models;
 use models::{
@@ -7,7 +7,7 @@ use models::{
 };
 
 mod parsing;
-use parsing::item_csgotrader;
+use parsing::{csgoskins_url, item_csgotrader, market_name_parse};
 
 mod browser;
 use browser::{
@@ -15,7 +15,7 @@ use browser::{
 };
 
 use user_sheet_tmp::{SHEET, USER};
-use std::{collections::HashMap, error::Error};
+use std::{collections::HashMap, error::Error, str::FromStr};
 
 mod user_sheet_tmp;
 use reqwest::Client;
@@ -23,6 +23,7 @@ use strum::IntoEnumIterator;
 use umya_spreadsheet::{Spreadsheet, Worksheet};
 use serde_json::Value;
 use rand;
+use chrono;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -63,11 +64,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     // -----------------------------------------------------------------------------------------------
 
-    let mut exceldata: Vec<ExcelData> = get_exceldata(sheet, &excel)?;
+    let mut exceldata: Vec<ExcelData> = get_exceldata(sheet, &excel, user.ignore_already_sold)?;
     let exceldata_initial_length: usize = exceldata.len();
     
     println!("Data gotten from excel spreadsheet: \n{:#?}", exceldata);
-    if !exceldata.is_empty() { return Ok(()) }
+    // if !exceldata.is_empty() { return Ok(()) }
 
     //  exceldata_old_len er her fordi jeg har endret måte å oppdatere prisene i spreadsheet'n på.
     //  Nå, hvis et item fra steam ikke er i spreadsheetn allerede, så oppdateres spreadsheetn med price, quantity,
@@ -80,7 +81,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let steamcookie: Option<String> = get_steamloginsecure(&user.steamloginsecure);
 
     let (rate, sm_inv) = tokio::try_join!(
-        get_exchange_rate(&user.usd_to_x), 
+        get_exchange_rate(&user.usd_to_x, &excel.rowcol_usd_to_x, sheet), 
         SteamInventory::init(user.steamid, 730, steamcookie)
     )?;
 
@@ -107,7 +108,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
     
     // -----------------------------------------------------------------------------------------------
     // Inserting and/or updating quantity + adding prices for newly inserted items
-    for steamdata in cs_inv {
+
+    for steamdata in cs_inv.iter() {
         if !user.fetch_steam { break }
 
         println!("\nCURRENT STEAMDATA {:#?}", steamdata);
@@ -115,15 +117,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
         if user.group_simular_items {
             assert!(excel.col_quantity.is_some());
 
-            match exceldata.iter_mut().enumerate().find( |(_, e)| (e.name == steamdata.name) ) { 
+            match exceldata.iter_mut().enumerate().find( |(_, e)| e.name == steamdata.name ) { 
                 Some((index, data)) => {
                     
                     // Skip item if item is in ignore market names
-                    if let Some(ignore) = &user.ignore_market_names { 
+                    if let Some(ignore) = &user.ingore_steam_names { 
                         if ignore.iter().any(|n| data.name == *n.trim() ) { continue; }
                     }
 
-                    let row_in_excel: usize = index + excel.row_start_write_in_table as usize - 1;
+                    let row_in_excel: usize = index + excel.row_start_write_in_table as usize;
                     
                     // if exceldatas data has phase info AND user wants to fetch more iteminfo AND cs inventory's steamdata has an inspect link,
                     // don't update quantity and jump to next iteration of cs inv. Instead execute the logic underneath this match statement
@@ -136,11 +138,28 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             row_in_excel, 
                             sheet
                         ); 
+
+                        // If quantity is more than 1, remove data in float, pattern and inspect_link if its set
+                        if data.quantity > Some(1) {
+                            if let Some(col_float) = &excel.col_float {
+                                let cell = format!("{}{}", col_float, row_in_excel);
+                                sheet.get_cell_value_mut(cell).set_value_string("");
+                            }
+                            if let Some(col_pattern) = &excel.col_pattern {
+                                let cell = format!("{}{}", col_pattern, row_in_excel);
+                                sheet.get_cell_value_mut(cell).set_value_string("");
+                            }
+                            if let Some(col_inspect) = &excel.col_inspect_link {
+                                let cell = format!("{}{}", col_inspect, row_in_excel);
+                                sheet.get_cell_value_mut(cell).set_value_string("");
+                            }
+                        }
+
                         continue;
                     }
                 },
                 None => {
-                    let row_in_excel: usize = exceldata.len() + excel.row_start_write_in_table as usize - 1;
+                    let row_in_excel: usize = exceldata.len() + excel.row_start_write_in_table as usize;
 
                     let extra_itemdata: Option<ExtraItemData> = if let Some(quant) = steamdata.quantity {
                         if quant == 1 || steamdata.name.contains( " doppler ") {
@@ -190,7 +209,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
             match exceldata.iter_mut().enumerate().find( |(_, e)| e.name == steamdata.name && e.phase == *phase ) {
                 Some((index, data)) => {
-                    let row_in_excel: usize = index + excel.row_start_write_in_table as usize - 1;
+                    let row_in_excel: usize = index + excel.row_start_write_in_table as usize;
 
                     update_quantity_exceldata(
                         &steamdata, 
@@ -201,7 +220,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     ); 
                 },
                 None => {
-                    let row_in_excel: usize = exceldata.len() + excel.row_start_write_in_table as usize - 1;
+                    let row_in_excel: usize = exceldata.len() + excel.row_start_write_in_table as usize;
 
                     exceldata.push( 
                         insert_new_exceldata(
@@ -219,7 +238,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }      // If not group_simular_items
         else {
             if exceldata.iter().find(|e| e.asset_id == Some(steamdata.asset_id) && e.name == steamdata.name).is_none() {
-                let row_in_excel: usize = exceldata.len() + excel.row_start_write_in_table as usize - 1;
+                let row_in_excel: usize = exceldata.len() + excel.row_start_write_in_table as usize;
 
                 let extra_itemdata: Option<ExtraItemData> = wrapper_fetch_iteminfo_via_itemprovider_persistent(
                     iteminfo_client, 
@@ -244,6 +263,66 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
+    /*
+        NOW THE ONLY THING LEFT IS THE PRICE CHECKING | REMEMBER
+            - DONT NEED TO FETCH MORE ITEMDATA UNLESS ExcelData.phase.is_some()
+    */
+
+    for (i, data) in exceldata.iter().enumerate() {
+        if !user.fetch_prices { break }
+        if i == exceldata_initial_length - 1 { break }
+
+        if let Some(ignore) = &user.ingore_steam_names {
+            for ignore_steam_name in ignore {
+                if data.name == *ignore_steam_name { continue; }
+            }
+        }
+
+        if data.sold.is_some() { continue; }
+
+        let row_in_excel = i + excel.row_start_write_in_table as usize;
+        let cell_price = format!("{}{}", excel.col_price, row_in_excel);
+
+        let doppler: Option<Doppler> = {
+            if let Some(phase) = &data.phase {
+                Some(Doppler::from_str(phase)?)
+            } else { None }
+        };
+
+        let (market, price): (Option<String>, Option<f64>) = get_market_price(
+            &user, 
+            &markets_to_check, 
+            &all_market_prices, 
+            rate, 
+            &data.name, 
+            &data.phase, 
+            &doppler
+        )?;
+
+        if let Some(pris) = price {
+            sheet.get_cell_value_mut(cell_price).set_value_number(pris);
+        }
+
+        if let Some(marked) = market {
+            if let Some(col_market) = &excel.col_market {
+                let cell_market = format!("{}{}", col_market, row_in_excel);
+                sheet.get_cell_value_mut(cell_market).set_value_string(marked);
+            }
+        }
+    }
+
+    if let Some(cell_date) = &excel.rowcol_date {
+        sheet.get_cell_value_mut( cell_date.as_ref() )
+            .set_value_string( 
+                chrono::Local::now()
+                    .format("%d/%m/%Y %H:%M:%S")
+                    .to_string() 
+            );
+    }
+
+    set_spreadsheet(&excel.path_to_sheet, book)
+        .map_err(|e| format!("Couldnt write to spreadsheet! : {}", e))?;
+
     // wowzers
     println!("EXCELDATA: \n\n{:#?}\n", exceldata);
     println!("Asset length: {}", sm_inv.get_assets_length());
@@ -267,13 +346,39 @@ fn get_steamloginsecure(sls: &Option<String>) -> Option<String> {
     }
 }
 
-async fn get_exchange_rate(usd_to_x: &Option<Currencies>) -> Result<f64, String> {
+async fn get_exchange_rate(
+    usd_to_x: &Option<Currencies>, 
+    rowcol_usd_to_x: &Option<String>, 
+    sheet: &mut Worksheet
+) -> Result<f64, String> {
+    
+    debug_assert!( !( usd_to_x.is_some() && rowcol_usd_to_x.is_some() ) );
+
     if let Some(currency) = usd_to_x {
         if currency == &Currencies::USD { return Ok(1.0); }
         let rates: HashMap<String, f64> = csgotrader::get_exchange_rates().await?;
         Ok( *rates.get( currency.as_str() ).unwrap_or( &1.0 ) )
     } else { 
-        Ok(1.0) 
+        
+        if let Some(cell) = rowcol_usd_to_x {
+            let res = sheet.get_cell_value( cell.as_ref() )
+                .get_raw_value()
+                .to_string()
+                .trim()
+                .to_string();
+            
+            if res.is_empty() { Err( String::from("usd_to_x cell is empty!") ) }
+            else {
+                Ok(
+                    res.parse::<f64>()
+                        .map_err(|_| String::from(
+                            "usd_to_x cell was not able to be converted to a number!"
+                        ) 
+                    )?
+                )
+            }
+
+        } else { Ok(1.0) }
     }
 }
 
@@ -317,6 +422,10 @@ fn is_user_input_valid(user: &UserInfo, excel: &SheetInfo) -> Result<(), String>
         return Err( String::from("col_asset_id can't be None if you don't want to group simular items!") )
     }
 
+    if excel.rowcol_usd_to_x.is_some() && user.usd_to_x.is_some() {
+        return Err( String::from("rowcol_usd_to_x can't be something if usd_to_x is set as a currency!") )
+    }
+
     Ok(())
 }
 
@@ -328,11 +437,11 @@ fn update_quantity_exceldata(
     sheet: &mut Worksheet, 
 ) {
     if let Some(col_quantity) = col_quantity {
-        let cell_quantity = format!("{}{}", col_quantity, row_in_excel);
-        
         if let Some(steam_quantity) = steamdata.quantity {
             if let Some(data_quantity) = data.quantity { 
                 if data_quantity < steam_quantity {
+                    let cell_quantity = format!("{}{}", col_quantity, row_in_excel);
+
                     data.quantity = Some(steam_quantity);
                     sheet.get_cell_value_mut( cell_quantity.as_ref() ).set_value_number(steam_quantity);
                     println!("UPDATED {} QUANTITY TO {:?} | ROW {}\n", &steamdata.name, &data.quantity, &row_in_excel);
@@ -365,74 +474,110 @@ async fn insert_new_exceldata(
         } else { (None, None) }
     };
 
-    let (market, price): (Option<String>, Option<f64>) = {
+    let (market, price): (Option<String>, Option<f64>) = get_market_price(
+        user, 
+        markets_to_check, 
+        all_market_prices, 
+        rate, 
+        &steamdata.name, 
+        &phase, 
+        &doppler
+    )?;
 
-        if !user.fetch_prices { (None, None) } 
-        else {
-            // Legit just to make shit more pretty
-            #[derive(Debug, Clone, Copy)]
-            struct MarketPrice { market: &'static str, price: f64 }
+    // Inserting into the spreadsheet
+    let cell_steam_name = format!("{}{}", excel.col_steam_name, row_in_excel);
+    sheet.get_cell_value_mut(cell_steam_name).set_value_string(&steamdata.name);
 
-            let mut prices: Vec<MarketPrice> = Vec::new();
+    if excel.col_gun_sticker_case.is_some() || excel.col_skin_name.is_some() || excel.col_wear.is_some() {
+        let [gun_sticker_case, skin_name, wear] = market_name_parse::metadata_from_market_name(&steamdata.name);
 
-            // Finds the prices for each market
-            for market in markets_to_check {
-
-                // If site does not have doppler pricings AND doppler is something, SKIP
-                if phase.is_some() && !*SITE_HAS_DOPPLER.get(market)
-                    .ok_or_else(|| "Didnt find market in SITE_HAS_DOPPLER what?")? { continue; }
-                
-                if let Some(market_prices) = all_market_prices.get( market.as_str() ) {
-                    if let Some(price) = item_csgotrader::get_price(
-                        &steamdata.name, 
-                        &market_prices, 
-                        &market, 
-                        &PriceType::StartingAt, 
-                        &doppler
-                    ) { prices.push( MarketPrice { market: market.as_str(), price: price * rate } ) }    
-                }
-            }
-
-            if prices.is_empty() { (Some("No Market(s) Found".to_string()), None) } 
-            else {
-                match user.pricing_mode {
-                    PricingMode::Cheapest => { 
-                        prices.sort_by(|a,b| a.price.partial_cmp(&b.price).unwrap());
-
-                        (Some(prices[0].market.to_string()), Some(prices[0].price))
-                    },
-                    PricingMode::MostExpensive => { 
-                        prices.sort_by(|a,b| b.price.partial_cmp(&a.price).unwrap());
-
-                        (Some(prices[0].market.to_string()), Some(prices[0].price))
-                    },                          
-                    PricingMode::Random => {
-                        let wiener = prices.get(rand::random_range(0..prices.len()))
-                            .ok_or_else(|| "PricingMode::Random failed what.")
-                            .map(|mp| *mp)?;
-
-                        (Some(wiener.market.to_string()), Some(wiener.price))
-                    },
-                    PricingMode::Hierarchical => { 
-                        prices.sort_by(|a,b| a.price.partial_cmp(&b.price).unwrap());
-                        let mut curr = MarketPrice { market: prices[0].market, price: prices[0].price };
-
-                        for mp in prices.iter().skip(1) {
-                            if curr.price > mp.price * user.percent_threshold as f64 { 
-                                curr = *mp 
-                            }
-                        }
-
-                        (Some(curr.market.to_string()), Some(curr.price)) 
-                    }
-                }
+        if let Some(col_gun_sticker_case) = &excel.col_gun_sticker_case {
+            if !gun_sticker_case.is_empty() {
+                let cell_gsc = format!("{}{}", col_gun_sticker_case, row_in_excel);
+                sheet.get_cell_value_mut(cell_gsc).set_value_string(gun_sticker_case);
             }
         }
-    };
 
-    println!("Doppler phase? : {:?}", phase);
+        if let Some(col_skin_name) = &excel.col_skin_name {
+            if !skin_name.is_empty() {
+                let cell_sn = format!("{}{}", col_skin_name, row_in_excel);
+                sheet.get_cell_value_mut(cell_sn).set_value_string(skin_name);
+            }
+        }
 
-    // ALSO REMEMBER TO ACTUALLY WRITE TO THE SPREADSHEET
+        if let Some(col_wear) = &excel.col_wear {
+            if !wear.is_empty() {
+                let cell_wear = format!("{}{}", col_wear, row_in_excel);
+                sheet.get_cell_value_mut(cell_wear).set_value_string(wear);
+            }
+        }
+    }
+
+    if let Some(itemdata) = extra_itemdata {
+        
+        if let Some(col_float) = &excel.col_float {
+            if let Some(float) = itemdata.float {
+                let cell_float = format!("{}{}", col_float, row_in_excel);
+                sheet.get_cell_value_mut(cell_float).set_value_number(float);
+            }
+        }
+
+        if let Some(col_pattern) = &excel.col_pattern {
+            if let Some(pattern) = itemdata.paintseed {
+                let cell_pattern = format!("{}{}", col_pattern, row_in_excel);
+                sheet.get_cell_value_mut(cell_pattern).set_value_number(pattern);
+            }
+        }
+
+        if let Some(col_phase) = &excel.col_phase {
+            if let Some(faze) = &itemdata.phase {
+                let cell_phase = format!("{}{}", col_phase, row_in_excel);
+                sheet.get_cell_value_mut(cell_phase).set_value_string(faze.as_str());
+            }
+        }
+    }
+
+    if let Some(col_quantity) = &excel.col_quantity {
+        if let Some(quantity) = steamdata.quantity {
+            let cell_quantity = format!("{}{}", col_quantity, row_in_excel);
+            sheet.get_cell_value_mut(cell_quantity).set_value_number(quantity);
+        }
+    }
+
+    if let Some(monetary) = price {
+        let cell_price = format!("{}{}", &excel.col_price, row_in_excel);
+        sheet.get_cell_value_mut(cell_price).set_value_number(monetary);
+    }
+
+    if let Some(col_market) = &excel.col_market {
+        if let Some(marquet) = market {
+            let cell_market = format!("{}{}", col_market, row_in_excel);
+            sheet.get_cell_value_mut(cell_market).set_value_string(marquet);
+        }
+    }
+
+    if let Some(col_inspect_link) = &excel.col_inspect_link {
+        if let Some(inspect_link) = &steamdata.inspect_link {
+            let cell = format!("{}{}", col_inspect_link, row_in_excel);
+            sheet.get_cell_value_mut(cell).set_value_string(inspect_link);
+        }
+    }
+
+    if let Some(col_asset_id) = &excel.col_asset_id {
+        if !user.group_simular_items {
+            let cell = format!("{}{}", col_asset_id, row_in_excel);
+            sheet.get_cell_value_mut(cell).set_value_number(steamdata.asset_id as f64);
+        }
+    }
+
+    if let Some(col_csgoskins_link) = &excel.col_csgoskins_link {
+        let csgoskins_url = csgoskins_url::create_csgoskins_urls(&steamdata.name);
+
+        let cell = format!("{}{}", col_csgoskins_link, row_in_excel);
+        let link = format!("https://csgoskins.gg/items/{}", csgoskins_url);
+
+        sheet.get_cell_value_mut(cell).set_value_string(link);
+    }
 
     Ok(ExcelData { 
         name: steamdata.name.clone(), 
@@ -440,7 +585,8 @@ async fn insert_new_exceldata(
         phase, 
         price: price.map_or_else(|| 0.0, |p| p), 
         inspect_link: steamdata.inspect_link.clone(),
-        asset_id: if !user.group_simular_items { Some(steamdata.asset_id) } else { None }
+        asset_id: if !user.group_simular_items { Some(steamdata.asset_id) } else { None },
+        sold: None
     })
 }
 
@@ -501,4 +647,67 @@ async fn wrapper_fetch_iteminfo_via_itemprovider_persistent(
     } else { Ok(None) }
 }
 
+fn get_market_price(
+    user: &UserInfo,
+    markets_to_check: &Vec<Sites>,
+    all_market_prices: &HashMap<String, Value>,
+    rate: f64,
+    item_name: &String,
+    phase: &Option<String>,
+    doppler: &Option<Doppler>
+) -> Result<(Option<String>, Option<f64>), String> {
+    if !user.fetch_prices { Ok((None, None)) } 
+    else {
+        #[derive(Debug, Clone, Copy)]
+        struct MarketPrice { market: &'static str, price: f64 }
+        
+        let mut prices: Vec<MarketPrice> = Vec::new();
+        
+        // Finds the prices for each market
+        for market in markets_to_check {
+            // If site does not have doppler pricings AND doppler is something, SKIP
+            if phase.is_some() && !*SITE_HAS_DOPPLER.get(market)
+                .ok_or_else(|| "Didnt find market in SITE_HAS_DOPPLER what?")? { continue; }
+            
+            if let Some(market_prices) = all_market_prices.get( market.as_str() ) {
+                if let Some(price) = item_csgotrader::get_price(
+                    item_name, 
+                    market_prices, 
+                    market, 
+                    &PriceType::StartingAt, 
+                    doppler
+                ) { prices.push( MarketPrice { market: market.as_str(), price: price * rate } ) }    
+            }
+        }
+        if prices.is_empty() { Ok((Some("No Market(s) Found".to_string()), None)) } 
+        else {
+            match user.pricing_mode {
+                PricingMode::Cheapest => { 
+                    prices.sort_by(|a,b| a.price.partial_cmp(&b.price).unwrap());
+                    Ok((Some(prices[0].market.to_string()), Some(prices[0].price)))
+                },
+                PricingMode::MostExpensive => { 
+                    prices.sort_by(|a,b| b.price.partial_cmp(&a.price).unwrap());
+                    Ok((Some(prices[0].market.to_string()), Some(prices[0].price)))
+                },                          
+                PricingMode::Random => {
+                    let wiener = prices.get( rand::random_range(0..prices.len()) )
+                        .ok_or_else(|| "PricingMode::Random failed what.")
+                        .map(|mp| *mp)?;
+                    Ok((Some(wiener.market.to_string()), Some(wiener.price)))
+                },
+                PricingMode::Hierarchical => { 
+                    prices.sort_by(|a,b| a.price.partial_cmp(&b.price).unwrap());
+                    let mut curr = MarketPrice { market: prices[0].market, price: prices[0].price };
+                    for mp in prices.iter().skip(1) {
+                        if curr.price > mp.price * user.percent_threshold as f64 { 
+                            curr = *mp 
+                        }
+                    }
+                    Ok((Some(curr.market.to_string()), Some(curr.price)) )
+                }
+            }
+        }
+    }
+}
 // TODO: FIX EDGECASE WHERE I WANT TO REMOVE THE ASSETID

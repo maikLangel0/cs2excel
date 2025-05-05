@@ -1,8 +1,8 @@
-use std::path::PathBuf;
+use std::{path::PathBuf, str::FromStr};
 use umya_spreadsheet::{new_file, reader, writer, Spreadsheet, Worksheet, XlsxError};
 use whoami;
 
-use crate::models::{excel::ExcelData, user_sheet::SheetInfo};
+use crate::models::{excel::ExcelData, price::Doppler, user_sheet::SheetInfo};
 
 pub fn get_spreadsheet(path: &Option<PathBuf>) -> Result<Spreadsheet, XlsxError> {
     if let Some(pts) = path { 
@@ -21,12 +21,12 @@ pub fn set_spreadsheet(path: &Option<PathBuf>, book: Spreadsheet) -> Result<(), 
     Ok(())
 }
 
-pub fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo) -> Result<Vec<ExcelData>, String> {
+pub fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo, ignore_sold: bool) -> Result<Vec<ExcelData>, String> {
     let mut exceldata: Vec<ExcelData> = Vec::new();
     let mut iter = excel.row_start_write_in_table;
 
     loop {
-        let name_cell = format!("{}{}", excel.col_market_name, iter);
+        let name_cell = format!("{}{}", excel.col_steam_name, iter);
         let price_cell = format!("{}{}", excel.col_price, iter);
 
         let name: String = {
@@ -47,12 +47,12 @@ pub fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo) -> Result<Vec<Exc
         let inspect_link: Option<String> = {
             if let Some(inspect) = &excel.col_inspect_link {
                 let cell_inspect = format!("{}{}", inspect, &iter);
-
                 if let Some(cell) = sheet.get_cell(cell_inspect) {
+
                     let cell_value = cell.get_raw_value().to_string().trim().to_string();
                     if cell_value.is_empty() { None } else { Some(cell_value) }
-                } 
-                else { None }
+
+                } else { None }
             } else { None }
         };
 
@@ -62,23 +62,24 @@ pub fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo) -> Result<Vec<Exc
 
                 if let Some(cell) = sheet.get_cell(cell_quantity) {
 
-                    let cell_value = cell.get_raw_value().to_string().trim().to_string();
-                    if cell_value.is_ascii() { None } 
-                    else { Some(cell_value.parse::<u16>().map_err(|_| "Quantity failed parsing")?) }
-                }
-                else { None }
+                    let cell_value = cell.get_raw_value().to_string().trim().to_string(); 
+                    Some(cell_value.parse::<u16>().map_err(|_| "Quantity failed parsing")?)
+
+                } else { None }
             } else { None }
         };
 
         let phase: Option<String> = {
             if let Some(special) = &excel.col_phase {
                 let cell_special = format!("{}{}", special, &iter);
-
                 if let Some(cell) = sheet.get_cell(cell_special) {
+
                     let cell_value = cell.get_raw_value().to_string().trim().to_string();
-                    if cell_value.is_empty() { None } else { Some(cell_value) }
-                }
-                else { None }
+                    if cell_value.is_empty() { None } 
+                    else if Doppler::from_str(&cell_value).is_err() { None }
+                    else { Some(cell_value) }
+
+                } else { None }
             } else { None }
         };
 
@@ -89,12 +90,28 @@ pub fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo) -> Result<Vec<Exc
                      
                     let cell_value = cell.get_raw_value().to_string().trim().to_string();
                     if cell_value.is_empty() { None } 
-                    else { Some(cell_value.parse::<u64>().map_err(|_| "Assetid failed parsing")?) }    
+                    else { Some(cell_value.parse::<u64>().map_err(|_| "Assetid failed parsing")?) }
+
                 } else { None }
             } else { None }
         };
 
-        exceldata.push( ExcelData{ name, price, quantity, inspect_link, phase, asset_id } );
+        let sold: Option<f64> = {
+            if !ignore_sold { 
+                if let Some(col_already_sold) = &excel.col_sold {
+                    let cell = format!("{}{}", &col_already_sold, &iter);
+                    if let Some(cell) = sheet.get_cell(cell) {
+
+                        let cell_value = cell.get_raw_value().to_string().trim().to_string();
+                        if cell_value.is_empty() { None } 
+                        else { Some(cell_value.parse::<f64>().map_err(|_| "already_sold failed parsing")?) }
+
+                    } else { None }
+                } else { None }
+            } else { None }
+        };
+
+        exceldata.push( ExcelData{name, price, quantity, inspect_link, phase, asset_id, sold} );
         iter += 1;
     }
 

@@ -8,7 +8,7 @@ use super::{price::{Currencies, PricingMode, PricingProvider}, web::{ItemInfoPro
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct UserInfo {
     pub prefer_markets: Option< Vec<Sites> >, 
-    pub ignore_market_names: Option< Vec<String> >,  
+    pub ingore_steam_names: Option< Vec<String> >,  
     pub pause_time_ms: u64, 
     pub steamid: u64, 
     pub pricing_mode: PricingMode,
@@ -17,6 +17,7 @@ pub struct UserInfo {
     pub usd_to_x: Option<Currencies>,
     pub steamloginsecure: Option<String>,    
     pub percent_threshold: u8, 
+    pub ignore_already_sold: bool,
     pub group_simular_items: bool,
     pub sum_quantity_prices: bool,
     pub fetch_prices: bool, 
@@ -35,8 +36,8 @@ pub struct SheetInfo {
     pub col_skin_name: Option<String>, // Where to put the name of skin/player/team
     pub col_wear: Option<String>, // Where to put float of skin/rarity of sticker 
     pub sheet_name: Option<String>, // Name of the sheet user wants to access
-    pub col_already_sold: Option<String>, // IF PROVIDED, ignore updating price of stuff that is already sold
-    pub col_market_name: String, // Column where the full market name to the site used to pricecheck is
+    pub col_sold: Option<String>, // IF PROVIDED, ignore updating price of stuff that is already sold
+    pub col_steam_name: String, // Column where the full market name to the site used to pricecheck is
     pub col_asset_id: Option<String>, // UNIQUE IDENTIFIER!
     pub col_price: String, // Column for the price of item
     pub col_quantity: Option<String>, // Column for the item quantity
