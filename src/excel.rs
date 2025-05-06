@@ -26,35 +26,37 @@ pub fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo, ignore_sold: bool
     let mut iter = excel.row_start_write_in_table;
 
     loop {
+        
         let name_cell = format!("{}{}", excel.col_steam_name, iter);
-        let price_cell = format!("{}{}", excel.col_price, iter);
-
         let name: String = {
             if let Some(cell) = sheet.get_cell(name_cell) {
                 let cell_value = cell.get_raw_value().to_string().trim().to_string();
+                println!("row: {} | name cellvalue: {}", iter, cell_value);
+
                 if cell_value.is_empty() { break } else { cell_value }
             } else { break }
         };
+        
+        // let price_cell = format!("{}{}", excel.col_price, iter);
+        // let price: f64 = {
+        //     if let Some(cell) = sheet.get_cell(price_cell) {
+        //         let cell_value = cell.get_raw_value().to_string().trim().to_string();
+        //         if cell_value.is_empty() { break } 
+        //         else { cell_value.parse::<f64>().map_err(|_| "Price failed parsing")? }
+        //     } else { break }
+        // };
 
-        let price: f64 = {
-            if let Some(cell) = sheet.get_cell(price_cell) {
-                let cell_value = cell.get_raw_value().to_string().trim().to_string();
-                if cell_value.is_empty() { break } 
-                else { cell_value.parse::<f64>().map_err(|_| "Price failed parsing")? }
-            } else { break }
-        };
+        // let inspect_link: Option<String> = {
+            // if let Some(inspect) = &excel.col_inspect_link {
+                // let cell_inspect = format!("{}{}", inspect, &iter);
+                // if let Some(cell) = sheet.get_cell(cell_inspect) {
 
-        let inspect_link: Option<String> = {
-            if let Some(inspect) = &excel.col_inspect_link {
-                let cell_inspect = format!("{}{}", inspect, &iter);
-                if let Some(cell) = sheet.get_cell(cell_inspect) {
+                    // let cell_value = cell.get_raw_value().to_string().trim().to_string();
+                    // if cell_value.is_empty() { None } else { Some(cell_value) }
 
-                    let cell_value = cell.get_raw_value().to_string().trim().to_string();
-                    if cell_value.is_empty() { None } else { Some(cell_value) }
-
-                } else { None }
-            } else { None }
-        };
+                // } else { None }
+            // } else { None }
+        // };
 
         let quantity: Option<u16> = {
             if let Some(quant) = &excel.col_quantity {
@@ -97,7 +99,7 @@ pub fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo, ignore_sold: bool
         };
 
         let sold: Option<f64> = {
-            if !ignore_sold { 
+            if ignore_sold { 
                 if let Some(col_already_sold) = &excel.col_sold {
                     let cell = format!("{}{}", &col_already_sold, &iter);
                     if let Some(cell) = sheet.get_cell(cell) {
@@ -111,7 +113,7 @@ pub fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo, ignore_sold: bool
             } else { None }
         };
 
-        exceldata.push( ExcelData{name, price, quantity, inspect_link, phase, asset_id, sold} );
+        exceldata.push( ExcelData{name, quantity, phase, asset_id, sold} );
         iter += 1;
     }
 

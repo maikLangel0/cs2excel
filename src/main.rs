@@ -113,6 +113,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         if !user.fetch_steam { break }
 
         println!("\nCURRENT STEAMDATA {:#?}", steamdata);
+        println!("CURRENT STEAMDATA NAME:  {}", steamdata.name);
 
         if user.group_simular_items {
             assert!(excel.col_quantity.is_some());
@@ -243,7 +244,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 let extra_itemdata: Option<ExtraItemData> = wrapper_fetch_iteminfo_via_itemprovider_persistent(
                     iteminfo_client, 
                     &user.iteminfo_provider, 
-                    &excel.col_inspect_link, 
+                    &excel.col_inspect_link,
                     user.pause_time_ms, 
                     &steamdata
                 ).await?;
@@ -273,9 +274,13 @@ async fn main() -> Result<(), Box<dyn Error>> {
         if i == exceldata_initial_length { break }
 
         if let Some(ignore) = &user.ingore_steam_names {
+            let mut pls_ingore = false;
+
             for ignore_steam_name in ignore {
-                if data.name == *ignore_steam_name { continue; }
+                if data.name == *ignore_steam_name { pls_ingore = true }
             }
+
+            if pls_ingore { continue; }
         }
 
         if data.sold.is_some() { continue; }
@@ -583,8 +588,8 @@ async fn insert_new_exceldata(
         name: steamdata.name.clone(), 
         quantity: steamdata.quantity, 
         phase, 
-        price: price.map_or_else(|| 0.0, |p| p), 
-        inspect_link: steamdata.inspect_link.clone(),
+        // price: price.map_or_else(|| 0.0, |p| p), 
+        // inspect_link: steamdata.inspect_link.clone(),
         asset_id: if !user.group_simular_items { Some(steamdata.asset_id) } else { None },
         sold: None
     })

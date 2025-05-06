@@ -13,7 +13,7 @@ pub async fn fetch_iteminfo(
     let url_base = "https://api.csfloat.com/?url=";
     let url = format!("{}{}", url_base, inspect_link);
 
-    println!("Curr url: {}", url);
+    // println!("Curr url: {}", url);
 
     let response = client.get(url)
         // .headers( CSFLOAT_HEADERS_DEFAULT.clone() )
