@@ -1,14 +1,18 @@
 use serde_json::Value;
 
-use crate::models::web::{ExtraItemData, SteamData, PHASES};
+use crate::models::web::{ExtraItemData, PHASES};
 
 // Må få tak i doppler/phase, market, price
-pub fn parse_iteminfo_min(data: &Value, steamdata: &SteamData) -> Result<ExtraItemData, String> {
-    // let name = data.get("full_item_name")
-        // .and_then(|n| n.as_str() )
-        // .map(|n| n.to_string() )
-        // .ok_or_else(|| "full_item_name NOT FOUND")?;
-    let name = steamdata.name.clone();
+pub fn parse_iteminfo_min(data: &Value, item_name: Option<&str>) -> Result<ExtraItemData, String> {
+    let name  = match item_name {
+        Some(name) => { name.to_string() },
+        None => {
+            data.get("full_item_name")
+                .and_then(|n| n.as_str() )
+                .map( str::to_owned )
+                .ok_or_else(|| "full_item_name NOT FOUND")?
+        }
+    };
 
     let float = {
         let tmp = data.get("floatvalue")

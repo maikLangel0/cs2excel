@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use serde_json::Value;
 
-use crate::models::{price::{Doppler, PriceType}, web::{ExtraItemData, Sites, SteamData}};
+use crate::models::{price::{Doppler, PriceType}, web::{ExtraItemData, Sites}};
 
 pub fn get_price(item_name: &str, prices: &Value, market: &Sites, want: &PriceType, phase: &Option<Doppler>) -> Option<f64> {
     if let Some(p_one) = prices.get(item_name) { 
@@ -56,8 +56,17 @@ fn doppler_price(p: &Value, phase: &Option<Doppler>, item_name: &str, market: &S
     None
 }
 
-pub fn parse_iteminfo_min(data: &Value, steamdata: &SteamData) -> Result<ExtraItemData, String> {
-    let name = steamdata.name.clone();
+pub fn parse_iteminfo_min(data: &Value, item_name: Option<&str>) -> Result<ExtraItemData, String> {
+    
+    let name  = match item_name {
+        Some(name) => { name.to_string() },
+        None => {
+            data.get("full_item_name")
+                .and_then(|n| n.as_str() )
+                .map( str::to_owned )
+                .ok_or_else(|| "full_item_name NOT FOUND")?
+        }
+    };
 
     let float = {
         let tmp = data.get("floatvalue")

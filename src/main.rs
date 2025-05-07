@@ -264,11 +264,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         }
     }
 
-    /*
-        NOW THE ONLY THING LEFT IS THE PRICE CHECKING | REMEMBER
-            - DONT NEED TO FETCH MORE ITEMDATA UNLESS ExcelData.phase.is_some()
-    */
-
+    // Second iteration - updates the prices of all the items other than the 
+    // one(s) inserted into the spreadsheet during the first iteration.
     for (i, data) in exceldata.iter().enumerate() {
         if !user.fetch_prices { break }
         if i == exceldata_initial_length { break }
@@ -385,53 +382,6 @@ async fn get_exchange_rate(
 
         } else { Ok(1.0) }
     }
-}
-
-fn is_user_input_valid(user: &UserInfo, excel: &SheetInfo) -> Result<(), String> {
-    if !user.iteminfo_provider.is_some() {
-        println!("WARNING: Pricing for doppler phases will not be accurate with fetch_more_iteminfo off.")
-    }
-
-    if !user.iteminfo_provider.is_some() && excel.col_inspect_link.is_some() {
-        println!("WARNING: col_inspect_link is not defined so you will not be able to fetch_more_iteminfo (float, doppler phase, pattern, price of doppler).")
-    }
-    
-    // --------------------
-
-    if excel.path_to_sheet.is_some() { 
-        if excel.sheet_name.is_none() {
-            return Err( String::from( "Sheet name can't be nothing if path to sheet is given." ) )
-        }
-    }
-
-    if excel.col_inspect_link.is_none() {
-        if excel.col_quantity.is_none(){ return Err( String::from( "Quantity can't be empty when no inspect link column is given." ) ) }
-        if excel.col_float.is_some()   { return Err( String::from( "Column for float given but no column for inspect link."   ) ) }
-        if excel.col_phase.is_some()   { return Err( String::from( "Column for phase given but no column for inspect link."   ) ) }
-        if excel.col_pattern.is_some() { return Err( String::from( "Column for pattern given but no column for inspect link." ) ) }
-    }
-
-    if user.iteminfo_provider.is_some() && excel.col_inspect_link.is_some() && excel.col_phase.is_none() {
-        return Err( String::from( "Phase of doppler knives will not be pricechecked correctly when reading over the spreadsheet in the future becuase col_phase is not set!" ))
-    }
-
-    if user.pause_time_ms < 1000 || user.pause_time_ms > 10000 {
-        return Err( String::from("pause_time_ms is only allowed to be in range of 1000 (2 seconds) - 10000 (10 seconds).") )
-    }
-
-    if excel.col_quantity.is_none() && user.group_simular_items {
-        return Err( String::from("col_quantity can't be None if you want to group simular items!") )
-    }
-
-    if excel.col_asset_id.is_none() && !user.group_simular_items {
-        return Err( String::from("col_asset_id can't be None if you don't want to group simular items!") )
-    }
-
-    if excel.rowcol_usd_to_x.is_some() && user.usd_to_x.is_some() {
-        return Err( String::from("rowcol_usd_to_x can't be something if usd_to_x is set as a currency!") )
-    }
-
-    Ok(())
 }
 
 fn update_quantity_exceldata(
@@ -629,7 +579,7 @@ async fn wrapper_fetch_iteminfo_via_itemprovider_persistent(
 ) -> Result<Option<ExtraItemData>, String> {
     
     if let Some(item_provide) = iteminfo_provider {
-        let tmp = fetch_iteminfo_via_itemprovider_persistent(
+        let json_response = fetch_iteminfo_via_itemprovider_persistent(
             client, 
             col_inspect_link, 
             item_provide,
@@ -637,14 +587,14 @@ async fn wrapper_fetch_iteminfo_via_itemprovider_persistent(
             pause_time_ms
         ).await?;
         
-        if let Some(raw) = tmp {
+        if let Some(json_body) = json_response {
             match item_provide {
                 ItemInfoProvider::Csfloat => { 
-                    let res = parsing::item_csfloat::parse_iteminfo_min(&raw, &steamdata)?;
+                    let res = parsing::item_csfloat::parse_iteminfo_min(&json_body, Some(&steamdata.name) )?;
                     Ok(Some(res)) 
                 },
                 ItemInfoProvider::Csgotrader => { 
-                    let res = parsing::item_csgotrader::parse_iteminfo_min(&raw, &steamdata)?;
+                    let res = parsing::item_csgotrader::parse_iteminfo_min(&json_body, Some(&steamdata.name) )?;
                     Ok(Some(res))
                 }
             }
@@ -714,4 +664,51 @@ fn get_market_price(
             }
         }
     }
+}
+
+fn is_user_input_valid(user: &UserInfo, excel: &SheetInfo) -> Result<(), String> {
+    if !user.iteminfo_provider.is_some() {
+        println!("WARNING: Pricing for doppler phases will not be accurate with fetch_more_iteminfo off.")
+    }
+
+    if !user.iteminfo_provider.is_some() && excel.col_inspect_link.is_some() {
+        println!("WARNING: col_inspect_link is not defined so you will not be able to fetch_more_iteminfo (float, doppler phase, pattern, price of doppler).")
+    }
+    
+    // --------------------
+
+    if excel.path_to_sheet.is_some() { 
+        if excel.sheet_name.is_none() {
+            return Err( String::from( "Sheet name can't be nothing if path to sheet is given." ) )
+        }
+    }
+
+    if excel.col_inspect_link.is_none() {
+        if excel.col_quantity.is_none(){ return Err( String::from( "Quantity can't be empty when no inspect link column is given." ) ) }
+        if excel.col_float.is_some()   { return Err( String::from( "Column for float given but no column for inspect link."   ) ) }
+        if excel.col_phase.is_some()   { return Err( String::from( "Column for phase given but no column for inspect link."   ) ) }
+        if excel.col_pattern.is_some() { return Err( String::from( "Column for pattern given but no column for inspect link." ) ) }
+    }
+
+    if user.iteminfo_provider.is_some() && excel.col_inspect_link.is_some() && excel.col_phase.is_none() {
+        return Err( String::from( "Phase of doppler knives will not be pricechecked correctly when reading over the spreadsheet in the future becuase col_phase is not set!" ))
+    }
+
+    if user.pause_time_ms < 1000 || user.pause_time_ms > 10000 {
+        return Err( String::from("pause_time_ms is only allowed to be in range of 1000 (2 seconds) - 10000 (10 seconds).") )
+    }
+
+    if excel.col_quantity.is_none() && user.group_simular_items {
+        return Err( String::from("col_quantity can't be None if you want to group simular items!") )
+    }
+
+    if excel.col_asset_id.is_none() && !user.group_simular_items {
+        return Err( String::from("col_asset_id can't be None if you don't want to group simular items!") )
+    }
+
+    if excel.rowcol_usd_to_x.is_some() && user.usd_to_x.is_some() {
+        return Err( String::from("rowcol_usd_to_x can't be something if usd_to_x is set as a currency!") )
+    }
+
+    Ok(())
 }

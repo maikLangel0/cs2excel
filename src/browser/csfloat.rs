@@ -22,8 +22,7 @@ pub async fn fetch_iteminfo(
         .await.map_err(|_| "woopsie")?;
 
     if !response.status().is_success() { 
-        println!("\n\nFAILED RESPONSE HEADER: {:?}\n", response.headers()); 
-        
+        // println!("\n\nFAILED RESPONSE HEADER: {:?}\n", response.headers()); 
         return Err( 
             format!("GET Request failed! {} Response text: {:#?}", 
                 &response.status(), 
@@ -33,9 +32,9 @@ pub async fn fetch_iteminfo(
     }
     
     let json_obj: Value = serde_json::from_str( 
-        &response.text()
-            .await.map_err(|e| format!("Could not turn json into text wat {}.",e))? 
-    ).map_err(|_| format!("Could not turn text into serde json value what."))?;
+        &response.text().await
+            .map_err(|e| format!("Could not turn json into text wat | {}.",e))? 
+    ).map_err( |_| format!("Could not turn text into serde json value what.") )?;
     
     let iteminfo: Value = json_obj.get("iteminfo")
         .unwrap_or( &Value::Null )
@@ -63,7 +62,7 @@ pub async fn fetch_iteminfo_persistent(
                 
                 tokio::time::sleep( 
                     Duration::from_millis( 
-                        pause_time_millis * 2 * (attempt * 2 - attempt) as u64 
+                        60 + pause_time_millis * 2 * (attempt * 2 - attempt) as u64 
                     ) 
                 ).await;
                 
