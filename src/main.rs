@@ -111,6 +111,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     for steamdata in cs_inv.iter() {
         if !user.fetch_steam { break }
+        
 
         println!("\nCURRENT STEAMDATA {:#?}", steamdata);
         println!("CURRENT STEAMDATA NAME:  {}", steamdata.name);
@@ -160,6 +161,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     }
                 },
                 None => {
+
+                    // DO NOT INSERT NEW STUFF IF THERE IS A LIMITER ON WHERE TO STOP WRITING
+                    // acts on the outer loop "for steamdata in cs_inv.iter()"
+                    if excel.row_stop_write_in_table.is_some() { continue; } 
+
                     let row_in_excel: usize = exceldata.len() + excel.row_start_write_in_table as usize;
 
                     let extra_itemdata: Option<ExtraItemData> = if let Some(quant) = steamdata.quantity {
@@ -185,7 +191,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             sheet
                         ).await? 
                     );
-                    continue;  
+                    continue; 
+
                 }
             }
             assert!(excel.col_inspect_link.is_some());
@@ -221,6 +228,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     ); 
                 },
                 None => {
+                    
+                    // DO NOT INSERT NEW STUFF IF THERE IS A LIMITER ON WHERE TO STOP WRITING
+                    // acts on the outer loop "for steamdata in cs_inv.iter()"
+                    if excel.row_stop_write_in_table.is_some() { continue; } 
+
                     let row_in_excel: usize = exceldata.len() + excel.row_start_write_in_table as usize;
 
                     exceldata.push( 
@@ -233,11 +245,16 @@ async fn main() -> Result<(), Box<dyn Error>> {
                             rate, row_in_excel, 
                             sheet
                         ).await? 
+
                     );
                 }
             }
         }      // If not group_simular_items
         else {
+            
+            // DO NOT INSERT NEW STUFF IF THERE IS A LIMITER ON WHERE TO STOP WRITING
+            if excel.row_stop_write_in_table.is_some() { break; }
+
             if exceldata.iter().find(|e| e.asset_id == Some(steamdata.asset_id) && e.name == steamdata.name).is_none() {
                 let row_in_excel: usize = exceldata.len() + excel.row_start_write_in_table as usize;
 
@@ -270,19 +287,20 @@ async fn main() -> Result<(), Box<dyn Error>> {
         if !user.fetch_prices { break }
         if i == exceldata_initial_length { break }
 
+        if data.sold.is_some() { continue; }
         if let Some(ignore) = &user.ingore_steam_names {
             let mut pls_ingore = false;
-
-            for ignore_steam_name in ignore {
-                if data.name == *ignore_steam_name { pls_ingore = true }
+            for ignore_steam_name in ignore { 
+                if data.name == *ignore_steam_name { pls_ingore = true } 
             }
-
             if pls_ingore { continue; }
         }
 
-        if data.sold.is_some() { continue; }
-
         let row_in_excel = i + excel.row_start_write_in_table as usize;
+        if let Some(stop_write) = excel.row_stop_write_in_table {
+            if row_in_excel >= stop_write as usize { break }
+        }
+        
         let cell_price = format!("{}{}", excel.col_price, row_in_excel);
 
         let doppler: Option<Doppler> = {

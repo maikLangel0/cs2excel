@@ -8,10 +8,10 @@ pub static SHEET: LazyLock<SheetInfo> = LazyLock::new(|| {
     SheetInfo { 
         path_to_sheet:              Some( PathBuf::from("C:\\Users\\Mikae\\OneDrive\\Skrivebord\\cs_invest\\CS2_invest_new_main.xlsx") ),
         sheet_name:                 Some( String::from("Sheet1") ),
-
-        row_stop_write_in_table:    None,
+        
         row_start_write_in_table:   2,
-
+        row_stop_write_in_table:    None,
+        
         col_steam_name:                   String::from("A"),
         col_price:                        String::from("J"),
 
