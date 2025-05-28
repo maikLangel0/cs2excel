@@ -46,7 +46,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 println!("WARNING: Automatically fetched first sheet in spreadsheet because {} was not found.", sn);
                 book.get_sheet_mut(&0).ok_or_else(|| format!(
                     "Failed to get the first sheet in the spreadsheet with path: \n{:?}", &excel.path_to_sheet)
-                )? 
+                )?
             }  
         } else { book.get_sheet_mut(&0).ok_or("Failed to get first sheet provided by new_file creation.")? }
     };
@@ -249,7 +249,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     );
                 }
             }
-        }      // If not group_simular_items
+        } 
+        
+        // If not group_simular_items     
         else {
             
             // DO NOT INSERT NEW STUFF IF THERE IS A LIMITER ON WHERE TO STOP WRITING
