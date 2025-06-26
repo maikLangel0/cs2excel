@@ -6,7 +6,7 @@ use crate::models::{
 
 pub static SHEET: LazyLock<SheetInfo> = LazyLock::new(|| {
     SheetInfo { 
-        path_to_sheet:              Some( PathBuf::from("C:\\Users\\Mikae\\OneDrive\\Skrivebord\\cs_invest\\CS2_invest_new_main.xlsx") ),
+        path_to_sheet:              Some( PathBuf::from("C:\\Users\\Mikae\\Desktop\\invest\\cs\\CS2_invest_new_main.xlsx") ),
         sheet_name:                 Some( String::from("Sheet1") ),
         
         row_start_write_in_table:   2,
@@ -37,7 +37,8 @@ pub static USER: LazyLock<UserInfo> = LazyLock::new(|| {
         prefer_markets:             Some( vec![Sites::YOUPIN, Sites::CSFLOAT, Sites::BUFF163] ),
         steamloginsecure:           None,
 
-        iteminfo_provider:          Some( ItemInfoProvider::Csfloat ),
+        // iteminfo_provider:          Some( ItemInfoProvider::Csfloat ), // "Bots are temporarily not allowed on CSGOFloat Inspect API due to new rate limits imposed by Valve"
+        iteminfo_provider:          None,
         usd_to_x:                   Some( Currencies::CNY ),
 
         pricing_mode:               PricingMode::Hierarchical,

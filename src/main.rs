@@ -67,7 +67,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let mut exceldata: Vec<ExcelData> = get_exceldata(sheet, &excel, user.ignore_already_sold)?;
     let exceldata_initial_length: usize = exceldata.len();
     
-    println!("Data gotten from excel spreadsheet: \n{:#?}", exceldata);
+    // println!("Data gotten from excel spreadsheet: \n{:#?}", exceldata);
     // if !exceldata.is_empty() { return Ok(()) }
 
     //  exceldata_old_len er her fordi jeg har endret måte å oppdatere prisene i spreadsheet'n på.
@@ -80,12 +80,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
     
     let steamcookie: Option<String> = get_steamloginsecure(&user.steamloginsecure);
 
-    let (rate, sm_inv) = tokio::try_join!(
-        get_exchange_rate(&user.usd_to_x, &excel.rowcol_usd_to_x, sheet), 
-        SteamInventory::init(user.steamid, 730, steamcookie)
-    )?;
+    let rate = get_exchange_rate(&user.usd_to_x, &excel.rowcol_usd_to_x, sheet).await?;
+    
+    let sm_inv: Option<SteamInventory> = {
+        if user.fetch_steam { Some( SteamInventory::init(user.steamid, 730, steamcookie).await? ) } 
+        else { None }
+    };
 
-    let cs_inv: Vec<SteamData> = sm_inv.get_steam_items(user.steamid, user.group_simular_items, true)?;
+    let cs_inv: Option<Vec<SteamData>> = {
+        if let Some(inv) = &sm_inv { Some( inv.get_steam_items(user.steamid, user.group_simular_items, true)? ) }
+        else { None }
+    };
 
     // -----------------------------------------------------------------------------------------------
 
@@ -107,14 +112,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     };
     
     // -----------------------------------------------------------------------------------------------
-    // Inserting and/or updating quantity + adding prices for newly inserted items
+    // Inserting and/or updating quantity + adding prices for newly inserted items | .flatten() only runs the loop if it is Some()
 
-    for steamdata in cs_inv.iter() {
-        if !user.fetch_steam { break }
-        
+    for steamdata in cs_inv.iter().flatten() {     
 
-        println!("\nCURRENT STEAMDATA {:#?}", steamdata);
-        println!("CURRENT STEAMDATA NAME:  {}", steamdata.name);
+        // println!("\nCURRENT STEAMDATA {:#?}", steamdata);
 
         if user.group_simular_items {
             assert!(excel.col_quantity.is_some());
@@ -345,10 +347,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
     set_spreadsheet(&excel.path_to_sheet, book)
         .map_err(|e| format!("Couldnt write to spreadsheet! : {}", e))?;
 
-    // wowzers
-    println!("EXCELDATA: \n\n{:#?}\n", exceldata);
-    println!("Asset length: {}", sm_inv.get_assets_length());
-    println!("Inventory length: {}", sm_inv.get_total_inventory_length() );
+    println!("STEAMDATA: \n{:#?}\n", &cs_inv);
+    println!("EXCELDATA: \n{:#?}\n", &exceldata);
+
+    if let Some(inv) = &sm_inv {
+        println!("Asset length: {}", inv.get_assets_length());
+        println!("Inventory length: {}", inv.get_total_inventory_length() );
+    };
+
+    println!("Finished!");
 
     Ok(())
 }
@@ -441,11 +448,12 @@ async fn insert_new_exceldata(
     let (doppler, phase): (Option<Doppler>, Option<String>) = {
 
         if let Some(itemdata) = extra_itemdata {
-            let phase: Option<String> = itemdata.phase.clone()
+            let doppler = itemdata.phase.clone();
+            let phase: Option<String> = doppler.as_ref()
                 .and_then( |p| Some( p.as_str() ) )
                 .map( str::to_owned );
 
-            (itemdata.phase.clone(), phase)
+            (doppler, phase)
         } else { (None, None) }
     };
 
@@ -675,9 +683,8 @@ fn get_market_price(
                     prices.sort_by(|a,b| a.price.partial_cmp(&b.price).unwrap());
                     let mut curr = MarketPrice { market: prices[0].market, price: prices[0].price };
                     for mp in prices.iter().skip(1) {
-                        if curr.price > mp.price * user.percent_threshold as f64 { 
-                            curr = *mp 
-                        }
+                        if curr.price > mp.price * user.percent_threshold as f64 { curr = *mp } 
+                        else { break }
                     }
                     Ok((Some(curr.market.to_string()), Some(curr.price)) )
                 }
