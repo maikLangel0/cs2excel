@@ -9,13 +9,13 @@ use super::{price::{Currencies, PricingMode, PricingProvider}, web::{ItemInfoPro
 pub struct UserInfo {
     pub prefer_markets: Option< Vec<Sites> >, 
     pub ingore_steam_names: Option< Vec<String> >,  
-    pub pause_time_ms: u64, 
     pub steamid: u64, 
     pub pricing_mode: PricingMode,
     pub pricing_provider: PricingProvider,
-    pub iteminfo_provider: Option<ItemInfoProvider>,
-    pub usd_to_x: Option<Currencies>,
+    pub iteminfo_provider: ItemInfoProvider,
+    pub usd_to_x: Currencies,
     pub steamloginsecure: Option<String>,    
+    pub pause_time_ms: u16,
     pub percent_threshold: u8, 
     pub ignore_already_sold: bool,
     pub group_simular_items: bool,
@@ -47,4 +47,10 @@ pub struct SheetInfo {
     pub col_pattern: Option<String>,
     pub col_float: Option<String>,
 
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct UserSheet {
+    pub user: UserInfo,
+    pub sheet: SheetInfo
 }

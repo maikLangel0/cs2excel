@@ -4,16 +4,16 @@ use whoami;
 
 use crate::models::{excel::ExcelData, price::Doppler, user_sheet::SheetInfo};
 
-pub fn get_spreadsheet(path: &Option<PathBuf>) -> Result<Spreadsheet, XlsxError> {
+pub async fn get_spreadsheet(path: &Option<PathBuf>) -> Result<Spreadsheet, XlsxError> {
     if let Some(pts) = path { 
         let sheet = reader::xlsx::read(pts)?; 
         Ok(sheet)
     } else { Ok(new_file()) } 
 }
 
-pub fn set_spreadsheet(path: &Option<PathBuf>, book: Spreadsheet) -> Result<(), XlsxError> {
+pub async fn set_spreadsheet(path: &Option<PathBuf>, book: Spreadsheet) -> Result<(), XlsxError> {
     if let Some(pts) = path { 
-        writer::xlsx::write(&book, pts)? 
+        writer::xlsx::write(&book, pts)?
     } else { 
         let std_path = PathBuf::from( format!("C:/Users/{}", whoami::username()) );
         writer::xlsx::write(&book, std_path)? 
@@ -21,7 +21,7 @@ pub fn set_spreadsheet(path: &Option<PathBuf>, book: Spreadsheet) -> Result<(), 
     Ok(())
 }
 
-pub fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo, ignore_sold: bool) -> Result<Vec<ExcelData>, String> {
+pub async fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo, ignore_sold: bool) -> Result<Vec<ExcelData>, String> {
     let mut exceldata: Vec<ExcelData> = Vec::new();
     let mut iter = excel.row_start_write_in_table;
 

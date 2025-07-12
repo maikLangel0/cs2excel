@@ -12,11 +12,9 @@ pub async fn fetch_iteminfo(
 ) -> Result<Option<Value>, String> {
     let url_base = "https://api.csfloat.com/?url=";
     let url = format!("{}{}", url_base, inspect_link);
-
     // println!("Curr url: {}", url);
 
     let response = client.get(url)
-        // .headers( CSFLOAT_HEADERS_DEFAULT.clone() )
         .headers( CSFLOAT_HEADERS_DEFAULT.clone() )
         .send()
         .await.map_err(|_| "woopsie")?;
@@ -32,7 +30,9 @@ pub async fn fetch_iteminfo(
     }
     
     let json_obj: Value = serde_json::from_str( 
-        &response.text().await
+        &response
+            .text()
+            .await
             .map_err(|e| format!("Could not turn json into text wat | {}.",e))? 
     ).map_err( |_| format!("Could not turn text into serde json value what.") )?;
     

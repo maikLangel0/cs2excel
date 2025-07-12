@@ -4,7 +4,10 @@ use serde_json::{from_value, Value};
 
 use crate::models::web::{SteamJson, SteamData};
 
-pub struct SteamInventory { data: SteamJson }
+pub struct SteamInventory { 
+    data: SteamJson,
+    steamid: u64,
+}
 impl SteamInventory {
     ///Initializes the connection to the steam inventory and stores the inventory JSON in self
     pub async fn init(steamid: u64, gameid: u32, cookie: Option<String>) -> Result<Self, String> {
@@ -25,13 +28,13 @@ impl SteamInventory {
             format!("Parsing the json data from steam into the SteamJson struct did not work!\n{}", e) 
         )?;
 
-        Ok( SteamInventory { data } )
+        Ok( SteamInventory { data, steamid } )
     }
 
     ///Gets the names of the items in the inventory aswell as the quantity. 
     /// 
     ///`marketable` is true if you only want items from inventory that can be traded and/or listed to the community market.
-    pub fn get_steam_items(self: &SteamInventory, steamid: u64, group_simular_items: bool, marketable: bool) -> Result<Vec<SteamData>, String> { 
+    pub fn get_steam_items(self: &SteamInventory, group_simular_items: bool, marketable: bool) -> Result<Vec<SteamData>, String> { 
         let mut market_names: Vec<( &str, Option<String>, u64, u64 )> = Vec::new(); // name & inspect link & asset id
         
         for asset in &self.data.assets {
@@ -73,7 +76,7 @@ impl SteamInventory {
                         .and_then( |obj| obj.get("link") )
                         .and_then( |v| v.as_str() )
                         .map( |s| 
-                            s.replace( "%owner_steamid%", &steamid.to_string() )
+                            s.replace( "%owner_steamid%", &self.steamid.to_string() )
                             .replace( "%assetid%", &asset_id.to_string() )
                         );
 

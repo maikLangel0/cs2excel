@@ -4,13 +4,24 @@ use serde::{Deserialize, Serialize};
 use strum::EnumIter;
 
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, EnumIter, PartialEq, Copy)]
 pub enum PricingMode {
     Cheapest,
     MostExpensive,
     Hierarchical,
     Random
 }
+impl PricingMode {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            PricingMode::Cheapest => "Cheapest",
+            PricingMode::MostExpensive => "Most Expensive",
+            PricingMode::Hierarchical => "Hierarchical",
+            PricingMode::Random => "Random",
+        }
+    }
+}
+
 impl FromStr for PricingMode {
     type Err = String;
     
@@ -18,6 +29,7 @@ impl FromStr for PricingMode {
         match s.to_lowercase().as_str() {
             "cheapest" => Ok(Self::Cheapest),
             "mostexpensive" => Ok(Self::MostExpensive),
+            "most expensive" => Ok(Self::MostExpensive),
             "hierarchical" => Ok(Self::Hierarchical),
             "random" => Ok(Self::Random),
             "most" => Ok(Self::MostExpensive),
@@ -28,12 +40,44 @@ impl FromStr for PricingMode {
     }
 }
 
+impl fmt::Display for PricingMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
 //--------------------
 
-#[derive(Debug, Deserialize, Serialize, Clone, Copy)]
+#[derive(Debug, Deserialize, Serialize, Clone, Copy, EnumIter, PartialEq)]
 pub enum PricingProvider {
     Csgotrader,
     Csgoskins,
+}
+impl PricingProvider {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            PricingProvider::Csgoskins => "Csgoskins",
+            PricingProvider::Csgotrader => "CsgoTrader"
+        }
+    } 
+}
+impl FromStr for PricingProvider {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, String> {
+        match s.to_uppercase().as_str() {
+            "CSGOSKINS" => Ok(PricingProvider::Csgoskins),
+            "CSGOTRADER" => Ok(PricingProvider::Csgotrader),
+            "" => Ok(PricingProvider::Csgotrader),
+            e => Err(format!("Invalid PricingProvider: {}", e))
+        }
+    }
+}
+
+impl fmt::Display for PricingProvider {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
 }
 
 //--------------------
@@ -55,7 +99,7 @@ impl PriceType {
 
 //--------------------
 
-#[derive(PartialEq, EnumIter, Serialize, Deserialize, Debug, Clone)]
+#[derive(PartialEq, EnumIter, Serialize, Deserialize, Debug, Clone, Copy)]
 pub enum Currencies {
     COP, SAR, PLN, ARS, SGD, GBP, USD, 
     PHP, DKK, KRW, INR, ZAR, BRL, BGN, 
@@ -64,13 +108,42 @@ pub enum Currencies {
     KZT, RUB, BTC, EUR, AED, CZK, HRK, 
     MYR, CNY, ILS, UAH, HKD, THB, NZD, 
     VND, GEL, SEK, CAD, CHF, ISK, IDR, 
-    KWD, FET
+    KWD, FET, None
 }
 impl fmt::Display for Currencies {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.as_str() )
     }
 }
+
+impl FromStr for Currencies {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, String> {
+        match s.to_uppercase().as_str() {
+            "COP" => Ok(Currencies::COP), "SAR" => Ok(Currencies::SAR), "PLN" => Ok(Currencies::PLN),
+            "ARS" => Ok(Currencies::ARS), "SGD" => Ok(Currencies::SGD), "GBP" => Ok(Currencies::GBP),
+            "USD" => Ok(Currencies::USD), "PHP" => Ok(Currencies::PHP), "DKK" => Ok(Currencies::DKK),
+            "KRW" => Ok(Currencies::KRW), "INR" => Ok(Currencies::INR), "ZAR" => Ok(Currencies::ZAR),
+            "BRL" => Ok(Currencies::BRL), "BGN" => Ok(Currencies::BGN), "CLP" => Ok(Currencies::CLP),
+            "JPY" => Ok(Currencies::JPY), "PEN" => Ok(Currencies::PEN), "ETH" => Ok(Currencies::ETH),
+            "TRY" => Ok(Currencies::TRY), "RON" => Ok(Currencies::RON), "NOK" => Ok(Currencies::NOK),
+            "TWD" => Ok(Currencies::TWD), "HUF" => Ok(Currencies::HUF), "MXN" => Ok(Currencies::MXN),
+            "UYU" => Ok(Currencies::UYU), "QAR" => Ok(Currencies::QAR), "AUD" => Ok(Currencies::AUD),
+            "CRC" => Ok(Currencies::CRC), "KZT" => Ok(Currencies::KZT), "RUB" => Ok(Currencies::RUB),
+            "BTC" => Ok(Currencies::BTC), "EUR" => Ok(Currencies::EUR), "AED" => Ok(Currencies::AED),
+            "CZK" => Ok(Currencies::CZK), "HRK" => Ok(Currencies::HRK), "MYR" => Ok(Currencies::MYR),
+            "CNY" => Ok(Currencies::CNY), "ILS" => Ok(Currencies::ILS), "UAH" => Ok(Currencies::UAH),
+            "HKD" => Ok(Currencies::HKD), "THB" => Ok(Currencies::THB), "NZD" => Ok(Currencies::NZD),
+            "VND" => Ok(Currencies::VND), "GEL" => Ok(Currencies::GEL), "SEK" => Ok(Currencies::SEK),
+            "CAD" => Ok(Currencies::CAD), "CHF" => Ok(Currencies::CHF), "ISK" => Ok(Currencies::ISK),
+            "IDR" => Ok(Currencies::IDR), "KWD" => Ok(Currencies::KWD), "FET" => Ok(Currencies::FET),
+            "NULL" => Ok(Currencies::None), "NONE" => Ok(Currencies::None), "" => Ok(Currencies::None),
+            other => Err(format!("Invalid currency code: {}", other)),
+        }
+    }
+}
+
 impl Currencies {
     pub fn as_str(&self) -> &'static str {
         match self {
@@ -91,6 +164,7 @@ impl Currencies {
             Currencies::VND => "VND", Currencies::GEL => "GEL", Currencies::SEK => "SEK",
             Currencies::CAD => "CAD", Currencies::CHF => "CHF", Currencies::ISK => "ISK", 
             Currencies::IDR => "IDR", Currencies::KWD => "KWD", Currencies::FET => "FET",
+            Currencies::None => "None",
         }
     }
 }

@@ -103,10 +103,38 @@ pub struct ExtraItemData {
 
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, EnumIter, PartialEq, Copy)]
 pub enum ItemInfoProvider {
     Csgotrader,
-    Csfloat
+    Csfloat,
+    None
+}
+impl ItemInfoProvider {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ItemInfoProvider::Csgotrader => "CsgoTrader",
+            ItemInfoProvider::Csfloat => "CsFloat",
+            ItemInfoProvider::None => "None"
+        }
+    } 
+}
+impl FromStr for ItemInfoProvider {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, String> {
+        match s.to_lowercase().as_str() {
+            "" => Ok(ItemInfoProvider::None),
+            "csfloat" => Ok(ItemInfoProvider::Csfloat),
+            "csgotrader" => Ok(ItemInfoProvider::Csgotrader),
+            "none" => Ok(ItemInfoProvider::None),
+            _ => Err( format!("ItemInfoProvider {} is not allowed!", s))
+        }
+    }
+}
+impl fmt::Display for ItemInfoProvider {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -168,11 +196,11 @@ pub static CSFLOAT_HEADERS_DEFAULT: LazyLock<HeaderMap<HeaderValue>> = LazyLock:
     headers
 });
 
-pub static CSFLOAT_HEADERS_MINIMAL: LazyLock<HeaderMap<HeaderValue>> = LazyLock::new(||  {
-    let mut headers = HeaderMap::new();
-    headers.insert(header::ORIGIN, HeaderValue::from_static("https://csfloat.com"));
-    headers
-});
+// pub static CSFLOAT_HEADERS_MINIMAL: LazyLock<HeaderMap<HeaderValue>> = LazyLock::new(||  {
+//     let mut headers = HeaderMap::new();
+//     headers.insert(header::ORIGIN, HeaderValue::from_static("https://csfloat.com"));
+//     headers
+// });
 
 // ------------------------------------------------------------
 
