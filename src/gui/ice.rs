@@ -112,8 +112,8 @@ enum Exec {
 // }
 
 #[derive(Debug)]
-struct App {
-    usersheet: UserSheet,
+pub struct App {
+    pub usersheet: UserSheet,
     loaded_data: Result<Option<String>, String>,
     saved_data: Result<Option<String>, String>,
     text_pause_time_ms: String,
