@@ -31,7 +31,7 @@ pub async fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo, ignore_sold
         let name: String = {
             if let Some(cell) = sheet.get_cell(name_cell) {
                 let cell_value = cell.get_raw_value().to_string().trim().to_string();
-                println!("row: {} | name cellvalue: {}", iter, cell_value);
+                // println!("row: {} | name cellvalue: {}", iter, cell_value);
 
                 if cell_value.is_empty() { break } else { cell_value }
             } else { break }

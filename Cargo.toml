@@ -18,9 +18,11 @@ indexmap = { version = "2.10.0" }
 rand = { version = "0.9.1" }
 regex = { version = "1.11.1" }
 chrono = { version = "0.4.41" }
-iced = { version = "0.13.1", features = ["tokio"] }
+iced = { git = "https://github.com/iced-rs/iced.git", branch = "master", features = ["tokio", "sipper", "image"]}
 iced_gif = "0.13.0"
 num-traits = "0.2.19"
 rfd = { version = "0.15.4", features = ["file-handle-inner"] }
+iced_futures = "0.13.2"
+futures = "0.3.31"
 
  

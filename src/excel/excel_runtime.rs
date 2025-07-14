@@ -6,23 +6,32 @@ use umya_spreadsheet::{Spreadsheet, Worksheet};
 use serde_json::Value;
 
 use crate::{
-    browser::{csfloat, csgotrader, steamcommunity::SteamInventory}, 
-    excel::{excel_ops::{get_exceldata, get_spreadsheet, set_spreadsheet}, helpers::{get_exchange_rate, get_market_price, get_steamloginsecure, insert_new_exceldata, update_quantity_exceldata, wrapper_fetch_iteminfo_via_itemprovider_persistent}}, 
-    models::{  
+    browser::{csfloat, csgotrader, steamcommunity::SteamInventory}, excel::{excel_ops::{get_exceldata, get_spreadsheet, set_spreadsheet}, helpers::{get_exchange_rate, get_market_price, get_steamloginsecure, insert_new_exceldata, update_quantity_exceldata, wrapper_fetch_iteminfo_via_itemprovider_persistent}}, gui::ice::RunUpdate, models::{  
         excel::ExcelData, price::{Currencies, Doppler, PricingMode, PricingProvider}, 
         user_sheet::{SheetInfo, UserInfo}, 
         web::{ExtraItemData, ItemInfoProvider, Sites, SteamData}
-    },
+    }
 };
 
 
-pub async fn run_program(user: UserInfo, excel: SheetInfo) -> Result<(), String> {
+pub async fn run_program(
+    user: UserInfo, 
+    excel: SheetInfo, 
+    tx: &iced::futures::channel::mpsc::UnboundedSender<RunUpdate>
+) -> Result<(), String> {
+    
+    // Sending response
+    let _ = tx.unbounded_send( RunUpdate::Progress { 
+        message: String::from("Started..."), 
+        percent: 0.0 
+    });
+
     // Path to my main invest: C:\Users\Mikae\OneDrive\Skrivebord\workbook
     let user = &mut user.clone();
     let excel = &mut excel.clone();
 
-    println!("user: {:?}", user);
-    println!("sheet: {:?}", excel);
+    // println!("user: {:?}", user);
+    // println!("sheet: {:?}", excel);
 
     // -----------------------------------------------------------------------------------------------
 
@@ -39,7 +48,12 @@ pub async fn run_program(user: UserInfo, excel: SheetInfo) -> Result<(), String>
                     .split("\\")
                     .collect::<Vec<&str>>();
 
-                println!("WARNING: Created a new spreadsheet as one with the path {} didn't exist.", filename[filename.len() - 1]); 
+                let _ = tx.unbounded_send( RunUpdate::Progress { 
+                    message: format!("WARNING: Created a new spreadsheet as one with the path {} didn't exist.", filename[filename.len() - 1]), 
+                    percent: 0.0 
+                });
+                // println!("WARNING: Created a new spreadsheet as one with the path {} didn't exist.", filename[filename.len() - 1]); 
+
                 umya_spreadsheet::new_file() 
             }
         );
@@ -47,7 +61,12 @@ pub async fn run_program(user: UserInfo, excel: SheetInfo) -> Result<(), String>
         if let Some(sn) = &excel.sheet_name { 
             if let Some(buk) = book.get_sheet_by_name_mut(sn) { buk } 
             else {
-                println!("WARNING: Automatically fetched first sheet in spreadsheet because {} was not found.", sn);
+                let _ = tx.unbounded_send( RunUpdate::Progress { 
+                    message: format!("WARNING: Automatically fetched first sheet in spreadsheet because {} was not found.", sn), 
+                    percent: 0.0 
+                });
+                // println!("WARNING: Automatically fetched first sheet in spreadsheet because {} was not found.", sn);
+
                 book.get_sheet_mut(&0).ok_or_else(|| format!(
                     "Failed to get the first sheet in the spreadsheet with path: \n{:?}", excel.path_to_sheet.as_ref())
                 )?
@@ -68,6 +87,11 @@ pub async fn run_program(user: UserInfo, excel: SheetInfo) -> Result<(), String>
 
     let mut exceldata: Vec<ExcelData> = get_exceldata(sheet, &excel, user.ignore_already_sold).await?;
     let exceldata_initial_length: usize = exceldata.len();
+
+    let _ = tx.unbounded_send( RunUpdate::Progress { 
+        message: if exceldata.is_empty() { "Fetched the empty spreadsheet.".to_string() }  else {format!("Fetched all necessary data from the spreadsheet: \n{:?}", exceldata)}, 
+        percent: 0.0 
+    });
     
     // println!("Data gotten from excel spreadsheet: \n{:#?}", exceldata);
     // if !exceldata.is_empty() { return Ok(()) }
@@ -114,11 +138,12 @@ pub async fn run_program(user: UserInfo, excel: SheetInfo) -> Result<(), String>
     
     // -----------------------------------------------------------------------------------------------
     // Inserting and/or updating quantity + adding prices for newly inserted items | .flatten() only runs the loop if it is Some()
+    let _ = tx.unbounded_send( RunUpdate::Progress { 
+        message: String::from("Iterating through CS2 inventory and inserting new/updated data..."), 
+        percent: 0.0 
+    });
 
-    for steamdata in cs_inv.iter().flatten() {     
-
-        // println!("\nCURRENT STEAMDATA {:#?}", steamdata);
-
+    for steamdata in cs_inv.iter().flatten() { 
         if user.group_simular_items {
             assert!(excel.col_quantity.is_some());
 
@@ -348,16 +373,15 @@ pub async fn run_program(user: UserInfo, excel: SheetInfo) -> Result<(), String>
     set_spreadsheet(&excel.path_to_sheet, book).await
         .map_err(|e| format!("Couldnt write to spreadsheet! : {}", e))?;
 
-    println!("STEAMDATA: \n{:#?}\n", &cs_inv);
-    println!("EXCELDATA: \n{:#?}\n", &exceldata);
+    // println!("STEAMDATA: \n{:#?}\n", &cs_inv);
+    // println!("EXCELDATA: \n{:#?}\n", &exceldata);
 
     if let Some(inv) = &sm_inv {
-        println!("Asset length: {}", inv.get_assets_length());
-        println!("Inventory length: {}", inv.get_total_inventory_length() );
+        // println!("Asset length: {}", inv.get_assets_length());
+        // println!("Inventory length: {}", inv.get_total_inventory_length() );
     };
 
     println!("Finished!");
-
     Ok(())
 }
 
