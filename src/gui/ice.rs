@@ -1,8 +1,8 @@
+use std::sync::Arc;
 use std::{fs::File, io::BufReader, path::PathBuf, str::FromStr};
 
-use iced_futures::core::image::{Handle};
-use iced_futures::core::{Image, Radians};
-use iced::futures::{channel::mpsc, StreamExt};
+use iced::widget::image::Handle;
+use iced::widget::text_editor::Edit;
 use iced::alignment::Horizontal;
 use iced::widget::{checkbox, column, container, horizontal_rule, row, Row, text_editor, Column, image};
 use iced::window::Settings;
@@ -17,12 +17,12 @@ use rfd::AsyncFileDialog;
 
 const NO_LEN: Option<Length> = None;
 const STD_LEN: Length = Length::FillPortion(4);
+const NAUR_BYTES: &[u8] = include_bytes!("C:\\Users\\Mikae\\Desktop\\rusted\\cs2exe\\assets\\images\\peak_naur.png");
 
 #[derive(Debug, Clone)]
-pub enum RunUpdate {
-    Progress { message: String, percent: f32 },
-    Error(String),
-    Complete
+pub struct Progress {
+    pub message: String,
+    pub percent: f32,
 }
 
 #[derive(Debug, Clone)]
@@ -80,10 +80,12 @@ enum Exec {
     BeginSaveData,
     FinishSaveData(Option<PathBuf>),
     BeginRun,
-    UpdateRun(Vec<RunUpdate>),
+    UpdateRun(Progress),
+    FinishRun(Result<(), String>),
+    RuntimeResult(text_editor::Action),
 
     WindowResized(Size),
-    Exit,
+    //Exit,
 }
 
 // fn long_running_task() -> impl Stream<Item = RunUpdate> {
@@ -112,6 +114,7 @@ pub struct App {
     text_percent_threshold: String,
     editor_ignore_steam_names: text_editor::Content,
     editor_prefer_markets: text_editor::Content,
+    editor_runtime_result: text_editor::Content,
     text_input_steamid: String,
     text_input_row_start_write_in_table: String,
     text_input_row_stop_write_in_table: String,
@@ -122,10 +125,8 @@ pub struct App {
     is_file_dialog_open: bool,
     is_excel_running: bool,
     window_size: Size,
-    runtime_dialog: String,
     runtime_progress: f32,
-
-    gif: Image,
+    ohnepixel: Handle
 }
 
 impl Default for App {
@@ -190,6 +191,7 @@ impl Default for App {
             is_excel_running: false,
             editor_ignore_steam_names: text_editor::Content::new(),
             editor_prefer_markets: text_editor::Content::new(),
+            editor_runtime_result: text_editor::Content::new(),
             text_pause_time_ms: String::new(),
             text_percent_threshold: String::new(),
             text_input_steamid: String::new(),
@@ -207,23 +209,22 @@ impl Default for App {
                 }
                 arr
             },
-            gif: Image { handle: Handle::from_path("../../assets/images/peak_naur.png"), filter_method: iced_futures::core::image::FilterMethod::Linear, rotation: Radians::from(0.0), opacity: 1.0, snap: false },
-            runtime_dialog: String::from(""),
             runtime_progress: 0.0,
+            ohnepixel: Handle::from_bytes(NAUR_BYTES)
         }
     }
 }
 
 impl App {
     fn update(state: &mut Self, exec: Exec) -> Task<Exec> {
-        if state.is_file_dialog_open && !matches!( exec, Exec::FinishLoadData(_) | Exec::FinishSaveData(_) | Exec::Exit | Exec::FinishPathToSheet(_)) { return Task::none() }
-        if state.is_excel_running && !matches!(exec, Exec::UpdateRun(_)) { return Task::none() }
+        if state.is_file_dialog_open && !matches!( exec, Exec::FinishLoadData(_) | Exec::FinishSaveData(_) /*| Exec::Exit */| Exec::FinishPathToSheet(_)) { return Task::none() }
+        if state.is_excel_running && !matches!(exec, Exec::UpdateRun(_) | Exec::FinishRun(_)) { return Task::none() }
 
         let user = &mut state.usersheet.user;
         let sheet = &mut state.usersheet.sheet;
 
         match exec {
-            Exec::Exit => window::get_latest().and_then(|id| window::close(id)),
+            //Exec::Exit => window::get_latest().and_then(|id| window::close(id)),
             Exec::WindowResized(size)   => { state.window_size = size; Task::none() },
             Exec::IgnoreAlreadySold     => { user.ignore_already_sold = !user.ignore_already_sold; Task::none() },
             Exec::GroupSimularItems     => { user.group_simular_items = !user.group_simular_items; Task::none() },
@@ -267,6 +268,13 @@ impl App {
                 state.editor_prefer_markets.perform(act);
                 Task::none()
             },
+            Exec::RuntimeResult(act) => {
+                if !matches!(act, text_editor::Action::Edit(_)) {
+                    state.editor_runtime_result.perform(act);
+                }
+                Task::none()
+            }
+
             Exec::Steamid(id) => {
                 if id.chars().any(|c| !c.is_numeric()) { return Task::none() } // Filter only numbers
                 user.steamid = id.to_numeric().unwrap_or_else(|_| 0);
@@ -530,49 +538,31 @@ impl App {
                         let sheet = sheet.clone();
                         
                         state.is_excel_running = true;
+                        state.editor_runtime_result = text_editor::Content::new();
                         println!("Attempt to run.");
-                        Task::perform(
-                            async move {
-                                let (progress_tx, progress_rx) = mpsc::unbounded();
 
-                                tokio::spawn( async move {
-                                    if let Err(e) = excel_runtime::run_program(user, sheet, &progress_tx).await {
-                                        let _ = progress_tx.unbounded_send( RunUpdate::Error(e.to_string()) );
-                                    } else {
-                                        let _ = progress_tx.unbounded_send(RunUpdate::Complete);
-                                    }
-                                });
+                        let (task, _handle) = Task::sip(
+                            excel_runtime::run_program(user, sheet), 
+                            Exec::UpdateRun, 
+                            Exec::FinishRun
+                        ).abortable();
 
-                                progress_rx.collect::<Vec<_>>().await
-                            }, 
-                            |updates| Exec::UpdateRun(updates)
-                        )
-
-                        // Task::perform(
-                            // async move { excel_runtime::run_program(user, sheet).await }, 
-                            // |s| Exec::UpdateRun( vec![RunUpdate::Complete] )
-                        // )   
+                        task
                     },
                     Err(e) => { println!("User input is not valid! \n{}", e); Task::none() },
                 }
             }
-            Exec::UpdateRun(updates) => {
-                for update in updates {
-                    match update {
-                        RunUpdate::Progress { message, percent } => {
-                            state.runtime_dialog.push_str(&format!("\n{}", message));
-                            state.runtime_progress = percent;
-                        },
-                        RunUpdate::Error(e) => {
-                            state.runtime_dialog = e;
-                            state.is_excel_running = false;
-                        },
-                        RunUpdate::Complete => {
-                            state.is_excel_running = false;
-                            println!("WE DID IT!");
-                        },
-                    }
+            Exec::UpdateRun(update) => {
+                state.editor_runtime_result.perform( text_editor::Action::Edit( Edit::Paste( Arc::new(format!("{}\n", update.message)) ) ) );
+                state.runtime_progress = update.percent;
+                Task::none()
+            }
+            Exec::FinishRun(res) => {
+                match res {
+                    Ok(_) => { state.editor_runtime_result.perform( text_editor::Action::Edit( Edit::Paste( Arc::new("\nFinished successfully!".to_string())) ) ) },
+                    Err(e) => { state.editor_runtime_result.perform( text_editor::Action::Edit( Edit::Paste( Arc::new(format!("\nError!\n {}", e)) ) ) ) },
                 }
+                state.is_excel_running = false;
                 Task::none()
             }
         }
@@ -617,9 +607,9 @@ impl App {
         content = content.push( radio_buttons );
         content = content.push( horizontal_rule(2) );
         
-        if !user.fetch_prices && !user.fetch_steam {
+        if !user.fetch_prices && !user.fetch_steam {            
             content = content.push( container("").height( state.window_size.height / 2.0 - 75.0 ));
-            content = content.push( image("../../assets/images/peak_naur.png").width( Length::Fill ) );
+            content = content.push( image( &state.ohnepixel ).width( Length::Fill ) );
             return content.align_x(Horizontal::Center).into();
         }
 
@@ -715,6 +705,7 @@ impl App {
             "Ignore Steam Names?",
             "( Full Names Seperated By , )",
             &state.editor_ignore_steam_names, 
+            100,
             STD_LEN,
             Exec::IgnoreSteamNames
         );
@@ -723,6 +714,7 @@ impl App {
             "Prefer Markets",
             "( Market Names Seperated By , )",
             &state.editor_prefer_markets, 
+            100,
             STD_LEN,
             Exec::PreferMarkets
         );
@@ -959,7 +951,9 @@ impl App {
             row![col_inspect_link, col_csgoskins_link, col_assetid, cell_date, cell_usd_to_x].padding(4).spacing(5),
             horizontal_rule(5),
 
-            btn_base("Exit", Some(100), Some(50), Exec::Exit),
+            row![ text_editor_template("", "-#- Program Output -#-", "", &state.editor_runtime_result, Length::Fill, Length::Fill, Exec::RuntimeResult)],
+
+            //btn_base("Exit", Some(100), Some(50), Exec::Exit),
         ].align_x( Horizontal::Center));
 
         content.into()
@@ -973,7 +967,7 @@ impl App {
 
 pub fn init_gui() -> Result<(), iced::Error> {
     let app = iced::application(App::default, App::update, App::view)
-        .title( "cs2excel" )
+        .title( "CS2EXCEL V2 | MLI | @maiklangel0" )
         .theme( |_| iced::Theme::TokyoNight )
         .subscription(|_| App::sub_window_resize() )
         .window( 

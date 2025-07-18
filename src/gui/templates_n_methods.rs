@@ -112,6 +112,7 @@ pub fn text_editor_template<'a, Exec, F>(
     field_name: impl Into<String>,
     field_placeholder: impl Into<String>,
     editor_state: &'a text_editor::Content,
+    editor_height: impl Into<Length>,
     width: impl Into<Length>,
     exec: F,
 ) -> Column<'a, Exec>
@@ -130,7 +131,7 @@ where
 
         text_editor(editor_state)
             .on_action(move |act| exec(act))
-            .height(100)
+            .height(editor_height)
             .placeholder( field_placeholder.into() )
             .wrapping(Wrapping::WordOrGlyph),
     ]
