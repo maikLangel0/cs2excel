@@ -57,14 +57,14 @@ enum Exec {
     ColSteamName(String),
     ColPrice(String),
     ColGunStickerCase(String),
-    ColSkinName(String),   
-    ColWear(String),          
-    ColFloat(String),         
-    ColPattern(String),       
-    ColPhase(String),         
-    ColQuantity(String),      
-    ColMarket(String),        
-    ColSold(String),          
+    ColSkinName(String),
+    ColWear(String),
+    ColFloat(String),
+    ColPattern(String),
+    ColPhase(String),
+    ColQuantity(String),
+    ColMarket(String),
+    ColSold(String),
     ColInspectLink(String),  
     ColCsgoskinsLink(String),
     ColAssetId(String), 
@@ -87,23 +87,6 @@ enum Exec {
     WindowResized(Size),
     //Exit,
 }
-
-// fn long_running_task() -> impl Stream<Item = RunUpdate> {
-    // let (tx, rx) = mpsc::unbounded::<RunUpdate>();
-    // println!("reached here!");
-// 
-    // thread::spawn(move || {
-        // for i in 0..=100 {
-            // let _ = tx.unbounded_send(RunUpdate::Progress(i as f32));
-            // if i == 50 {
-                // let _ = tx.unbounded_send(RunUpdate::Status(String::from("Halfway der")));
-            // }
-            // thread::sleep( Duration::from_millis(500));
-        // }
-        // 
-    // });
-    // rx
-// }
 
 #[derive(Debug)]
 pub struct App {
@@ -132,7 +115,7 @@ pub struct App {
 impl Default for App {
     fn default() -> Self {
         App { 
-            usersheet: UserSheet { 
+            usersheet: UserSheet {
                 user:  UserInfo { 
                     prefer_markets:             Some( vec![Sites::YOUPIN, Sites::CSFLOAT, Sites::BUFF163] ),
                     steamloginsecure:           None, 
@@ -159,7 +142,7 @@ impl Default for App {
                             String::from("AWP | Sun in Leo (Factory New)"),
                     ]) )
                 }, 
-                sheet: SheetInfo { 
+                sheet: SheetInfo {
                     path_to_sheet:              Some( PathBuf::from("C:\\Users\\Mikae\\Desktop\\invest\\cs\\CS2_invest_new_main.xlsx") ),
                     sheet_name:                 Some( String::from("Sheet1") ),
 
@@ -549,7 +532,12 @@ impl App {
 
                         task
                     },
-                    Err(e) => { println!("User input is not valid! \n{}", e); Task::none() },
+                    Err(e) => { 
+                        println!("User input is not valid! \n{}", e); 
+                        state.editor_runtime_result = text_editor::Content::new();
+                        state.editor_runtime_result.perform(text_editor::Action::Edit( Edit::Paste(Arc::new(e)) ));
+                        Task::none() 
+                    },
                 }
             }
             Exec::UpdateRun(update) => {

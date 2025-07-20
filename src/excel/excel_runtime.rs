@@ -468,5 +468,34 @@ pub fn is_user_input_valid(user: &UserInfo, excel: &SheetInfo) -> Result<(), Str
         return Err( String::from("pricing_mode can't be Hierarchical if percent_threshold is None!") )
     }
 
+    if let Some(date) = &excel.rowcol_date {
+        if !valid_cell_check(&date) { return Err( String::from("format of cell date is not valid!") ) }
+    }
+
+    if let Some(utx) = &excel.rowcol_usd_to_x {
+        if !valid_cell_check(&utx) { return Err( String::from("format of cell usd_to_x is not valid!") ) }
+    }
+
     Ok(())
+}
+
+fn valid_cell_check(s: &str) -> bool {
+    let mut signature: Vec<char> = Vec::with_capacity( s.len() );
+    let valid_signatures: Vec<&str> = Vec::from(["an", "$an", "$a$n", "a$n"]);
+
+    for c in s.chars() {
+        if c == '$' { signature.push(c) }
+        if c.is_alphabetic() { 
+            if !signature.is_empty() && signature[signature.len() - 1] != 'a' { signature.push('a') }
+            else if signature.is_empty() { signature.push('a') }
+        }
+        if c.is_numeric() {
+            if !signature.is_empty() && signature[signature.len() - 1] != 'n' { signature.push('n') }
+            else if signature.is_empty() { signature.push('n') }
+        }
+    }
+    let final_signature = signature.iter().collect::<String>();
+    
+    if !valid_signatures.contains(&final_signature.as_str()) { return false }
+    else { true }
 }

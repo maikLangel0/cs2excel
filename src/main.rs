@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 mod excel;
 mod models;
 mod parsing;
