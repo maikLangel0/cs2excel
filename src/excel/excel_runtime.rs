@@ -8,7 +8,7 @@ use serde_json::Value;
 use iced::task::{Straw, sipper};
 
 use crate::{
-    browser::{csfloat, csgotrader, steamcommunity::SteamInventory}, excel::{excel_ops::{get_exceldata, get_spreadsheet, set_spreadsheet}, helpers::{get_exchange_rate, get_market_price, get_steamloginsecure, insert_new_exceldata, update_quantity_exceldata, wrapper_fetch_iteminfo_via_itemprovider_persistent}}, gui::ice::Progress, models::{  
+    browser::{csfloat, csgotrader, steamcommunity::SteamInventory}, excel::{excel_ops::{get_exceldata, get_spreadsheet, set_spreadsheet}, helpers::{get_exchange_rate, get_market_price, get_steamloginsecure, insert_new_exceldata, update_quantity_exceldata, wrapper_fetch_iteminfo_via_itemprovider_persistent}}, gui::{ice::Progress, templates_n_methods::IsEnglishAlphabetic}, models::{  
         excel::ExcelData, price::{Currencies, Doppler, PricingMode, PricingProvider}, 
         user_sheet::{SheetInfo, UserInfo}, 
         web::{ExtraItemData, ItemInfoProvider, Sites, SteamData}
@@ -499,7 +499,7 @@ fn valid_cell_check(s: &str) -> bool {
         if c == '$' { signature.push(c); continue; }
 
         let letter: char = {
-            if c.is_alphabetic() {'a'}
+            if c.is_english_alphabetic() {'a'}
             else if c.is_numeric() {'n'}
             else {'x'}
         };

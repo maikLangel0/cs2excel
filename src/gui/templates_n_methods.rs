@@ -17,6 +17,8 @@ static BG_QUAD: LazyLock<Color> = LazyLock::new(|| Color::from_rgba8(28, 118, 13
 const RAD_MAIN: Radius = Radius { top_left: 2.0, top_right: 2.0, bottom_right: 2.0, bottom_left: 2.0 };
 const RAD_SEC: Radius = Radius { top_left: 1.0, top_right: 1.0, bottom_right: 1.0, bottom_left: 1.0 };
 
+const ENGLISH_CHARS: [char; 26] = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'];
+
 pub fn path_to_file_name(path: &PathBuf) -> Option<String> {
     let p = path.to_str()
         .and_then(|s| Some (s.split("\\")
@@ -258,6 +260,16 @@ pub trait ToOption {
     fn to_option<T>(&self) -> Option<T> 
     where
         T: FromStr;
+}
+
+pub trait IsEnglishAlphabetic {
+    fn is_english_alphabetic(&self) -> bool;
+}
+
+impl IsEnglishAlphabetic for char {
+    fn is_english_alphabetic(&self) -> bool {
+        ENGLISH_CHARS.contains(&self.to_ascii_uppercase()) 
+    }
 }
 
 impl ToNumeric for String {
