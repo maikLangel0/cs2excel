@@ -25,4 +25,6 @@ rfd = { version = "0.15.4", features = ["file-handle-inner"] }
 # iced_futures = "0.13.2"
 # futures = "0.3.31"
 
+[build-dependencies]
+winresource = "0.1.23"
  

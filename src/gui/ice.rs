@@ -4,8 +4,8 @@ use std::{fs::File, io::BufReader, path::PathBuf, str::FromStr};
 use iced::widget::image::Handle;
 use iced::widget::text_editor::Edit;
 use iced::alignment::Horizontal;
-use iced::widget::{checkbox, column, container, horizontal_rule, row, Row, text_editor, Column, image};
-use iced::window::Settings;
+use iced::widget::{checkbox, column, container, horizontal_rule, image, row, text_editor, Column, Row};
+use iced::window::{Settings, icon};
 use iced::{window, Element, Length, Size, Task, Subscription};
 
 use crate::excel::excel_runtime::{self, is_user_input_valid};
@@ -17,7 +17,7 @@ use rfd::AsyncFileDialog;
 
 const NO_LEN: Option<Length> = None;
 const STD_LEN: Length = Length::FillPortion(4);
-const NAUR_BYTES: &[u8] = include_bytes!("C:\\Users\\Mikae\\Desktop\\rusted\\cs2exe\\assets\\images\\peak_naur.png");
+const NAUR_BYTES: &[u8] = include_bytes!("../../assets/images/peak_naur.png");
 
 #[derive(Debug, Clone)]
 pub struct Progress {
@@ -966,6 +966,7 @@ pub fn init_gui() -> Result<(), iced::Error> {
                 resizable: true, 
                 decorations: true, 
                 position: window::Position::Centered,
+                icon: icon::from_file("C:\\Users\\Mikae\\Desktop\\rusted\\cs2exe\\assets\\images\\whatsapp_is_calling.ico").ok(), 
                 ..Default::default() 
             }
         );

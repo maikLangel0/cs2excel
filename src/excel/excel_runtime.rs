@@ -448,8 +448,8 @@ pub fn is_user_input_valid(user: &UserInfo, excel: &SheetInfo) -> Result<(), Str
         return Err( String::from( "Phase of doppler knives will not be pricechecked correctly when reading over the spreadsheet in the future becuase col_phase is not set!" ))
     }
 
-    if user.pause_time_ms < 1000 || user.pause_time_ms > 10000 {
-        return Err( String::from("pause_time_ms is only allowed to be in range of 1000 (2 seconds) - 10000 (10 seconds).") )
+    if user.pause_time_ms < 1000 || user.pause_time_ms > 2500 {
+        return Err( String::from("pause_time_ms is only allowed to be in range of 1000 (1 second) - 2500 (2.5 seconds).") )
     }
 
     if excel.col_quantity.is_none() && user.group_simular_items {
@@ -468,6 +468,18 @@ pub fn is_user_input_valid(user: &UserInfo, excel: &SheetInfo) -> Result<(), Str
         return Err( String::from("pricing_mode can't be Hierarchical if percent_threshold is None!") )
     }
 
+    if user.steamid == 0 && user.steamid.checked_ilog10().unwrap_or(0) != 17 {
+        return Err(String::from("steamid64 is invalid!"));
+    }
+
+    if excel.row_start_write_in_table == 0 {
+        return Err(String::from("row_start_write_in_table is invalid!"))
+    }
+
+    if excel.col_price.is_empty() && user.fetch_prices {
+        return Err(String::from("col_price has to be given if you want to fetch prices!"))
+    }
+
     if let Some(date) = &excel.rowcol_date {
         if !valid_cell_check(&date) { return Err( String::from("format of cell date is not valid!") ) }
     }
@@ -484,17 +496,20 @@ fn valid_cell_check(s: &str) -> bool {
     let valid_signatures: Vec<&str> = Vec::from(["an", "$an", "$a$n", "a$n"]);
 
     for c in s.chars() {
-        if c == '$' { signature.push(c) }
-        if c.is_alphabetic() { 
-            if !signature.is_empty() && signature[signature.len() - 1] != 'a' { signature.push('a') }
-            else if signature.is_empty() { signature.push('a') }
-        }
-        if c.is_numeric() {
-            if !signature.is_empty() && signature[signature.len() - 1] != 'n' { signature.push('n') }
-            else if signature.is_empty() { signature.push('n') }
-        }
+        if c == '$' { signature.push(c); continue; }
+
+        let letter: char = {
+            if c.is_alphabetic() {'a'}
+            else if c.is_numeric() {'n'}
+            else {'x'}
+        };
+
+        if !signature.is_empty() && signature[signature.len() - 1] != letter { signature.push(letter) }
+        else if signature.is_empty() { signature.push(letter) }
     }
     let final_signature = signature.iter().collect::<String>();
+
+    println!("Sign: {}", final_signature);
     
     if !valid_signatures.contains(&final_signature.as_str()) { return false }
     else { true }
