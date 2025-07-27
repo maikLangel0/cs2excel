@@ -48,7 +48,7 @@ pub fn tooltip_default<'a, Exec> (
                     background: Some( Background::Color( Color::from_rgba8(72, 76, 92, 1.0) ) ), 
                     border: Border { color: Color::from_rgba8(88, 98, 99, 1.0), width: 1.0, radius: RAD_SEC },
                     shadow: Shadow::default(),
-                    snap: false, 
+                    snap: true, 
                 } 
             ), 
         container( iced::widget::text( content.into() ).size(15).center() )
@@ -61,7 +61,7 @@ pub fn tooltip_default<'a, Exec> (
                     background: Some( Background::Color(*BG_MAIN) ), 
                     border: Border { color: *BG_TRI, width: 1.0, radius: RAD_MAIN }, 
                     shadow: Shadow::default(),
-                    snap: false, 
+                    snap: true, 
                 } 
             ), 
         tooltip::Position::FollowCursor
@@ -89,7 +89,7 @@ pub fn btn_style_base() -> impl Fn(&Theme, button::Status) -> button::Style {
             button::Status::Disabled => Border { color: Color::BLACK, width: 0.0, radius: RAD_SEC },
         }, 
         shadow: Shadow::default(),
-        snap: false,
+        snap: true,
     }
 }
 
@@ -234,16 +234,14 @@ where
         text_input( &value.to_string(), text_value )
         .on_input(move |e| on_input((e, *on_input_range.start(), *on_input_range.end())))
         .on_submit_maybe(
-            Some( 
-                (
-                    || { 
-                        on_submit( {
-                            if value < *range.start() { *range.start() } 
-                            else if value > *range.end() { *range.end() } 
-                            else { value }
-                        } )
-                    }
-                )()
+            Some(
+                ( ||{ 
+                    on_submit( {
+                        if value < *range.start() { *range.start() } 
+                        else if value > *range.end() { *range.end() } 
+                        else { value }
+                    } )
+                })()
             ) 
         )
     ].width(width)

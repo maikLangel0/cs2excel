@@ -117,54 +117,50 @@ impl Default for App {
         App { 
             usersheet: UserSheet {
                 user:  UserInfo { 
-                    prefer_markets:             Some( vec![Sites::YOUPIN, Sites::CSFLOAT, Sites::BUFF163] ),
+                    prefer_markets:             None,
                     steamloginsecure:           None, 
                     // iteminfo_provider:          ItemInfoProvider::Csfloat , // "Bots are temporarily not allowed on CSGOFloat Inspect API due to new rate limits imposed by Valve"
                     iteminfo_provider:          ItemInfoProvider::None,
-                    usd_to_x:                   Currencies::CNY,
+                    usd_to_x:                   Currencies::None,
 
-                    pricing_mode:               PricingMode::Hierarchical,
+                    pricing_mode:               PricingMode::Cheapest,
                     pricing_provider:           PricingProvider::Csgotrader,
 
-                    pause_time_ms:              1500,
-                    steamid:                    76561198389123475, // Angel0 - min inv
-                    percent_threshold:          5,
+                    pause_time_ms:              1000,
+                    steamid:                    0, //76561198389123475, // Angel0 - min inv
+                    percent_threshold:          0,
 
-                    ignore_already_sold:        true,
-                    group_simular_items:        true,
+                    ignore_already_sold:        false,
+                    group_simular_items:        false,
                     sum_quantity_prices:        false,
                     fetch_prices:               true,
                     fetch_steam:                true,
 
-                    ingore_steam_names: Some( Vec::from([
-                            String::from("AK-47 | Blue Laminate (Field-Tested)"),
-                            String::from("M4A1-S | Guardian (Minimal Wear)"),
-                            String::from("AWP | Sun in Leo (Factory New)"),
-                    ]) )
+                    ingore_steam_names: None
                 }, 
                 sheet: SheetInfo {
-                    path_to_sheet:              Some( PathBuf::from("C:\\Users\\Mikae\\Desktop\\invest\\cs\\CS2_invest_new_main.xlsx") ),
-                    sheet_name:                 Some( String::from("Sheet1") ),
+                    path_to_sheet:              None,
+                    sheet_name:                 None,
 
-                    row_start_write_in_table:   2,
+                    row_start_write_in_table:   1,
                     row_stop_write_in_table:    None,
 
-                    col_steam_name:                   String::from("A"),
-                    col_price:                        String::from("J"),
+                    col_steam_name:                   String::from(""),
+                    col_price:                        String::from(""),
 
-                    col_gun_sticker_case:       Some( String::from("B") ),
-                    col_skin_name:              Some( String::from("C") ),
-                    col_wear:                   Some( String::from("D") ),
-                    col_float:                  Some( String::from("E") ),
-                    col_pattern:                Some( String::from("F") ),
-                    col_phase:                  Some( String::from("G") ),
-                    col_quantity:               Some( String::from("I") ),
-                    col_market:                 Some( String::from("K") ),
-                    col_sold:                   Some( String::from("P") ),
-                    col_inspect_link:           Some( String::from("U") ),
-                    col_csgoskins_link:         Some( String::from("V") ),
+                    col_gun_sticker_case:       None,
+                    col_skin_name:              None,
+                    col_wear:                   None,
+                    col_float:                  None,
+                    col_pattern:                None,
+                    col_phase:                  None,
+                    col_quantity:               None,
+                    col_market:                 None,
+                    col_sold:                   None,
+                    col_inspect_link:           None,
+                    col_csgoskins_link:         None,
                     col_asset_id:               None,                     
-                    rowcol_date:                Some( String::from("$X$2") ), 
+                    rowcol_date:                None, 
                     rowcol_usd_to_x:            None,
                 }
             },
@@ -186,7 +182,7 @@ impl Default for App {
             pick_list_pricing_mode: [PricingMode::Cheapest, PricingMode::Hierarchical, PricingMode::MostExpensive, PricingMode::Random],
             pick_list_iteminfo_provider: [ItemInfoProvider::Csfloat, ItemInfoProvider::Csgotrader, ItemInfoProvider::None], 
             pick_list_usd_to_x: {
-                let mut arr = [Currencies::USD; 52];
+                let mut arr = [Currencies::None; 52];
                 for (i, item) in Currencies::iter().enumerate() {
                     arr[i] = item;
                 }
@@ -259,7 +255,7 @@ impl App {
             }
 
             Exec::Steamid(id) => {
-                if id.chars().any(|c| !c.is_numeric()) { return Task::none() } // Filter only numbers
+                if id.chars().any(|c| !c.is_ascii_digit()) { return Task::none() } // Filter only numbers
                 user.steamid = id.to_numeric().unwrap_or_else(|_| 0);
                 state.text_input_steamid = id;
                 Task::none()
@@ -271,7 +267,7 @@ impl App {
                 Task::none()
             }
             Exec::TextPauseTimeMs((ms, s, e)) => {
-                if ms.chars().any(|c| !c.is_numeric()) { return Task::none() } // Filter only numbers
+                if ms.chars().any(|c| !c.is_ascii_digit()) { return Task::none() } // Filter only numbers
                 if let Ok(res) = ms.parse::<u16>() {
                     
                     user.pause_time_ms = 
@@ -289,7 +285,7 @@ impl App {
                 Task::none()
             }
             Exec::TextPercentThreshold((pt, s, e)) => {
-                if pt.chars().any(|c| !c.is_numeric()) { return Task::none() } // Filter only numbers
+                if pt.chars().any(|c| !c.is_ascii_digit()) { return Task::none() } // Filter only numbers
                 if let Ok(res) = pt.parse::<u8>() {
                     
                     user.percent_threshold = 
@@ -303,13 +299,13 @@ impl App {
 
             // Row, Col, RowCol and rest of sheet STUFF
             Exec::RowStartWrite(row) => {
-                if row.chars().any(|c| !c.is_numeric()) { return Task::none() } // Filter only numbers
+                if row.chars().any(|c| !c.is_ascii_digit()) { return Task::none() } // Filter only numbers
                 sheet.row_start_write_in_table = row.to_numeric().unwrap_or_else(|_| 1);
                 state.text_input_row_start_write_in_table = row;
                 Task::none()
             }
             Exec::RowStopWrite(row) => {
-                if row.chars().any(|c| !c.is_numeric()) { return Task::none() } // Filter only numbers
+                if row.chars().any(|c| !c.is_ascii_digit()) { return Task::none() } // Filter only numbers
                 sheet.row_stop_write_in_table = 
                     if row.is_empty() { None } 
                     else if let Ok(rsw) = row.to_numeric() { Some(rsw) }
@@ -392,12 +388,12 @@ impl App {
                 Task::none()
             }
             Exec::CellDate(s) => {
-                if s.chars().any(|c| !c.is_english_alphabetic() && !c.is_numeric() && c != '$' ) { return Task::none() }
+                if s.chars().any(|c| !c.is_english_alphabetic() && !c.is_ascii_digit() && c != '$' ) { return Task::none() }
                 sheet.rowcol_date = s.to_option();
                 Task::none()
             }
             Exec::CellUsdToX(s) => {
-                if s.chars().any(|c| !c.is_english_alphabetic() && !c.is_numeric() && c != '$') { return Task::none() }
+                if s.chars().any(|c| !c.is_english_alphabetic() && !c.is_ascii_digit() && c != '$') { return Task::none() }
                 sheet.rowcol_usd_to_x = s.to_option();
                 Task::none()
             }
@@ -541,7 +537,7 @@ impl App {
                 }
             }
             Exec::UpdateRun(update) => {
-                state.editor_runtime_result.perform( text_editor::Action::Edit( Edit::Paste( Arc::new(format!("{}\n", update.message)) ) ) );
+                state.editor_runtime_result.perform( text_editor::Action::Edit( Edit::Paste( Arc::new(format!("{}", update.message)) ) ) );
                 state.runtime_progress = update.percent;
                 Task::none()
             }
@@ -602,32 +598,41 @@ impl App {
         }
 
         // Pick lists ------------------------------
-        let usd_to_x = pick_list_template(
-            "Pick your primary currency, choose USD if you want to keep USD pricing, or choose NONE to prioritize Cell USD to X.",
-            "Convert USD to X",
-            state.pick_list_usd_to_x,
-            Some( user.usd_to_x ),
-            Exec::UsdToX,
-            STD_LEN
-        );
+        let usd_to_x = if !user.fetch_prices { column![] } 
+        else { 
+            pick_list_template(
+                "Pick your primary currency, choose USD if you want to keep USD pricing, or choose NONE to prioritize Cell USD to X.",
+                "Convert USD to X",
+                state.pick_list_usd_to_x,
+                Some( user.usd_to_x ),
+                Exec::UsdToX,
+                STD_LEN
+            ) 
+        };
 
-        let pricing_provider = pick_list_template(
-            "Which site/API that fetches the prices. \nPS: ONLY CsgoTrader IMPLEMENTED",
-            "Pricing provider",
-            state.pick_list_pricing_provider, 
-            Some( user.pricing_provider ), 
-            Exec::PricingProvider,
-            STD_LEN
-        );
+        let pricing_provider = if !user.fetch_prices { column![] } 
+        else { 
+            pick_list_template(
+                "Which site/API that fetches the prices. \nPS: ONLY CsgoTrader IMPLEMENTED",
+                "Pricing provider",
+                state.pick_list_pricing_provider, 
+                Some( user.pricing_provider ), 
+                Exec::PricingProvider,
+                STD_LEN
+            )
+        };
 
-        let pricing_mode = pick_list_template(
-            "Chooses how the price of your items are calculated if you have chosen multiple preferred markets.",
-            "Pricing mode",
-            state.pick_list_pricing_mode, 
-            Some( user.pricing_mode ), 
-            Exec::PricingMode,
-            STD_LEN
-        );
+        let pricing_mode = if !user.fetch_prices { column![] } 
+        else {
+            pick_list_template(
+                "Chooses how the price of your items are calculated if you have chosen multiple preferred markets.",
+                "Pricing mode",
+                state.pick_list_pricing_mode, 
+                Some( user.pricing_mode ), 
+                Exec::PricingMode,
+                STD_LEN
+            )
+        };
         
         let iteminfo_provider = pick_list_template(
             "Which site/API fetches the dditional info about your items like float, pattern etc... \nPS: ONLY CSFLOAT IMPLEMENTED AND IT MIGHT BE DOWN DUE TO VALVE CHANGING API RULES UNLUCKY.",
@@ -639,24 +644,30 @@ impl App {
         );
 
         // All convert to numbers ------------------------------
-        let steamid = text_input_template(
-            "Your (or someone elses) steamID64.", 
-            (300.0, 50.0), 
-            "SteamID", 
-            "Ex: 76561198389123475", 
-            Some( &state.text_input_steamid ), 
-            Exec::Steamid, 
-            STD_LEN
-        );
-        let steamloginsecure = text_input_template(
-            "Your SteamLoginSecure token. You can get this by inspecting the developer console in your browser as you do any authenitcated action on steamcommunity.com (it will be under the 'cookie' field). If you use Firefox and is on Windows, you can log in and the program will fetch this token for you. \nPS: THIS DOES NOT HAVE TO BE SET TO SOMETHING, ONLY IF YOU WANT THE MOST UP-TO-DATE INFO OF THE INVENTORY.",
-            (900.0, 100.0), 
-            "SteamLoginSecure?", 
-            "Ex: 76561198389123475%7C%7CeyAidHlwIjogIkpXVCIsICJhbGciOiAiRWREU0EiIH0...", 
-            user.steamloginsecure.as_ref(), 
-            Exec::SteamLoginSecure, 
-            STD_LEN
-        );
+        let steamid = if !user.fetch_steam { column![] } 
+        else {
+            text_input_template(
+                "Your (or someone elses) steamID64.", 
+                (300.0, 50.0), 
+                "SteamID", 
+                "Ex: 76561198389123475", 
+                Some( &state.text_input_steamid ), 
+                Exec::Steamid, 
+                STD_LEN
+            )
+        };
+        let steamloginsecure = if !user.fetch_steam { column![] } 
+        else {
+            text_input_template(
+                "Your SteamLoginSecure token. You can get this by inspecting the developer console in your browser as you do any authenitcated action on steamcommunity.com (it will be under the 'cookie' field). If you use Firefox and is on Windows, you can log in and the program will fetch this token for you. \nPS: THIS DOES NOT HAVE TO BE SET TO SOMETHING, ONLY IF YOU WANT THE MOST UP-TO-DATE INFO OF THE INVENTORY.",
+                (900.0, 100.0), 
+                "SteamLoginSecure?", 
+                "Ex: 76561198389123475%7C%7CeyAidHlwIjogIkpXVCIsICJhbGciOiAiRWREU0EiIH0...", 
+                user.steamloginsecure.as_ref(), 
+                Exec::SteamLoginSecure, 
+                STD_LEN
+            )
+        };
         let row_start_write = text_input_template(
             "Which row you want the program to start reading and/or writing to your spreadsheet.",
             (300.0, 100.0), 
@@ -677,17 +688,20 @@ impl App {
         );
 
         // Sliders and text editors ------------------------------
-        let pause_time_ms = slider_template(
-            "If you fetch additional iteminfo, this is the time between each fetch.",
-            "Pause time (in ms)",
-            (300.0, 100.0),
-            1000..=2500,
-            user.pause_time_ms,
-            &state.text_pause_time_ms,
-            Exec::PauseTimeMs,
-            Exec::TextPauseTimeMs,
-            STD_LEN
-        );
+        let pause_time_ms = if user.iteminfo_provider == ItemInfoProvider::None { column![] } 
+        else {
+            slider_template(
+                "If you fetch additional iteminfo, this is the time between each fetch.",
+                "Pause time (in ms)",
+                (300.0, 100.0),
+                1000..=2500,
+                user.pause_time_ms,
+                &state.text_pause_time_ms,
+                Exec::PauseTimeMs,
+                Exec::TextPauseTimeMs,
+                STD_LEN
+            )
+        };
         let ignore_steam_names = text_editor_template( 
             "Names of items you dont want to evaluate the price of. If you're unsure about the format of the names, see the names inside the column for steam_name in your generated spreadsheet.",
             "Ignore Steam Names?",
@@ -697,16 +711,19 @@ impl App {
             STD_LEN,
             Exec::IgnoreSteamNames
         );
-        let prefer_markets = text_editor_template( 
-            "Names of markets you want to use to calculate the price of your items. If empty, it will use all markets available. \nALL MARKETS: \nYoupin, Csfloat, Csmoney, Buff163, Steam, Skinport, Bitskins",
-            "Prefer Markets",
-            "( Market Names Seperated By , )",
-            &state.editor_prefer_markets, 
-            100,
-            STD_LEN,
-            Exec::PreferMarkets
-        );
-        let percent_threshold = if matches!(user.pricing_mode, PricingMode::Hierarchical) {
+        let prefer_markets = if !user.fetch_prices { column![] } 
+        else {
+            text_editor_template( 
+                "Names of markets you want to use to calculate the price of your items. If empty, it will use all markets available. \nALL MARKETS: \nYoupin, Csfloat, Csmoney, Buff163, Steam, Skinport, Bitskins",
+                "Prefer Markets",
+                "( Market Names Seperated By , )",
+                &state.editor_prefer_markets, 
+                100,
+                STD_LEN,
+                Exec::PreferMarkets
+            )
+        };
+        let percent_threshold = if matches!(user.pricing_mode, PricingMode::Hierarchical) && user.fetch_prices {
             slider_template(
                 "When Pricing Mode is Hierarchical, this sets the minimum percent price difference required to switch to a lower-ranked market. The program selects the cheapest market only if its price is at least this much lower than the previous one.",
                 "Percent threshold",
@@ -740,15 +757,18 @@ impl App {
             Exec::ColSteamName, 
             STD_LEN
         );
-        let col_price = text_input_template(
-            "Name of column where the price of items will be written and wread.",
-            (300.0, 100.0), 
-            "Col price", 
-            "Ex: I", 
-            Some( &sheet.col_price ), 
-            Exec::ColPrice, 
-            STD_LEN
-        );
+        let col_price = if !user.fetch_prices { column![] } 
+        else {
+            text_input_template(
+                "Name of column where the price of items will be written and read.",
+                (300.0, 100.0), 
+                "Col price", 
+                "Ex: I", 
+                Some( &sheet.col_price ), 
+                Exec::ColPrice, 
+                STD_LEN
+            )
+        };
         let col_gun_sticker_case = text_input_template(
             "Name of column where the gun name can be written (Ex: M4A4)", 
             (300.0, 100.0), 
@@ -776,33 +796,42 @@ impl App {
             Exec::ColWear, 
             STD_LEN
         );
-        let col_float = text_input_template(
-            "Name of column where the float can be written (Ex: 0.169067069888115)",
-            (300.0, 100.0), 
-            "Col float?", 
-            "Ex: E", 
-            sheet.col_float.as_ref(), 
-            Exec::ColFloat, 
-            STD_LEN
-        );
-        let col_pattern = text_input_template(
-            "Name of column where the pattern can be written and read (Ex: 661)",
-            (300.0, 100.0), 
-            "Col pattern?", 
-            "Ex: F", 
-            sheet.col_pattern.as_ref(), 
-            Exec::ColPattern, 
-            STD_LEN
-        );
-        let col_phase = text_input_template(
-            "Name of column where the phase can be written (Ex: phase 4, emerald)",
-            (300.0, 100.0), 
-            "Col phase?", 
-            "Ex: G", 
-            sheet.col_phase.as_ref(), 
-            Exec::ColPhase, 
-            STD_LEN
-        );
+        let col_float = if user.iteminfo_provider == ItemInfoProvider::None || sheet.col_inspect_link.is_none() { column![] }
+        else {
+            text_input_template(
+                "Name of column where the float can be written (Ex: 0.169067069888115)",
+                (300.0, 100.0), 
+                "Col float?", 
+                "Ex: E", 
+                sheet.col_float.as_ref(), 
+                Exec::ColFloat, 
+                STD_LEN
+            )
+        };
+        let col_pattern = if user.iteminfo_provider == ItemInfoProvider::None || sheet.col_inspect_link.is_none() { column![] }
+        else {
+            text_input_template(
+                "Name of column where the pattern can be written and read (Ex: 661)",
+                (300.0, 100.0), 
+                "Col pattern?", 
+                "Ex: F", 
+                sheet.col_pattern.as_ref(), 
+                Exec::ColPattern, 
+                STD_LEN
+            )
+        };
+        let col_phase = if user.iteminfo_provider == ItemInfoProvider::None || sheet.col_inspect_link.is_none() { column![] }
+        else {
+            text_input_template(
+                "Name of column where the phase can be written (Ex: phase 4, emerald)",
+                (300.0, 100.0), 
+                "Col phase?", 
+                "Ex: G", 
+                sheet.col_phase.as_ref(), 
+                Exec::ColPhase, 
+                STD_LEN
+            )
+        };
         let col_quantity = text_input_template(
             "Name of column where the quantity can be written and read (Ex: 67)",
             (300.0, 100.0), 
@@ -812,33 +841,42 @@ impl App {
             Exec::ColQuantity, 
             STD_LEN
         );
-        let col_market = text_input_template(
-            "Name of column where the market can be written (Ex: youpin, buff)",
-            (300.0, 100.0), 
-            "Col market?", 
-            "Ex: J", 
-            sheet.col_market.as_ref(), 
-            Exec::ColMarket, 
-            STD_LEN
-        );
-        let col_sold = text_input_template(
-            "Name of column where items that are already sold can be read from.",
-            (300.0, 100.0), 
-            "Col sold", 
-            "Ex: K", 
-            sheet.col_sold.as_ref(), 
-            Exec::ColSold, 
-            STD_LEN
-        );
-        let col_inspect_link = text_input_template(
-            "Name of column where the inspect link for the items can be written and read \n(Ex: steam://rungame/730/76561202255233023/+csgo_econ_action_preview%20S76561198389123475A34543022281D9279926981479153949)",
-            (300.0, 100.0), 
-            if !matches!(user.iteminfo_provider, ItemInfoProvider::None) {"Col inspect link?"} else {"Col inspect link"}, 
-            "Ex: L", 
-            sheet.col_inspect_link.as_ref(), 
-            Exec::ColInspectLink, 
-            STD_LEN
-        );
+        let col_market = if !user.fetch_prices { column![] } 
+        else {
+            text_input_template(
+                "Name of column where the market can be written (Ex: youpin, buff)",
+                (300.0, 100.0), 
+                "Col market?", 
+                "Ex: J", 
+                sheet.col_market.as_ref(), 
+                Exec::ColMarket, 
+                STD_LEN
+            )
+        };
+        let col_sold = if !user.fetch_prices || !user.ignore_already_sold { column![] } 
+        else {
+            text_input_template(
+                "Name of column where items that are already sold can be read from.",
+                (300.0, 100.0), 
+                "Col sold", 
+                "Ex: K", 
+                sheet.col_sold.as_ref(), 
+                Exec::ColSold, 
+                STD_LEN
+            )
+        };
+        let col_inspect_link = if !user.fetch_prices { column![] } 
+        else { 
+            text_input_template(
+                "Name of column where the inspect link for the items can be written and read \n(Ex: steam://rungame/730/76561202255233023/+csgo_econ_action_preview%20S76561198389123475A34543022281D9279926981479153949)",
+                (300.0, 100.0), 
+                if !matches!(user.iteminfo_provider, ItemInfoProvider::None) {"Col inspect link?"} else {"Col inspect link"}, 
+                "Ex: L", 
+                sheet.col_inspect_link.as_ref(), 
+                Exec::ColInspectLink, 
+                STD_LEN
+            )
+        };
         let col_csgoskins_link = text_input_template(
             "Name of column where a generated csgoskins.gg link can be written. This is if you want to check the price yourself.",
             (300.0, 100.0), 
@@ -848,15 +886,18 @@ impl App {
             Exec::ColCsgoskinsLink, 
             STD_LEN
         );
-        let col_assetid = text_input_template(
-            "Name of column where the assetID of the items in your inventory can be written and read. This is to seperate items with the same name when you do not want to group simular items.",
-            (300.0, 100.0), 
-            "Col assetid", 
-            "Ex: N", 
-            sheet.col_asset_id.as_ref(), 
-            Exec::ColAssetId, 
-            STD_LEN
-        );
+        let col_assetid = if user.group_simular_items { column![] } 
+        else {
+            text_input_template(
+                "Name of column where the assetID of the items in your inventory can be written and read. This is to seperate items with the same name when you do not want to group simular items.",
+                (300.0, 100.0), 
+                "Col assetid", 
+                "Ex: N", 
+                sheet.col_asset_id.as_ref(), 
+                Exec::ColAssetId, 
+                STD_LEN
+            )
+        };
 
         // Cells 
         let cell_date = text_input_template(
@@ -868,15 +909,18 @@ impl App {
             Exec::CellDate, 
             STD_LEN
         );
-        let cell_usd_to_x = text_input_template(
-            "Coortinates of cell where the conversion rate from USD to X can be read to use with calculating the price of the items.",
-            (300.0, 100.0), 
-            "Cell USD to X", 
-            "Ex: P2 | $P2 | P$2 | $P$2", 
-            sheet.rowcol_usd_to_x.as_ref(), 
-            Exec::CellUsdToX, 
-            STD_LEN
-        );
+        let cell_usd_to_x = if user.usd_to_x != Currencies::None || !user.fetch_prices { column![] }
+        else { 
+            text_input_template(
+                "Coortinates of cell where the conversion rate from USD to X can be read to use with calculating the price of the items.",
+                (300.0, 100.0), 
+                "Cell USD to X", 
+                "Ex: P2 | $P2 | P$2 | $P$2", 
+                sheet.rowcol_usd_to_x.as_ref(), 
+                Exec::CellUsdToX, 
+                STD_LEN
+            )
+        };
 
         // Buttons ------------------------------
         let save = btn_base( 
@@ -920,17 +964,22 @@ impl App {
             horizontal_rule(5),
         ]);
 
-        content = content.push( column![
-            row![usd_to_x, pricing_provider, pricing_mode, iteminfo_provider].padding(4).spacing(5),
-            horizontal_rule(5),
+        if user.fetch_prices {
+            content = content.push( column![
+                row![usd_to_x, pricing_provider, pricing_mode, iteminfo_provider].padding(4).spacing(5),
+                horizontal_rule(5),
+                ]
+            )
+        };
 
+        content = content.push( column![
             row![ steamid, steamloginsecure, sheet_name, row_start_write, row_stop_write ].padding(4).spacing(5),
             horizontal_rule(5),
 
-            row![ pause_time_ms, ignore_steam_names, prefer_markets, if matches!(user.pricing_mode, PricingMode::Hierarchical) {percent_threshold} else {column![]} ].padding(4).spacing(5),
+            row![ pause_time_ms, ignore_steam_names, prefer_markets, percent_threshold ].padding(4).spacing(5),
             horizontal_rule(5),
 
-            row![col_steam_name, col_gun_sticker_case, col_skin_name, col_wear, col_float].padding(4).spacing(5),
+            row![col_steam_name, col_gun_sticker_case, col_skin_name, col_wear, col_float ].padding(4).spacing(5),
             horizontal_rule(5),
 
             row![col_pattern, col_phase, col_quantity, col_price, col_market, col_sold].padding(4).spacing(5),

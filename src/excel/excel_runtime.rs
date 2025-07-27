@@ -22,7 +22,14 @@ pub fn run_program(
     
     sipper(async move |mut progress| {
 
-        progress.send( Progress { message: "Running main program".to_owned(), percent: 0.0 }).await;
+        progress.send( Progress { message: "Running main program\n".to_owned(), percent: 0.0 }).await;
+
+        if user.fetch_prices && user.iteminfo_provider != ItemInfoProvider::None && excel.col_inspect_link.is_some() {
+            progress.send( Progress { 
+                message: String::from("Will Fetch additional iteminfo. If it takes more than 20 sec for a iteration, its not successfull.\n"), 
+                percent: 0.0
+            }).await;
+        }
 
         // Path to my main invest: C:\Users\Mikae\OneDrive\Skrivebord\workbook
         let user = &mut user.clone();
@@ -47,7 +54,7 @@ pub fn run_program(
                     .collect::<Vec<&str>>();
 
                 progress.send(Progress { 
-                    message: format!("WARNING: Created a new spreadsheet as one with the path {} didn't exist.", filename[filename.len() - 1]), 
+                    message: format!("WARNING: Created a new spreadsheet as one with the path {} didn't exist.\n", filename[filename.len() - 1]), 
                     percent: 0.0 
                 }).await;
 
@@ -61,7 +68,7 @@ pub fn run_program(
                     // println!("WARNING: Automatically fetched first sheet in spreadsheet because {} was not found.", sn);
 
                     progress.send(Progress { 
-                        message: format!("WARNING: Automatically fetched first sheet in spreadsheet because {} was not found.", sn), 
+                        message: format!("WARNING: Automatically fetched first sheet in spreadsheet because {} was not found.\n", sn), 
                         percent: 0.0 
                     }).await;
 
@@ -87,7 +94,7 @@ pub fn run_program(
         let exceldata_initial_length: usize = exceldata.len();
 
         progress.send( Progress { 
-            message: if exceldata.is_empty() {String::from("Read empty excel spreadsheet.")} else {format!("Read spreadsheet. First: {} | Last: {}", exceldata[0].name, exceldata[exceldata.len() - 1].name)}, 
+            message: if exceldata.is_empty() {String::from("Read empty excel spreadsheet.\n")} else {format!("Read spreadsheet. First: {} | Last: {}\n", exceldata[0].name, exceldata[exceldata.len() - 1].name)}, 
             percent: 0.0 }
         ).await;
 
@@ -136,7 +143,7 @@ pub fn run_program(
 
         if cs_inv.is_some() {
             progress.send( Progress { 
-                message: String::from("Reading data from cs inventory and applying it to spreadsheet..."), 
+                message: String::from("Reading data from cs inventory and applying it to spreadsheet...\n"), 
                 percent: 0.0 }
             ).await;
         }
@@ -147,7 +154,7 @@ pub fn run_program(
         for (i, steamdata) in cs_inv.iter().flatten().enumerate() { 
             
             progress.send( Progress { 
-                message: if user.group_simular_items { format!("NAME: {} | QUANTITY: {} | HAS INSPECTLINK?: {}", steamdata.name, steamdata.quantity.unwrap_or_else(|| 0), if steamdata.inspect_link.is_some() {"YES"} else {"NO"})} else {format!("NAME: {} | HAS INSPECTLINK?: {} | ASSETID: {}", steamdata.name, if steamdata.inspect_link.is_some() {"YES"} else {"NO"}, steamdata.asset_id)}, 
+                message: if user.group_simular_items { format!("NAME: {} | QUANTITY: {} | HAS INSPECTLINK?: {}\n", steamdata.name, steamdata.quantity.unwrap_or_else(|| 0), if steamdata.inspect_link.is_some() {"YES"} else {"NO"})} else {format!("NAME: {} | HAS INSPECTLINK?: {} | ASSETID: {}\n", steamdata.name, if steamdata.inspect_link.is_some() {"YES"} else {"NO"}, steamdata.asset_id)}, 
                 percent: (i as f32 / cs_inv_len as f32 * 99.0) 
             } ).await;
         
@@ -208,7 +215,7 @@ pub fn run_program(
                             if quant == 1 || steamdata.name.contains( " doppler ") {
                                 
                                 progress.send( Progress { 
-                                    message: String::from("Fetching additional iteminfo. If this takes more than 20 sec for a single item, its not succesfull."), 
+                                    message: String::from(""),
                                     percent: (i / cs_inv_len * 100) as f32
                                 }).await;
 
@@ -327,7 +334,7 @@ pub fn run_program(
 
         if user.fetch_prices {
             progress.send( Progress { 
-                message: String::from("Updating prices of old items in spreadsheet..."), 
+                message: String::from("Updating prices of old items in spreadsheet...\n"), 
                 percent: 99.0
             }).await;
         }
@@ -398,13 +405,13 @@ pub fn run_program(
         // println!("EXCELDATA: \n{:#?}\n", &exceldata);
 
         progress.send( Progress { 
-            message: format!("End time: {}", finishtime), 
+            message: format!("End time: {}\n", finishtime), 
             percent: 100.0
         }).await;
 
         if let Some(inv) = &sm_inv {
             progress.send( Progress { 
-                message: format!("Asset length: {}\nInventory length: {}", inv.get_assets_length(),  inv.get_total_inventory_length()), 
+                message: format!("Asset length: {}\nInventory length: {}\n", inv.get_assets_length(),  inv.get_total_inventory_length()), 
                 percent: 100.0
             }).await;
             // println!("Asset length: {}", inv.get_assets_length());
