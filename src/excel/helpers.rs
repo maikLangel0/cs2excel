@@ -54,7 +54,6 @@ pub async fn get_exchange_rate(
                     )?
                 )
             }
-
         } else { Ok(1.0) }
     }
 }

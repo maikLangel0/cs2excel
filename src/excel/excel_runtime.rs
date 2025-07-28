@@ -488,6 +488,31 @@ pub fn is_user_input_valid(user: &UserInfo, excel: &SheetInfo) -> Result<(), Str
         if !valid_cell_check(&utx) { return Err( String::from("format of cell usd_to_x is not valid!") ) }
     }
 
+    if let Some(stop) = excel.row_stop_write_in_table {
+        if excel.row_start_write_in_table < stop { return Err( String::from("Start write can't be less than stop write!")) }
+    }
+
+    let mut all_excel: Vec<String> = Vec::from([excel.col_price.to_string(), excel.col_steam_name.to_string()]);
+    if let Some(x) = &excel.col_asset_id { all_excel.push( x.to_string() ); }
+    if let Some(x) = &excel.col_csgoskins_link { all_excel.push( x.to_string() ); }
+    if let Some(x) = &excel.col_float { all_excel.push( x.to_string() ); }
+    if let Some(x) = &excel.col_gun_sticker_case { all_excel.push( x.to_string() ); }
+    if let Some(x) = &excel.col_inspect_link { all_excel.push( x.to_string() ); }
+    if let Some(x) = &excel.col_market { all_excel.push( x.to_string() ); }
+    if let Some(x) = &excel.col_pattern { all_excel.push( x.to_string() ); }
+    if let Some(x) = &excel.col_phase { all_excel.push( x.to_string() ); }
+    if let Some(x) = &excel.col_quantity { all_excel.push( x.to_string() ); }
+    if let Some(x) = &excel.col_skin_name { all_excel.push( x.to_string() ); }
+    if let Some(x) = &excel.col_sold { all_excel.push( x.to_string() ); }
+    if let Some(x) = &excel.col_wear { all_excel.push( x.to_string() ); }
+    all_excel.sort();
+    
+    if let Some(w) = all_excel.windows(2).find(|w| w[0] == w[1]) {
+        return Err(
+            format!("The same column is referenced two or more times: '{}'",w[0])
+    );
+}
+
     Ok(())
 }
 

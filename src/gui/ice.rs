@@ -301,7 +301,7 @@ impl App {
             // Row, Col, RowCol and rest of sheet STUFF
             Exec::RowStartWrite(row) => {
                 if row.chars().any(|c| !c.is_ascii_digit()) { return Task::none() } // Filter only numbers
-                sheet.row_start_write_in_table = row.to_numeric().unwrap_or_else(|_| 1);
+                sheet.row_start_write_in_table = if let Ok(num) = row.to_numeric() { if num < 1 { 1 } else { num } } else { 1 };
                 state.text_input_row_start_write_in_table = row;
                 Task::none()
             }
@@ -530,7 +530,7 @@ impl App {
                         // ---------------------
                         let user = user.clone();
                         let sheet = sheet.clone();
-                        
+
                         let (task, _handle) = Task::sip(
                             excel_runtime::run_program(user, sheet), 
                             Exec::UpdateRun, 
