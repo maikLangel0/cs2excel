@@ -116,15 +116,18 @@ pub fn text_editor_template<'a, Exec, F>(
     editor_state: &'a text_editor::Content,
     editor_height: impl Into<Length>,
     width: impl Into<Length>,
+    tooltip_size: impl Into<Size>,
     exec: F,
 ) -> Column<'a, Exec>
 where
     Exec: 'a + Clone,
     F: 'a + Fn(text_editor::Action) -> Exec + Copy, 
 {
+    let tt_size: Size = tooltip_size.into();
+
     column![
         row![
-            tooltip_default(tooltip_content, 400, 125),
+            tooltip_default(tooltip_content, tt_size.width, tt_size.height),
             iced::widget::text( field_name.into() ).width(Length::Fill).center(),
             padding_inner(30)
         ]

@@ -18,6 +18,7 @@ use rfd::AsyncFileDialog;
 const NO_LEN: Option<Length> = None;
 const STD_LEN: Length = Length::FillPortion(4);
 const NAUR_BYTES: &[u8] = include_bytes!("../../assets/images/peak_naur.png");
+const ADDITIONAL_INFO: &'static str = "";
 
 #[derive(Debug, Clone)]
 pub struct Progress {
@@ -513,13 +514,23 @@ impl App {
             Exec::BeginRun => {
                 match is_user_input_valid(user, sheet) {
                     Ok(_) => {
+                        state.is_excel_running = true;
+                        state.editor_runtime_result = text_editor::Content::new();
+                         println!("Attempt to run.");
+
+                        if user.iteminfo_provider == ItemInfoProvider::None {
+                            state.editor_runtime_result.perform( text_editor::Action::Edit( Edit::Paste( Arc::new("WARNING: Pricing for doppler phases will not be accurate when fetch more iteminfo is off.\n".to_string()) ) ) );
+                        }
+                        if user.iteminfo_provider == ItemInfoProvider::None && sheet.col_inspect_link.is_some() {
+                            state.editor_runtime_result.perform( text_editor::Action::Edit( Edit::Paste( Arc::new("WARNING: col inspect link is not defined so you will not be able to fetch more iteminfo (float, doppler phase, pattern, correct price of dopplers).\n".to_string()) ) ) );
+                        }
+                        if user.usd_to_x != Currencies::None && sheet.rowcol_usd_to_x.is_some() {
+                            user.usd_to_x = Currencies::None;
+                        }
+                        // ---------------------
                         let user = user.clone();
                         let sheet = sheet.clone();
                         
-                        state.is_excel_running = true;
-                        state.editor_runtime_result = text_editor::Content::new();
-                        println!("Attempt to run.");
-
                         let (task, _handle) = Task::sip(
                             excel_runtime::run_program(user, sheet), 
                             Exec::UpdateRun, 
@@ -703,12 +714,13 @@ impl App {
             )
         };
         let ignore_steam_names = text_editor_template( 
-            "Names of items you dont want to evaluate the price of. If you're unsure about the format of the names, see the names inside the column for steam_name in your generated spreadsheet.",
-            "Ignore Steam Names?",
-            "( Full Names Seperated By , )",
+            "Names of items you dont want to evaluate the price of. If you're unsure about the format of the names, see the names inside the column for full name in your generated spreadsheet.",
+            "Ignore Items by Full Name?",
+            "(Names Seperated By ',')",
             &state.editor_ignore_steam_names, 
             100,
             STD_LEN,
+            (400.0, 125.0),
             Exec::IgnoreSteamNames
         );
         let prefer_markets = if !user.fetch_prices { column![] } 
@@ -716,10 +728,11 @@ impl App {
             text_editor_template( 
                 "Names of markets you want to use to calculate the price of your items. If empty, it will use all markets available. \nALL MARKETS: \nYoupin, Csfloat, Csmoney, Buff163, Steam, Skinport, Bitskins",
                 "Prefer Markets",
-                "( Market Names Seperated By , )",
+                "(Market Names Seperated By ',')",
                 &state.editor_prefer_markets, 
                 100,
                 STD_LEN,
+                (400.0, 125.0),
                 Exec::PreferMarkets
             )
         };
@@ -748,10 +761,10 @@ impl App {
         );
 
         // Cols
-        let col_steam_name = text_input_template(
+        let col_full_name = text_input_template(
             "Name of column where the name of the item IN FULL is put (Ex: AK-47 | Blue Laminate (Field-Tested). This is needed to index the spreadsheet.", 
             (300.0, 100.0), 
-            "Col steam name", 
+            "Col full name", 
             "Ex: A", 
             Some( &sheet.col_steam_name ), 
             Exec::ColSteamName, 
@@ -979,7 +992,7 @@ impl App {
             row![ pause_time_ms, ignore_steam_names, prefer_markets, percent_threshold ].padding(4).spacing(5),
             horizontal_rule(5),
 
-            row![col_steam_name, col_gun_sticker_case, col_skin_name, col_wear, col_float ].padding(4).spacing(5),
+            row![col_full_name, col_gun_sticker_case, col_skin_name, col_wear, col_float ].padding(4).spacing(5),
             horizontal_rule(5),
 
             row![col_pattern, col_phase, col_quantity, col_price, col_market, col_sold].padding(4).spacing(5),
@@ -988,7 +1001,7 @@ impl App {
             row![col_inspect_link, col_csgoskins_link, col_assetid, cell_date, cell_usd_to_x].padding(4).spacing(5),
             horizontal_rule(5),
 
-            row![ text_editor_template("", "-#- Program Output -#-", "", &state.editor_runtime_result, Length::Fill, Length::Fill, Exec::RuntimeResult)],
+            row![ text_editor_template(ADDITIONAL_INFO, "-#- Program Output -#-", "", &state.editor_runtime_result, Length::Fill, Length::Fill, (1000.0, 400.0), Exec::RuntimeResult)],
 
             //btn_base("Exit", Some(100), Some(50), Exec::Exit),
         ].align_x( Horizontal::Center));

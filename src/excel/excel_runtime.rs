@@ -16,10 +16,11 @@ use crate::{
 };
 
 pub fn run_program(
-    user: UserInfo, 
-    excel: SheetInfo, 
+    mut user: UserInfo, 
+    mut excel: SheetInfo, 
 ) -> impl Straw<(), Progress, String> {
     
+
     sipper(async move |mut progress| {
 
         progress.send( Progress { message: "Running main program\n".to_owned(), percent: 0.0 }).await;
@@ -30,14 +31,6 @@ pub fn run_program(
                 percent: 0.0
             }).await;
         }
-
-        // Path to my main invest: C:\Users\Mikae\OneDrive\Skrivebord\workbook
-        let user = &mut user.clone();
-        let excel = &mut excel.clone();
-
-        // println!("user: {:?}", user);
-        // println!("sheet: {:?}", excel);
-
         // -----------------------------------------------------------------------------------------------
 
         // BIG BRAIN; READ THE EXCEL SPREADSHEET FIRST TO GET ALL THE INFO AND THEN GET PRICES WOWOWO
@@ -109,7 +102,7 @@ pub fn run_program(
 
         // -----------------------------------------------------------------------------------------------
 
-        let steamcookie: Option<String> = get_steamloginsecure(&user.steamloginsecure);
+        let steamcookie: Option<String> = if user.fetch_steam { get_steamloginsecure(&user.steamloginsecure) } else { None };
 
         let rate = get_exchange_rate(&user.usd_to_x, &excel.rowcol_usd_to_x, sheet).await?;
 
@@ -507,7 +500,7 @@ fn valid_cell_check(s: &str) -> bool {
 
         let letter: char = {
             if c.is_english_alphabetic() {'a'}
-            else if c.is_numeric() {'n'}
+            else if c.is_ascii_digit() {'n'}
             else {'x'}
         };
 

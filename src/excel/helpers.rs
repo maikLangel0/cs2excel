@@ -70,7 +70,7 @@ pub fn get_market_price(
 ) -> Result<(Option<String>, Option<f64>), String> {
     if !user.fetch_prices { Ok((None, None)) } 
     else {
-        #[derive(Debug, Clone, Copy)]
+        #[derive(Clone, Copy)]
         struct MarketPrice { market: &'static str, price: f64 }
         
         let mut prices: Vec<MarketPrice> = Vec::new();
