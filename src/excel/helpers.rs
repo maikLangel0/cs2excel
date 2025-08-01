@@ -186,7 +186,8 @@ pub async fn insert_new_exceldata(
     all_market_prices: &HashMap<String, Value>, 
     rate: f64, 
     row_in_excel: usize,
-    sheet: &mut Worksheet
+    sheet: &mut Worksheet,
+    progress: &mut sipper::Sender<Progress>
 ) -> Result<ExcelData, String> {
 
     let (doppler, phase): (Option<Doppler>, Option<String>) = {
@@ -305,6 +306,11 @@ pub async fn insert_new_exceldata(
 
         sheet.get_cell_value_mut(cell).set_value_string(link);
     }
+
+    progress.send( Progress { 
+        message: format!("Inserted {} | Row {}", &steamdata.name, row_in_excel), 
+        percent: 0.0 
+    }).await;
 
     Ok(ExcelData { 
         name: steamdata.name.clone(), 

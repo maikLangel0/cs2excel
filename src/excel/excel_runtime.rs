@@ -232,7 +232,8 @@ pub fn run_program(
                                 &markets_to_check, 
                                 &all_market_prices, 
                                 rate, row_in_excel, 
-                                sheet
+                                sheet,
+                                &mut progress
                             ).await? 
                         );
                         continue; 
@@ -289,7 +290,8 @@ pub fn run_program(
                                 &markets_to_check,
                                 &all_market_prices,
                                 rate, row_in_excel, 
-                                sheet
+                                sheet,
+                                &mut progress
                             ).await? 
 
                         );
@@ -323,7 +325,8 @@ pub fn run_program(
                             &markets_to_check,
                             &all_market_prices,
                             rate, row_in_excel, 
-                            sheet
+                            sheet,
+                            &mut progress
                         ).await? 
                     );
                 }
