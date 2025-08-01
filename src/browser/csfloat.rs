@@ -3,7 +3,7 @@ use std::time::Duration;
 use reqwest::Client;
 use serde_json::Value;
 
-use crate::{dprintln, models::web::CSFLOAT_HEADERS_DEFAULT};
+use crate::{dprintln, gui::ice::Progress, models::web::CSFLOAT_HEADERS_DEFAULT};
 
 
 pub async fn fetch_iteminfo(
@@ -45,6 +45,7 @@ pub async fn fetch_iteminfo(
 
 pub async fn fetch_iteminfo_persistent(
     client: &mut Client, 
+    progress: &mut sipper::Sender<Progress>,
     inspect_link: &str, 
     max_retries: u8, 
     pause_time_millis: u64
@@ -56,15 +57,17 @@ pub async fn fetch_iteminfo_persistent(
     loop {
         match fetch_iteminfo(client, inspect_link).await {
             Ok(json) => { break Ok(json) }
-            Err(_e) => {
+            Err(e) => {
                 if attempt >= max_retries { break Err( "Exhausted all retries...".into() )}
-                dprintln!("Error in single_fetch_request_persistent: {:?}", _e);
+                let wait_time = 60 + pause_time_millis * 2 * (attempt * 2 - attempt) as u64;
                 
-                tokio::time::sleep( 
-                    Duration::from_millis( 
-                        60 + pause_time_millis * 2 * (attempt * 2 - attempt) as u64 
-                    ) 
-                ).await;
+                dprintln!("Error in single_fetch_request_persistent: {:?}", e);
+                progress.send( Progress { 
+                    message: format!("Error in persistent iteminfo HTTP request: {:?} \nWaiting {}ms", e, wait_time),
+                    percent: 0.0 
+                }).await;
+                
+                tokio::time::sleep( Duration::from_millis(wait_time) ).await;
                 
                 attempt += 1;
             }

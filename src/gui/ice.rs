@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::{fs::File, io::BufReader, path::PathBuf, str::FromStr};
 
 use iced::widget::image::Handle;
-use iced::widget::text_editor::Edit;
+use iced::widget::text_editor::{Content, Edit};
 use iced::alignment::Horizontal;
 use iced::widget::{checkbox, column, container, horizontal_rule, image, row, text_editor, Column, Row};
 use iced::window::{Settings, icon};
@@ -19,7 +19,11 @@ use rfd::AsyncFileDialog;
 const NO_LEN: Option<Length> = None;
 const STD_LEN: Length = Length::FillPortion(4);
 const NAUR_BYTES: &[u8] = include_bytes!("../../assets/images/peak_naur.png");
-const ADDITIONAL_INFO: &'static str = "";
+const ADDITIONAL_INFO: &'static str = "IMPORTANT INFO: \
+    \n\nEXCEL FILE NEEDS TO CLOSED THE INSTANCE YOU START THE PROGRAM AND THE INSTANCE THE PROGRAM ENDS! HAVING THE FILE OPEN WHEN CLICKING 'Run' WILL RESULT IN AN ERROR. IF PROGRAM IS OPEN AT THE END OF ITERATION, WRITING TO THE EXCEL FILE WILL NOT BE SUCCESSFUL.
+    \nPlease always have a recent up-to-date backup of your spreadsheet(s) \
+    \nPlease make sure the rows of the table has no gaps in it. if it does the program will not recognize the whole table and add information in random, not intended places.
+    \n'?' next to the name of an input means that thing is OPTIONAL";
 
 #[derive(Debug, Clone)]
 pub struct Progress {
@@ -172,7 +176,7 @@ impl Default for App {
             is_excel_running: false,
             editor_ignore_steam_names: text_editor::Content::new(),
             editor_prefer_markets: text_editor::Content::new(),
-            editor_runtime_result: text_editor::Content::new(),
+            editor_runtime_result: text_editor::Content::from( Content::with_text( ADDITIONAL_INFO )),
             text_pause_time_ms: String::new(),
             text_percent_threshold: String::new(),
             text_input_steamid: String::new(),
@@ -1002,7 +1006,7 @@ impl App {
             row![col_inspect_link, col_csgoskins_link, col_assetid, cell_date, cell_usd_to_x].padding(4).spacing(5),
             horizontal_rule(5),
 
-            row![ text_editor_template(ADDITIONAL_INFO, "-#- Program Output -#-", "", &state.editor_runtime_result, Length::Fill, Length::Fill, (1000.0, 400.0), Exec::RuntimeResult)],
+            row![ text_editor_template(ADDITIONAL_INFO, "-#- Program Output -#-", "", &state.editor_runtime_result, Length::Fill, Length::Fill, (1000.0, 300.0), Exec::RuntimeResult)],
 
             //btn_base("Exit", Some(100), Some(50), Exec::Exit),
         ].align_x( Horizontal::Center));

@@ -147,7 +147,7 @@ pub fn run_program(
         for (i, steamdata) in cs_inv.iter().flatten().enumerate() { 
             
             progress.send( Progress { 
-                message: if user.group_simular_items { format!("NAME: {} | QUANTITY: {} | HAS INSPECTLINK?: {}\n", steamdata.name, steamdata.quantity.unwrap_or_else(|| 0), if steamdata.inspect_link.is_some() {"YES"} else {"NO"})} else {format!("NAME: {} | HAS INSPECTLINK?: {} | ASSETID: {}\n", steamdata.name, if steamdata.inspect_link.is_some() {"YES"} else {"NO"}, steamdata.asset_id)}, 
+                message: if user.group_simular_items { format!("NAME: {} | QUANTITY: {} | HAS INSPECTLINK?: {}\n", steamdata.name, steamdata.quantity.unwrap_or(0), if steamdata.inspect_link.is_some() {"YES"} else {"NO"})} else {format!("NAME: {} | HAS INSPECTLINK?: {} | ASSETID: {}\n", steamdata.name, if steamdata.inspect_link.is_some() {"YES"} else {"NO"}, steamdata.asset_id)}, 
                 percent: (i as f32 / cs_inv_len as f32 * 99.0) 
             } ).await;
         
@@ -174,8 +174,9 @@ pub fn run_program(
                                 &excel.col_quantity, 
                                 data, 
                                 row_in_excel, 
-                                sheet
-                            ); 
+                                sheet,
+                                &mut progress
+                            ).await; 
 
                             // If quantity is more than 1, remove data in float, pattern and inspect_link if its set
                             if data.quantity > Some(1) {
@@ -199,7 +200,7 @@ pub fn run_program(
                     None => {
 
                         // DO NOT INSERT NEW STUFF IF THERE IS A LIMITER ON WHERE TO STOP WRITING
-                        // acts on the outer loop "for steamdata in cs_inv.iter()"
+                        // acts on the outer loop "for steamdata in cs_inv.iter().flatten().enumerate()"
                         if excel.row_stop_write_in_table.is_some() { continue; } 
 
                         let row_in_excel: usize = exceldata.len() + excel.row_start_write_in_table as usize;
@@ -217,7 +218,8 @@ pub fn run_program(
                                     &user.iteminfo_provider, 
                                     &excel.col_inspect_link, 
                                     user.pause_time_ms, 
-                                    &steamdata
+                                    &steamdata,
+                                    &mut progress
                                 ).await?
                             } else { None }
                         } else { None };
@@ -249,7 +251,8 @@ pub fn run_program(
                     &user.iteminfo_provider, 
                     &excel.col_inspect_link, 
                     user.pause_time_ms, 
-                    &steamdata
+                    &steamdata,
+                    &mut progress
                 ).await?.ok_or_else(|| "group_simular_items' path for dopplers failed WHAT")?;
 
                 let phase: &Option<String> = &extra_itemdata.phase
@@ -266,8 +269,9 @@ pub fn run_program(
                             &excel.col_quantity, 
                             data, 
                             row_in_excel, 
-                            sheet
-                        ); 
+                            sheet,
+                            &mut progress
+                        ).await; 
                     },
                     None => {
 
@@ -307,7 +311,8 @@ pub fn run_program(
                         &user.iteminfo_provider, 
                         &excel.col_inspect_link,
                         user.pause_time_ms, 
-                        &steamdata
+                        &steamdata,
+                        &mut progress
                     ).await?;
 
                     exceldata.push( 

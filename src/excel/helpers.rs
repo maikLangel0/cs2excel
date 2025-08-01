@@ -5,9 +5,7 @@ use reqwest::Client;
 use umya_spreadsheet::Worksheet;
 
 use crate::{
-    browser::{cookies::FirefoxDb, csfloat, csgotrader},
-    models::{excel::ExcelData, price::{Currencies, Doppler, PriceType, PricingMode}, user_sheet::{SheetInfo, UserInfo}, web::{ExtraItemData, ItemInfoProvider, Sites, SteamData, SITE_HAS_DOPPLER}}, 
-    parsing::{self, csgoskins_url, item_csgotrader, market_name_parse}
+    browser::{cookies::FirefoxDb, csfloat, csgotrader}, dprintln, gui::ice::Progress, models::{excel::ExcelData, price::{Currencies, Doppler, PriceType, PricingMode}, user_sheet::{SheetInfo, UserInfo}, web::{ExtraItemData, ItemInfoProvider, Sites, SteamData, SITE_HAS_DOPPLER}}, parsing::{self, csgoskins_url, item_csgotrader, market_name_parse}
 };
 
 pub fn get_steamloginsecure(sls: &Option<String>) -> Option<String> {
@@ -28,8 +26,6 @@ pub async fn get_exchange_rate(
     rowcol_usd_to_x: &Option<String>, 
     sheet: &mut Worksheet
 ) -> Result<f64, String> {
-    
-    debug_assert!( !( usd_to_x != &Currencies::None && rowcol_usd_to_x.is_some() ) );
 
     if usd_to_x != &Currencies::None {
         if usd_to_x == &Currencies::USD { return Ok(1.0); }
@@ -126,18 +122,19 @@ pub async fn fetch_iteminfo_via_itemprovider_persistent(
     col_inspect_link: &Option<String>,
     iteminfo_provider: &ItemInfoProvider,
     inspect_link: &Option<String>,
-    pause_time_ms: u16
+    pause_time_ms: u16,
+    progress: &mut sipper::Sender<Progress>
 ) -> Result<Option<Value>, String> {
     
     if col_inspect_link.is_some() {
         if let Some(inspect) = inspect_link {
             match iteminfo_provider {
                 ItemInfoProvider::Csfloat => {
-                    let tmp = csfloat::fetch_iteminfo_persistent(client, inspect, 10, pause_time_ms as u64).await?;
+                    let tmp = csfloat::fetch_iteminfo_persistent(client, progress, inspect, 10, pause_time_ms as u64).await?;
                     Ok(tmp)
                 }
                 ItemInfoProvider::Csgotrader => {
-                    let tmp = csgotrader::fetch_iteminfo_persistent(client, inspect, 10, pause_time_ms as u64).await?;
+                    let tmp = csgotrader::fetch_iteminfo_persistent(client, progress, inspect, 10, pause_time_ms as u64).await?;
                     Ok(tmp)
                 }
                 ItemInfoProvider::None => { Ok(None) }
@@ -153,6 +150,7 @@ pub async fn wrapper_fetch_iteminfo_via_itemprovider_persistent(
     col_inspect_link: &Option<String>,
     pause_time_ms: u16,
     steamdata: &SteamData,
+    progress: &mut sipper::Sender<Progress>
 ) -> Result<Option<ExtraItemData>, String> {
     
     let json_response = fetch_iteminfo_via_itemprovider_persistent(
@@ -160,7 +158,8 @@ pub async fn wrapper_fetch_iteminfo_via_itemprovider_persistent(
         col_inspect_link, 
         iteminfo_provider,
         &steamdata.inspect_link, 
-        pause_time_ms
+        pause_time_ms,
+        progress
     ).await?;
         
     if let Some(json_body) = json_response {
@@ -318,12 +317,13 @@ pub async fn insert_new_exceldata(
     })
 }
 
-pub fn update_quantity_exceldata(
+pub async fn update_quantity_exceldata(
     steamdata: &SteamData, 
     col_quantity: &Option<String>,
     data: &mut ExcelData, 
     row_in_excel: usize, 
     sheet: &mut Worksheet, 
+    progress: &mut sipper::Sender<Progress>
 ) {
     if let Some(col_quantity) = col_quantity {
         if let Some(steam_quantity) = steamdata.quantity {
@@ -333,7 +333,12 @@ pub fn update_quantity_exceldata(
 
                     data.quantity = Some(steam_quantity);
                     sheet.get_cell_value_mut( cell_quantity.as_ref() ).set_value_number(steam_quantity);
-                    println!("UPDATED {} QUANTITY TO {:?} | ROW {}\n", &steamdata.name, &data.quantity, &row_in_excel);
+                    
+                    dprintln!("UPDATED {} QUANTITY TO {:?} | ROW {}\n", &steamdata.name, &data.quantity, &row_in_excel);
+                    progress.send( Progress { 
+                        message: format!("UPDATED {} QUANTITY TO {:?} | ROW {}\n", &steamdata.name, &data.quantity, &row_in_excel), 
+                        percent: 0.0 
+                    }).await;
                 }
             }
         }

@@ -2,7 +2,7 @@ use std::{collections::HashMap, io::Read, time::Duration};
 use reqwest::{header::{self, HeaderMap, HeaderValue}, Client};
 use flate2::read::GzDecoder;
 use serde_json::{self, Value};
-use crate::{dprintln, models::web::{Sites, FIREFOX_CSGOTRADERAPP_HEADERS_BASE, FIREFOX_CSGOTRADERAPP_HEADERS_DEFAULT, FIREFOX_USER_AGENTS}};
+use crate::{dprintln, gui::ice::Progress, models::web::{Sites, FIREFOX_CSGOTRADERAPP_HEADERS_BASE, FIREFOX_CSGOTRADERAPP_HEADERS_DEFAULT, FIREFOX_USER_AGENTS}};
 
 // USD is 1.0
 pub async fn get_exchange_rates() -> Result<HashMap<String, f64>, String> {
@@ -93,6 +93,7 @@ pub async fn get_iteminfo(client: &Client, inspect_link: &str) -> Result<Value, 
 
 pub async fn fetch_iteminfo_persistent(
     client: &mut Client, 
+    progress: &mut sipper::Sender<Progress>,
     inspect_link: &str, 
     max_retries: u8, 
     pause_time_millis: u64
@@ -112,6 +113,11 @@ pub async fn fetch_iteminfo_persistent(
                         let base_wait = if e.contains("429") { 10000 } else if e.contains("502") { 60000 } else { 100 };
                         let jitter    = rand::random_range(1..=50);
                         let wait_time = (base_wait + jitter) * attempt as u64;
+
+                        progress.send( Progress { 
+                            message: format!("Error in persistent iteminfo HTTP request: {:?} \nWaiting {}ms...", e, wait_time),
+                            percent: 0.0 
+                        }).await;
 
                         dprintln!("Error sending iteminfo request: {}", e);
                         dprintln!("Waiting {} milliseconds before retrying...", wait_time);
