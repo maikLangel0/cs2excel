@@ -8,7 +8,7 @@ use serde_json::Value;
 use iced::task::{Straw, sipper};
 
 use crate::{
-    browser::{csfloat, csgotrader, steamcommunity::SteamInventory}, excel::{excel_ops::{get_exceldata, get_spreadsheet, set_spreadsheet}, helpers::{get_exchange_rate, get_market_price, get_steamloginsecure, insert_new_exceldata, update_quantity_exceldata, wrapper_fetch_iteminfo_via_itemprovider_persistent}}, gui::{ice::Progress, templates_n_methods::IsEnglishAlphabetic}, models::{  
+    browser::{csfloat, csgotrader, steamcommunity::SteamInventory}, dprintln, excel::{excel_ops::{get_exceldata, get_spreadsheet, set_spreadsheet}, helpers::{get_exchange_rate, get_market_price, get_steamloginsecure, insert_new_exceldata, update_quantity_exceldata, wrapper_fetch_iteminfo_via_itemprovider_persistent}}, gui::{ice::Progress, templates_n_methods::IsEnglishAlphabetic}, models::{  
         excel::ExcelData, price::{Currencies, Doppler, PricingMode, PricingProvider}, 
         user_sheet::{SheetInfo, UserInfo}, 
         web::{ExtraItemData, ItemInfoProvider, Sites, SteamData}
@@ -58,7 +58,7 @@ pub fn run_program(
             if let Some(sn) = &excel.sheet_name { 
                 if let Some(buk) = book.get_sheet_by_name_mut(sn) { buk } 
                 else {
-                    // println!("WARNING: Automatically fetched first sheet in spreadsheet because {} was not found.", sn);
+                    // dprintln!("WARNING: Automatically fetched first sheet in spreadsheet because {} was not found.", sn);
 
                     progress.send(Progress { 
                         message: format!("WARNING: Automatically fetched first sheet in spreadsheet because {} was not found.\n", sn), 
@@ -91,7 +91,7 @@ pub fn run_program(
             percent: 0.0 }
         ).await;
 
-        // println!("Data gotten from excel spreadsheet: \n{:#?}", exceldata);
+        // dprintln!("Data gotten from excel spreadsheet: \n{:#?}", exceldata);
         // if !exceldata.is_empty() { return Ok(()) }
 
         //  exceldata_old_len er her fordi jeg har endret måte å oppdatere prisene i spreadsheet'n på.
@@ -394,8 +394,8 @@ pub fn run_program(
         set_spreadsheet(&excel.path_to_sheet, book).await
             .map_err(|e| format!("Couldnt write to spreadsheet! : {}", e))?;
 
-        // println!("STEAMDATA: \n{:#?}\n", &cs_inv);
-        // println!("EXCELDATA: \n{:#?}\n", &exceldata);
+        // dprintln!("STEAMDATA: \n{:#?}\n", &cs_inv);
+        // dprintln!("EXCELDATA: \n{:#?}\n", &exceldata);
 
         progress.send( Progress { 
             message: format!("End time: {}\n", finishtime), 
@@ -407,11 +407,11 @@ pub fn run_program(
                 message: format!("Asset length: {}\nInventory length: {}\n", inv.get_assets_length(),  inv.get_total_inventory_length()), 
                 percent: 100.0
             }).await;
-            // println!("Asset length: {}", inv.get_assets_length());
-            // println!("Inventory length: {}", inv.get_total_inventory_length() );
+            // dprintln!("Asset length: {}", inv.get_assets_length());
+            // dprintln!("Inventory length: {}", inv.get_total_inventory_length() );
         };
         
-        //println!("Finished!");
+        //dprintln!("Finished!");
         Ok(())
     })
 
@@ -422,11 +422,11 @@ pub fn run_program(
 
 pub fn is_user_input_valid(user: &UserInfo, excel: &SheetInfo) -> Result<(), String> {
     if user.iteminfo_provider == ItemInfoProvider::None {
-        println!("WARNING: Pricing for doppler phases will not be accurate with fetch_more_iteminfo off.")
+        dprintln!("WARNING: Pricing for doppler phases will not be accurate with fetch_more_iteminfo off.")
     }
 
     if user.iteminfo_provider == ItemInfoProvider::None && excel.col_inspect_link.is_some() {
-        println!("WARNING: col_inspect_link is not defined so you will not be able to fetch_more_iteminfo (float, doppler phase, pattern, price of doppler).")
+        dprintln!("WARNING: col_inspect_link is not defined so you will not be able to fetch_more_iteminfo (float, doppler phase, pattern, price of doppler).")
     }
     
     // --------------------
@@ -534,7 +534,7 @@ fn valid_cell_check(s: &str) -> bool {
     }
     let final_signature = signature.iter().collect::<String>();
 
-    println!("Sign: {}", final_signature);
+    dprintln!("Sign: {}", final_signature);
     
     if !valid_signatures.contains(&final_signature.as_str()) { return false }
     else { true }

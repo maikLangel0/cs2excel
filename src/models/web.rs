@@ -10,7 +10,7 @@ use super::price::Doppler;
 
 // ------------------------------------------------------------
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct Cookies {
     pub name: String,
     pub value: String
@@ -69,7 +69,6 @@ impl Sites {
 
 // ------------------------------------------------------------
 
-#[derive(Debug)]
 pub struct SteamData {
     pub name: String,
     pub quantity: Option<u16>,
@@ -80,7 +79,7 @@ pub struct SteamData {
 
 // ------------------------------------------------------------
 
-#[derive(Deserialize, Serialize, Debug)]
+#[derive(Deserialize, Serialize)]
 pub struct SteamJson {
     pub assets: Vec<Value>,
     pub descriptions: Vec<Value>,
@@ -91,7 +90,6 @@ pub struct SteamJson {
 
 // ------------------------------------------------------------
 
-#[derive(Debug)]
 pub struct ExtraItemData {
     pub name: String,
     pub float: Option<f64>,
@@ -139,16 +137,16 @@ impl fmt::Display for ItemInfoProvider {
 
 // ---------------------------------------------------------------------------
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct InspectLinks {
-    pub bulk_key: String,
-    pub links: Vec<InspectLink>
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct InspectLink {
-    pub link: String
-}
+// #[derive(Serialize, Deserialize)]
+// pub struct InspectLinks {
+    // pub bulk_key: String,
+    // pub links: Vec<InspectLink>
+// }
+// 
+// #[derive(Serialize, Deserialize)]
+// pub struct InspectLink {
+    // pub link: String
+// }
 
 // ---------------------------------------------------------------------------
 

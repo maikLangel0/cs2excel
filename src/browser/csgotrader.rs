@@ -2,7 +2,7 @@ use std::{collections::HashMap, io::Read, time::Duration};
 use reqwest::{header::{self, HeaderMap, HeaderValue}, Client};
 use flate2::read::GzDecoder;
 use serde_json::{self, Value};
-use crate::models::web::{Sites, FIREFOX_CSGOTRADERAPP_HEADERS_BASE, FIREFOX_CSGOTRADERAPP_HEADERS_DEFAULT, FIREFOX_USER_AGENTS};
+use crate::{dprintln, models::web::{Sites, FIREFOX_CSGOTRADERAPP_HEADERS_BASE, FIREFOX_CSGOTRADERAPP_HEADERS_DEFAULT, FIREFOX_USER_AGENTS}};
 
 // USD is 1.0
 pub async fn get_exchange_rates() -> Result<HashMap<String, f64>, String> {
@@ -61,7 +61,7 @@ pub async fn get_market_data(market: &Sites) -> Result<Value, String> {
 
 //
 pub async fn get_iteminfo(client: &Client, inspect_link: &str) -> Result<Value, String> {
-    println!("Fetching more iteminfo | Full current inspect link: https://api.csgotrader.app/float?url={}", urlencoding::encode(inspect_link));
+    dprintln!("Fetching more iteminfo | Full current inspect link: https://api.csgotrader.app/float?url={}", urlencoding::encode(inspect_link));
 
     // Sending the GET request trying to mimic the one used by the csgotrader.app extension
     let response = client.get( format!("https://api.csgotrader.app/float?url={}", urlencoding::encode(inspect_link) ))
@@ -69,7 +69,7 @@ pub async fn get_iteminfo(client: &Client, inspect_link: &str) -> Result<Value, 
         .await.map_err(|e| format!("Error sending GET request to the csgotraderapp price API. {}", e))?;
 
     if !response.status().is_success() { 
-        println!("\n\nFAILED RESPONSE HEADER: {:?}\n", response.headers()); 
+        dprintln!("\n\nFAILED RESPONSE HEADER: {:?}\n", response.headers()); 
         return Err( format!("GET Request failed! {} Response text: {:#?}", &response.status(), &response.text().await.map_err(|_| String::from("Should never happen"))? ) ) 
     }
 
@@ -99,7 +99,7 @@ pub async fn fetch_iteminfo_persistent(
 ) -> Result<Option<Value>, String> {
     // If excel.col_inspect link is something, fetch new floatdata from the non-batched float API by csgotraderapp
     let extra_itemdata: Option<Value> = {
-        println!("Fetching more iteminfo | current inspect link: {}", inspect_link);
+        dprintln!("Fetching more iteminfo | current inspect link: {}", inspect_link);
         // Adds retry logic to the get_iteminfo GET request since it might fail but can still succeed when sending another.
         let mut attempt: u32 = 1;
         let iteminfo = { 
@@ -113,8 +113,8 @@ pub async fn fetch_iteminfo_persistent(
                         let jitter    = rand::random_range(1..=50);
                         let wait_time = (base_wait + jitter) * attempt as u64;
 
-                        println!("Error sending iteminfo request: {}", e);
-                        println!("Waiting {} milliseconds before retrying...", wait_time);
+                        dprintln!("Error sending iteminfo request: {}", e);
+                        dprintln!("Waiting {} milliseconds before retrying...", wait_time);
 
                         tokio::time::sleep( std::time::Duration::from_millis(wait_time) ).await;
 
@@ -128,7 +128,7 @@ pub async fn fetch_iteminfo_persistent(
         let offset2   = rand::random_range(0..(pause_time_millis / 5) );
         let wait_time = pause_time_millis + offset1 - offset2;
 
-        println!("Pause time for successfull request: {wait_time}");
+        dprintln!("Pause time for successfull request: {wait_time}");
 
         tokio::time::sleep( Duration::from_millis( wait_time ) ).await;
 
@@ -144,7 +144,7 @@ pub fn new_extra_iteminfo_client() -> reqwest::Client {
     headers.insert( header::USER_AGENT, HeaderValue::from_static( user_agent ) );
     headers.insert( header::HOST, HeaderValue::from_static( "api.csgotrader.app" ) );
 
-    println!("New extra iteminfo client user_agent: {}", user_agent);
+    dprintln!("New extra iteminfo client user_agent: {}", user_agent);
 
     reqwest::Client::builder()
         .default_headers( FIREFOX_CSGOTRADERAPP_HEADERS_DEFAULT.clone() )

@@ -6,6 +6,15 @@ mod parsing;
 mod browser;
 mod gui;
 
+// Sick macro by gipiti | only prints to console when build flag is not set
+#[macro_export]
+macro_rules! dprintln {
+    ($( $arg:tt )*) => {
+        #[cfg(debug_assertions)]
+        println!( $( $arg )* )
+    };
+}
+
 fn main() -> Result<(), iced::Error> {
     gui::ice::init_gui()
 }

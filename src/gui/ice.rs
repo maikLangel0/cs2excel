@@ -8,6 +8,7 @@ use iced::widget::{checkbox, column, container, horizontal_rule, image, row, tex
 use iced::window::{Settings, icon};
 use iced::{window, Element, Length, Size, Task, Subscription};
 
+use crate::dprintln;
 use crate::excel::excel_runtime::{self, is_user_input_valid};
 use crate::gui::templates_n_methods::{btn_base, padding_inner, path_to_file_name, pick_list_template, slider_template, text_editor_template, text_input_template, tooltip_default, IsEnglishAlphabetic, ToNumeric, ToOption};
 use crate::models::{price::{Currencies, PricingMode, PricingProvider}, user_sheet::{SheetInfo, UserInfo, UserSheet}, web::{ItemInfoProvider, Sites}};
@@ -503,9 +504,9 @@ impl App {
                                 state.text_input_row_start_write_in_table = sheet.row_start_write_in_table.to_string();
                                 state.text_input_row_stop_write_in_table = if let Some(srit) = sheet.row_stop_write_in_table {srit.to_string()} else {String::new()};
                                 
-                                println!("STATE: {:#?}", state);
+                                dprintln!("STATE: {:#?}", state);
                             },
-                            Err(e) => { println!("{e}"); state.loaded_data = Err( String::from("Failed parsing file") ) }
+                            Err(_e) => { dprintln!("{_e}"); state.loaded_data = Err( String::from("Failed parsing file") ) }
                         } 
                     } else { state.loaded_data = Err( String::from("Failed reading file")) }
                 }
@@ -516,7 +517,7 @@ impl App {
                     Ok(_) => {
                         state.is_excel_running = true;
                         state.editor_runtime_result = text_editor::Content::new();
-                         println!("Attempt to run.");
+                        dprintln!("Attempt to run.");
 
                         if user.iteminfo_provider == ItemInfoProvider::None {
                             state.editor_runtime_result.perform( text_editor::Action::Edit( Edit::Paste( Arc::new("WARNING: Pricing for doppler phases will not be accurate when fetch more iteminfo is off.\n".to_string()) ) ) );
@@ -540,7 +541,7 @@ impl App {
                         task
                     },
                     Err(e) => { 
-                        println!("User input is not valid! \n{}", e); 
+                        dprintln!("User input is not valid! \n{}", e); 
                         state.editor_runtime_result = text_editor::Content::new();
                         state.editor_runtime_result.perform(text_editor::Action::Edit( Edit::Paste(Arc::new(e)) ));
                         Task::none() 
@@ -609,7 +610,7 @@ impl App {
         }
 
         // Pick lists ------------------------------
-        let usd_to_x = if !user.fetch_prices { column![] } 
+        let usd_to_x = if sheet.rowcol_usd_to_x.is_some() || !user.fetch_prices { column![] } 
         else { 
             pick_list_template(
                 "Pick your primary currency, choose USD if you want to keep USD pricing, or choose NONE to prioritize Cell USD to X.",
@@ -692,7 +693,7 @@ impl App {
             "Which row you want the program to stop reading and writing to your spreadsheet. Keep empty to read the whole table.",
             (300.0, 100.0), 
             "Row stop write in table?", 
-            "Ex: '' OR 99", 
+            "Ex: 99 OR no input", 
             Some( &state.text_input_row_stop_write_in_table ), 
             Exec::RowStopWrite, 
             STD_LEN

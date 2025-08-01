@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use serde_json::Value;
 
-use crate::models::{price::{Doppler, PriceType}, web::{ExtraItemData, Sites}};
+use crate::{dprintln, models::{price::{Doppler, PriceType}, web::{ExtraItemData, Sites}}};
 
 pub fn get_price(item_name: &str, prices: &Value, market: &Sites, want: &PriceType, phase: &Option<Doppler>) -> Option<f64> {
     if let Some(p_one) = prices.get(item_name) { 
@@ -46,7 +46,7 @@ fn doppler_price(p: &Value, phase: &Option<Doppler>, item_name: &str, market: &S
                 return phase_price.as_f64();
             }
             else { 
-                println!("NOTE: Doppler of type {} found but did not have active price for item {} on the site {}", 
+                dprintln!("NOTE: Doppler of type {} found but did not have active price for item {} on the site {}", 
                     doppler_phase.as_str(), 
                     item_name, market.as_str() 
                 ); 

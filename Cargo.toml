@@ -2,14 +2,26 @@
 name = "cs_api_testing"
 version = "0.1.0"
 edition = "2024"
+authors = ["Mikael Lunde Isaksen"]
+license = "MIT"
+description = "Program to manage Counter Strike 2 inventories, track their value etc."
+
+[[bin]]
+name = "cs2excel"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = "z"
+lto = false
+panic = "abort"
 
 [dependencies]
 serde = { version = "1.0.219", features = ["derive"] }
-serde_json = { version = "1.0.141" }
+serde_json = { version = "1.0.142" }
 reqwest = { version = "0.12.22", features = ["json", "brotli"] }
 whoami = { version = "1.6.0" }
 rusqlite = { version = "0.37.0" }
-tokio = { version = "1.46.1" } # features = ["full"]
+tokio = { version = "1.47.0" } # features = ["full"]
 flate2 = { version = "1.1.2" }
 umya-spreadsheet = { version = "2.3.1" }
 urlencoding = { version = "2.1.3" }

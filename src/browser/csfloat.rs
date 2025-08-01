@@ -1,9 +1,9 @@
-use std::{error::Error, time::Duration};
+use std::time::Duration;
 
-use reqwest::{header::{self, HeaderValue}, Client};
+use reqwest::Client;
 use serde_json::Value;
 
-use crate::models::web::{InspectLinks, CSFLOAT_HEADERS_DEFAULT};
+use crate::{dprintln, models::web::CSFLOAT_HEADERS_DEFAULT};
 
 
 pub async fn fetch_iteminfo(
@@ -12,7 +12,7 @@ pub async fn fetch_iteminfo(
 ) -> Result<Option<Value>, String> {
     let url_base = "https://api.csfloat.com/?url=";
     let url = format!("{}{}", url_base, inspect_link);
-    // println!("Curr url: {}", url);
+    // dprintln!("Curr url: {}", url);
 
     let response = client.get(url)
         .headers( CSFLOAT_HEADERS_DEFAULT.clone() )
@@ -20,7 +20,7 @@ pub async fn fetch_iteminfo(
         .await.map_err(|_| "woopsie")?;
 
     if !response.status().is_success() { 
-        // println!("\n\nFAILED RESPONSE HEADER: {:?}\n", response.headers()); 
+        // dprintln!("\n\nFAILED RESPONSE HEADER: {:?}\n", response.headers()); 
         return Err( 
             format!("GET Request failed! {} Response text: {:#?}", 
                 &response.status(), 
@@ -56,9 +56,9 @@ pub async fn fetch_iteminfo_persistent(
     loop {
         match fetch_iteminfo(client, inspect_link).await {
             Ok(json) => { break Ok(json) }
-            Err(e) => {
+            Err(_e) => {
                 if attempt >= max_retries { break Err( "Exhausted all retries...".into() )}
-                println!("Error in single_fetch_request_persistent: {:?}",e);
+                dprintln!("Error in single_fetch_request_persistent: {:?}", _e);
                 
                 tokio::time::sleep( 
                     Duration::from_millis( 
@@ -81,34 +81,34 @@ pub fn new_extra_iteminfo_client() -> reqwest::Client {
 }
 
 // DOENST WORK WITHOUT BOT SET UP (saj)
-pub async fn batched_float_request(
-    client: &Client, 
-    inspect_links: &InspectLinks, 
-    key: &'static str
-) -> Result<Value, Box<dyn Error>> {
-    let url_base = "https://api.csfloat.com/bulk";
-    
-    let response = client.post(url_base)
-        .headers( CSFLOAT_HEADERS_DEFAULT.clone() )
-        .header ( header::CONTENT_TYPE, HeaderValue::from_static("application/json, text/plain, */*") )
-        .header ( header::AUTHORIZATION, HeaderValue::from_static( key ))
-        .json   ( inspect_links )
-        .send()
-        .await?;
-
-    if !response.status().is_success() { 
-        println!("\n\nFAILED RESPONSE HEADER: {:?}\n", response.headers()); 
-        
-        return Err( 
-            format!("GET Request failed! {} Response text: {:#?}", 
-                &response.status(),
-                &response.text()
-                    .await
-                    .map_err(|_| String::from("Should never happen"))? 
-            ).into() 
-        ) 
-    }
-
-    let json_obj: Value = serde_json::from_str( &response.text().await? )?;
-    Ok( json_obj )
-}
+// pub async fn batched_float_request(
+    // client: &Client, 
+    // inspect_links: &InspectLinks, 
+    // key: &'static str
+// ) -> Result<Value, Box<dyn Error>> {
+    // let url_base = "https://api.csfloat.com/bulk";
+    // 
+    // let response = client.post(url_base)
+        // .headers( CSFLOAT_HEADERS_DEFAULT.clone() )
+        // .header ( header::CONTENT_TYPE, HeaderValue::from_static("application/json, text/plain, */*") )
+        // .header ( header::AUTHORIZATION, HeaderValue::from_static( key ))
+        // .json   ( inspect_links )
+        // .send()
+        // .await?;
+// 
+    // if !response.status().is_success() { 
+        // dprintln!("\n\nFAILED RESPONSE HEADER: {:?}\n", response.headers()); 
+        // 
+        // return Err( 
+            // format!("GET Request failed! {} Response text: {:#?}", 
+                // &response.status(),
+                // &response.text()
+                    // .await
+                    // .map_err(|_| String::from("Should never happen"))? 
+            // ).into() 
+        // ) 
+    // }
+// 
+    // let json_obj: Value = serde_json::from_str( &response.text().await? )?;
+    // Ok( json_obj )
+// }
