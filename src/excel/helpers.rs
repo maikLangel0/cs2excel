@@ -52,14 +52,15 @@ pub async fn get_exchange_rate(
     }
 }
 
-pub fn get_market_price(
+pub async fn get_market_price(
     user: &UserInfo,
     markets_to_check: &Vec<Sites>,
     all_market_prices: &HashMap<String, Value>,
     rate: f64,
     item_name: &String,
     phase: &Option<String>,
-    doppler: &Option<Doppler>
+    doppler: &Option<Doppler>,
+    progress: &mut sipper::Sender<Progress>
 ) -> Result<(Option<String>, Option<f64>), String> {
     if !user.fetch_prices { Ok((None, None)) } 
     else {
@@ -80,8 +81,9 @@ pub fn get_market_price(
                     market_prices, 
                     market, 
                     &PriceType::StartingAt, 
-                    doppler
-                ) { prices.push( MarketPrice { market: market.as_str(), price: price * rate } ) }    
+                    doppler,
+                    progress
+                ).await? { prices.push( MarketPrice { market: market.as_str(), price: price * rate } ) }    
             }
         }
         if prices.is_empty() { Ok((Some("No Market(s) Found".to_string()), None)) } 
@@ -207,8 +209,9 @@ pub async fn insert_new_exceldata(
         rate, 
         &steamdata.name, 
         &phase, 
-        &doppler
-    )?;
+        &doppler,
+        progress
+    ).await?;
 
     // Inserting into the spreadsheet
     let cell_steam_name = format!("{}{}", excel.col_steam_name, row_in_excel);

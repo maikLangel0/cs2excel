@@ -375,8 +375,9 @@ pub fn run_program(
                 rate, 
                 &data.name, 
                 &data.phase, 
-                &doppler
-            )?;
+                &doppler,
+                &mut progress
+            ).await?;
 
             if let Some(pris) = price {
                 sheet.get_cell_value_mut(cell_price).set_value_number(pris);

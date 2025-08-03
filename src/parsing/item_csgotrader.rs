@@ -2,28 +2,28 @@ use std::str::FromStr;
 
 use serde_json::Value;
 
-use crate::{dprintln, models::{price::{Doppler, PriceType}, web::{ExtraItemData, Sites}}};
+use crate::{dprintln, gui::ice::Progress, models::{price::{Doppler, PriceType}, web::{ExtraItemData, Sites}}};
 
-pub fn get_price(item_name: &str, prices: &Value, market: &Sites, want: &PriceType, phase: &Option<Doppler>) -> Option<f64> {
+pub async fn get_price(item_name: &str, prices: &Value, market: &Sites, want: &PriceType, phase: &Option<Doppler>, progress: &mut sipper::Sender<Progress>) -> Result<Option<f64>, String> {
     if let Some(p_one) = prices.get(item_name) { 
         // If the json is key value pair (youpin) | doesnt have doppler prices
-        if p_one.is_f64() { return p_one.as_f64() }  
+        if p_one.is_f64() { return Ok(p_one.as_f64()) }  
         
         // One layer deep
         else if p_one.is_object() { 
             
             // If doppler phase is provided, try and find the price of that phase
-            if let Some(dp_price) = doppler_price(p_one, phase, item_name, market) { return Some(dp_price) }
+            if let Some(dp_price) = doppler_price(p_one, phase, item_name, market, progress).await { return Ok(Some(dp_price)) }
             
-            if let Some(p_two) = p_one.get("price") { return p_two.as_f64() }
+            if let Some(p_two) = p_one.get("price") { return Ok(p_two.as_f64()) }
             if let Some(p_two) = p_one.get( want.as_str() ) { 
-                if p_two.is_f64() { return p_two.as_f64() } // skinport
+                if p_two.is_f64() { return Ok(p_two.as_f64()) } // skinport
 
                 if let Some(dp_price) = doppler_price(
-                    p_two, phase, item_name, market
-                ) { return Some(dp_price) }   // buff163 doppler price
+                    p_two, phase, item_name, market, progress
+                ).await { return Ok(Some(dp_price)) }   // buff163 doppler price
 
-                if let Some(p_three) = p_two.get("price") { return p_three.as_f64() } 
+                if let Some(p_three) = p_two.get("price") { return Ok(p_three.as_f64()) } 
             }
 
             let steam_prices: Vec<f64> = Vec::from( [p_one.get("last_24h"),  p_one.get("last_7d"), p_one.get("last_30d"), p_one.get("last_90d")] )
@@ -32,20 +32,29 @@ pub fn get_price(item_name: &str, prices: &Value, market: &Sites, want: &PriceTy
                 .filter_map( |p| p.as_f64() )
                 .collect::<Vec<f64>>();
 
-            if !steam_prices.is_empty() { return Some( steam_prices[0] ) } // For steam, always default to most recent price available
+            if !steam_prices.is_empty() { return Ok(Some( steam_prices[0] )) } // For steam, always default to most recent price available
             
         }
     } 
-    None
+    Ok(None)
 }
 
-fn doppler_price(p: &Value, phase: &Option<Doppler>, item_name: &str, market: &Sites) -> Option<f64> {
+async fn doppler_price(p: &Value, phase: &Option<Doppler>, item_name: &str, market: &Sites, progress: &mut sipper::Sender<Progress>) -> Option<f64> {
     if let Some(doppler_phase) = phase {
         if let Some(p_two) = p.get("doppler") { 
             if let Some(phase_price) = p_two.get( doppler_phase.as_str() ) {
                 return phase_price.as_f64();
             }
-            else { 
+            else {
+                progress.send( Progress { 
+                    message: format!(
+                        "NOTE: Doppler of type {} found but did not have active price for item {} on the site {}", 
+                        doppler_phase.as_str(), 
+                        item_name, market.as_str() 
+                    ), 
+                    percent: 0.0 
+                }).await;
+
                 dprintln!("NOTE: Doppler of type {} found but did not have active price for item {} on the site {}", 
                     doppler_phase.as_str(), 
                     item_name, market.as_str() 
