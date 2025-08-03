@@ -44,9 +44,7 @@ pub async fn get_exchange_rate(
             else {
                 Ok(
                     res.parse::<f64>()
-                        .map_err(|_| String::from(
-                            "usd_to_x cell was not able to be converted to a number!"
-                        ) 
+                        .map_err(|_| String::from("usd_to_x cell was not able to be converted to a number!") 
                     )?
                 )
             }

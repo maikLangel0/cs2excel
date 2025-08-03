@@ -9,7 +9,7 @@ use iced::task::{Straw, sipper};
 
 use crate::{
     browser::{csfloat, csgotrader, steamcommunity::SteamInventory}, dprintln, excel::{excel_ops::{get_exceldata, get_spreadsheet, set_spreadsheet}, helpers::{get_exchange_rate, get_market_price, get_steamloginsecure, insert_new_exceldata, update_quantity_exceldata, wrapper_fetch_iteminfo_via_itemprovider_persistent}}, gui::{ice::Progress, templates_n_methods::IsEnglishAlphabetic}, models::{  
-        excel::ExcelData, price::{Currencies, Doppler, PricingMode, PricingProvider}, 
+        excel::ExcelData, price::{Doppler, PricingMode, PricingProvider}, 
         user_sheet::{SheetInfo, UserInfo}, 
         web::{ExtraItemData, ItemInfoProvider, Sites, SteamData}
     }
@@ -58,7 +58,7 @@ pub fn run_program(
             if let Some(sn) = &excel.sheet_name { 
                 if let Some(buk) = book.get_sheet_by_name_mut(sn) { buk } 
                 else {
-                    // dprintln!("WARNING: Automatically fetched first sheet in spreadsheet because {} was not found.", sn);
+                    dprintln!("WARNING: Automatically fetched first sheet in spreadsheet because {} was not found.", sn);
 
                     progress.send(Progress { 
                         message: format!("WARNING: Automatically fetched first sheet in spreadsheet because {} was not found.\n", sn), 
@@ -69,7 +69,7 @@ pub fn run_program(
                         "Failed to get the first sheet in the spreadsheet with path: \n{:?}", excel.path_to_sheet.as_ref())
                     )?
                 }  
-            } else { book.get_sheet_mut(&0).ok_or("Failed to get first sheet provided by new_file creation.")? }
+            } else { book.get_sheet_mut(&0).ok_or_else(|| "Failed to get first sheet provided by new_file creation.")? }
         };
 
         // Client for fetch_more_iteminfo
@@ -468,9 +468,10 @@ pub fn is_user_input_valid(user: &UserInfo, excel: &SheetInfo) -> Result<(), Str
         return Err( String::from("col_asset_id can't be None if you don't want to group simular items!") )
     }
 
-    if excel.rowcol_usd_to_x.is_some() && user.usd_to_x != Currencies::None {
-        return Err( String::from("rowcol_usd_to_x can't be something if usd_to_x is set as a currency!") )
-    }
+    // Checked in the update logic of the Iced application
+    // if excel.rowcol_usd_to_x.is_some() && user.usd_to_x != Currencies::None {
+        // return Err( String::from("rowcol_usd_to_x can't be something if usd_to_x is set as a currency!") )
+    // }
 
     if user.pricing_mode == PricingMode::Hierarchical && user.percent_threshold == 0 {
         return Err( String::from("pricing_mode can't be Hierarchical if percent_threshold is None!") )

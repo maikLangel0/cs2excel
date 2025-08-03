@@ -51,22 +51,22 @@ impl SteamInventory {
                     let owner: &Vec<Value> = desc.get("owner_descriptions").and_then( |v| v.as_array() ).unwrap_or( &empty ); 
                     
                     // if only marketable allowed and (not tradable and no owner_descriptions), SKIP
-                    if marketable { if tradable == 0 && owner.is_empty() { continue } } 
+                    if marketable && tradable == 0 && owner.is_empty() { continue }
                     
                     let market_name: &str = desc.get("market_name").and_then( |v| v.as_str() )
                         .ok_or_else(|| format!("'market_name' not found in the description! \nDescription: \n{:#?}", desc) )?; 
                     
                     let asset_id: u64 = asset.get("assetid")
-                        .unwrap_or( &Value::Null )
+                        .unwrap_or_else(|| &Value::Null )
                         .as_str()
-                        .unwrap_or( &"0" )
+                        .unwrap_or_else(|| &"0" )
                         .parse::<u64>()
                         .unwrap();
 
                         let instance_id: u64 = asset.get("instanceid")
-                        .unwrap_or( &Value::Null )
+                        .unwrap_or_else(|| &Value::Null )
                         .as_str()
-                        .unwrap_or( &"0" )
+                        .unwrap_or_else(|| &"0" )
                         .parse::<u64>()
                         .unwrap();
 
@@ -92,7 +92,7 @@ impl SteamInventory {
             let mut name_quantity: HashMap<&str, (u16, Option<String>, u64, u64)> = HashMap::new();
 
             for (name, inspect_link, asset_id, instance_id) in market_names {
-                let entry = name_quantity.entry(name).or_insert( (0, inspect_link.clone(), asset_id, instance_id) );
+                let entry = name_quantity.entry(name).or_insert( (0, inspect_link, asset_id, instance_id) );
                 entry.0 += 1;
             }
 
@@ -121,7 +121,7 @@ impl SteamInventory {
                 );
             }
         }
-        //println!("ALL STEAM ITEM DATA: {inventory:#?}");
+        //dprintln!("ALL STEAM ITEM DATA: {inventory:#?}");
         return Ok(inventory);
     }
 

@@ -314,8 +314,7 @@ impl App {
                 if row.chars().any(|c| !c.is_ascii_digit()) { return Task::none() } // Filter only numbers
                 sheet.row_stop_write_in_table = 
                     if row.is_empty() { None } 
-                    else if let Ok(rsw) = row.to_numeric() { Some(rsw) }
-                    else { None };
+                    else { row.to_numeric().ok() };
                 state.text_input_row_stop_write_in_table = row;
                 Task::none()
             }
