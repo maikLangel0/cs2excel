@@ -5,9 +5,11 @@ use std::{borrow::Borrow, sync::LazyLock};
 use iced::alignment::{Horizontal, Vertical};
 use iced::border::Radius;
 use iced::widget::{text_editor, Column};
-use iced::{Background, Size};
+use iced::{Background, Size, Task};
 use iced::{widget::{button, container, pick_list, slider, text::{IntoFragment, Wrapping}, text_input, tooltip, Button, Container, Tooltip, column, row}, Border, Color, Length, Renderer, Shadow, Theme};
 use num_traits::FromPrimitive;
+
+use crate::gui::ice::Exec;
 
 static BG_MAIN: LazyLock<Color> = LazyLock::new(|| Color::from_rgba8(83 ,203 ,227, 1.0));
 static BG_SEC: LazyLock<Color> = LazyLock::new(|| Color::from_rgba8(44, 194, 218, 1.0));
@@ -293,4 +295,32 @@ impl ToOption for str {
     {
         if self.trim().is_empty() { None } else { T::from_str(self).ok() }
     }
+}
+
+pub trait AssignFromStr {
+    fn assign_from(&mut self, s: &str);
+}
+
+impl AssignFromStr for String {
+    fn assign_from(&mut self, s: &str) {
+        *self = s.to_string();
+    }
+}
+
+impl AssignFromStr for Option<String> {
+    fn assign_from(&mut self, s: &str) {
+        *self = s.to_option()
+    }
+}
+
+pub fn task_col_if_english_alphabetic<S: AssignFromStr>(state_val: &mut S, s: &str) -> Task<Exec> {
+    if s.chars().any(|c| !c.is_english_alphabetic() ) { return Task::none() } 
+    state_val.assign_from(s); 
+    Task::none()
+}
+
+pub fn task_cell_if_english_alphabetic(state_val: &mut Option<String>, s: &str) -> Task<Exec> {
+    if s.chars().any(|c| !c.is_english_alphabetic() && !c.is_ascii_digit() && c != '$' ) { return Task::none() }
+    *state_val = s.to_option();
+    Task::none()
 }

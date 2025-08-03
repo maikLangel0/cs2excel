@@ -10,7 +10,7 @@ use iced::{window, Element, Length, Size, Task, Subscription};
 
 use crate::dprintln;
 use crate::excel::excel_runtime::{self, is_user_input_valid};
-use crate::gui::templates_n_methods::{btn_base, padding_inner, path_to_file_name, pick_list_template, slider_template, text_editor_template, text_input_template, tooltip_default, IsEnglishAlphabetic, ToNumeric, ToOption};
+use crate::gui::templates_n_methods::{btn_base, padding_inner, path_to_file_name, pick_list_template, slider_template, task_cell_if_english_alphabetic, task_col_if_english_alphabetic, text_editor_template, text_input_template, tooltip_default, ToNumeric, ToOption};
 use crate::models::{price::{Currencies, PricingMode, PricingProvider}, user_sheet::{SheetInfo, UserInfo, UserSheet}, web::{ItemInfoProvider, Sites}};
 
 use strum::IntoEnumIterator;
@@ -32,7 +32,7 @@ pub struct Progress {
 }
 
 #[derive(Debug, Clone)]
-enum Exec {
+pub enum Exec {
     PreferMarkets(text_editor::Action),
     SteamLoginSecure(String),
     IteminfoProvider(ItemInfoProvider),
@@ -318,90 +318,23 @@ impl App {
                 state.text_input_row_stop_write_in_table = row;
                 Task::none()
             }
-            Exec::SheetName(sn) => {
-                sheet.sheet_name = sn.to_option();
-                Task::none()
-            }
-            Exec::ColSteamName(s) => { 
-                if s.chars().any(|c| !c.is_english_alphabetic() ) { return Task::none() } 
-                sheet.col_steam_name = s; 
-                Task::none()
-            }
-            Exec::ColPrice(s) => {
-                if s.chars().any(|c| !c.is_english_alphabetic() ) { return Task::none() }
-                sheet.col_price = s; 
-                Task::none() 
-            }
-            Exec::ColGunStickerCase(gsc) => {
-                if gsc.chars().any(|c| !c.is_english_alphabetic() ) { return Task::none() }
-                sheet.col_gun_sticker_case = gsc.to_option();
-                Task::none()
-            }
-            Exec::ColSkinName(s) => {
-                if s.chars().any(|c| !c.is_english_alphabetic() ) { return Task::none() }
-                sheet.col_skin_name = s.to_option();
-                Task::none()
-            }
-            Exec::ColWear(s) => {
-                if s.chars().any(|c| !c.is_english_alphabetic() ) { return Task::none() }
-                sheet.col_wear = s.to_option();
-                Task::none()
-            }
-            Exec::ColFloat(s) => {
-                if s.chars().any(|c| !c.is_english_alphabetic() ) { return Task::none() }
-                sheet.col_float = s.to_option();
-                Task::none()
-            }
-            Exec::ColPattern(s) => {
-                if s.chars().any(|c| !c.is_english_alphabetic() ) { return Task::none() }
-                sheet.col_pattern = s.to_option();
-                Task::none()
-            }
-            Exec::ColPhase(s) => {
-                if s.chars().any(|c| !c.is_english_alphabetic() ) { return Task::none() }
-                sheet.col_phase = s.to_option();
-                Task::none()
-            }
-            Exec::ColQuantity(s) => {
-                if s.chars().any(|c| !c.is_english_alphabetic() ) { return Task::none() }
-                sheet.col_quantity = s.to_option();
-                Task::none()
-            }
-            Exec::ColMarket(s) => {
-                if s.chars().any(|c| !c.is_english_alphabetic() ) { return Task::none() }
-                sheet.col_market = s.to_option();
-                Task::none()
-            }
-            Exec::ColSold(s) => {
-                if s.chars().any(|c| !c.is_english_alphabetic() ) { return Task::none() }
-                sheet.col_sold = s.to_option();
-                Task::none()
-            }
-            Exec::ColInspectLink(s) => {
-                if s.chars().any(|c| !c.is_english_alphabetic() ) { return Task::none() }
-                sheet.col_inspect_link = s.to_option();
-                Task::none()
-            }
-            Exec::ColCsgoskinsLink(s) => {
-                if s.chars().any(|c| !c.is_english_alphabetic() ) { return Task::none() }
-                sheet.col_csgoskins_link = s.to_option();
-                Task::none()
-            }
-            Exec::ColAssetId(s) => {
-                if s.chars().any(|c| !c.is_english_alphabetic() ) { return Task::none() }
-                sheet.col_asset_id = s.to_option();
-                Task::none()
-            }
-            Exec::CellDate(s) => {
-                if s.chars().any(|c| !c.is_english_alphabetic() && !c.is_ascii_digit() && c != '$' ) { return Task::none() }
-                sheet.rowcol_date = s.to_option();
-                Task::none()
-            }
-            Exec::CellUsdToX(s) => {
-                if s.chars().any(|c| !c.is_english_alphabetic() && !c.is_ascii_digit() && c != '$') { return Task::none() }
-                sheet.rowcol_usd_to_x = s.to_option();
-                Task::none()
-            }
+            Exec::SheetName(sn) => { sheet.sheet_name = sn.to_option(); Task::none() }
+            Exec::ColSteamName(s) =>        { task_col_if_english_alphabetic(&mut sheet.col_steam_name, &s) }
+            Exec::ColPrice(s) =>            { task_col_if_english_alphabetic(&mut sheet.col_price, &s) }
+            Exec::ColGunStickerCase(gsc) => { task_col_if_english_alphabetic(&mut sheet.col_gun_sticker_case, &gsc) }
+            Exec::ColSkinName(s) =>         { task_col_if_english_alphabetic(&mut sheet.col_skin_name, &s) }
+            Exec::ColWear(s) =>             { task_col_if_english_alphabetic(&mut sheet.col_wear, &s) }
+            Exec::ColFloat(s) =>            { task_col_if_english_alphabetic(&mut sheet.col_float, &s) }
+            Exec::ColPattern(s) =>          { task_col_if_english_alphabetic(&mut sheet.col_pattern, &s) }
+            Exec::ColPhase(s) =>            { task_col_if_english_alphabetic(&mut sheet.col_phase, &s) }
+            Exec::ColQuantity(s) =>         { task_col_if_english_alphabetic(&mut sheet.col_quantity, &s) }
+            Exec::ColMarket(s) =>           { task_col_if_english_alphabetic(&mut sheet.col_market, &s) }
+            Exec::ColSold(s) =>             { task_col_if_english_alphabetic(&mut sheet.col_sold, &s) }
+            Exec::ColInspectLink(s) =>      { task_col_if_english_alphabetic(&mut sheet.col_inspect_link, &s) }
+            Exec::ColCsgoskinsLink(s) =>    { task_col_if_english_alphabetic(&mut sheet.col_csgoskins_link, &s) }
+            Exec::ColAssetId(s) =>          { task_col_if_english_alphabetic(&mut sheet.col_asset_id, &s) }
+            Exec::CellDate(s) =>            { task_cell_if_english_alphabetic(&mut sheet.rowcol_date, &s) }
+            Exec::CellUsdToX(s) =>          { task_cell_if_english_alphabetic(&mut sheet.rowcol_usd_to_x, &s) }
 
             // Async tasks :D
             Exec::BeginPathToSheet => {

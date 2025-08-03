@@ -12,7 +12,7 @@ path = "src/main.rs"
 
 [profile.release]
 opt-level = "z"
-lto = false
+lto = true
 panic = "abort"
 
 [dependencies]
