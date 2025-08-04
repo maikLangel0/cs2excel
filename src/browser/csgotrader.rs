@@ -33,6 +33,7 @@ pub async fn get_exchange_rates() -> Result<HashMap<String, f64>, String> {
 
 //https://github.com/gergelyszabo94/csgo-trader-extension/blob/master/extension/src/utils/pricing.js#L393
 pub async fn get_market_data(market: &Sites) -> Result<Value, String> {
+    dprintln!("Fetching market data...");
     let client = Client::new();
 
     // Sending the GET request trying to mimic the one used by the csgotrader.app extension

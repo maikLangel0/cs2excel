@@ -8,8 +8,8 @@ use serde_json::Value;
 use iced::task::{Straw, sipper};
 
 use crate::{
-    browser::{csfloat, csgotrader, steamcommunity::SteamInventory}, dprintln, excel::{excel_ops::{get_exceldata, get_spreadsheet, set_spreadsheet}, helpers::{get_exchange_rate, get_market_price, get_steamloginsecure, insert_new_exceldata, update_quantity_exceldata, wrapper_fetch_iteminfo_via_itemprovider_persistent}}, gui::{ice::Progress, templates_n_methods::IsEnglishAlphabetic}, models::{  
-        excel::ExcelData, price::{Doppler, PricingMode, PricingProvider}, 
+    browser::{csfloat, csgotrader, steamcommunity::SteamInventory}, dprintln, excel::{excel_ops::{get_exceldata, get_spreadsheet, set_spreadsheet}, helpers::{get_cached_markets_data, get_exchange_rate, get_market_price, get_steamloginsecure, insert_new_exceldata, update_quantity_exceldata, wrapper_fetch_iteminfo_via_itemprovider_persistent}}, gui::{ice::Progress, templates_n_methods::IsEnglishAlphabetic}, models::{  
+        excel::ExcelData, price::{Doppler, PricingMode}, 
         user_sheet::{SheetInfo, UserInfo}, 
         web::{ExtraItemData, ItemInfoProvider, Sites, SteamData}
     }
@@ -120,19 +120,7 @@ pub fn run_program(
         let markets_to_check: Vec<Sites> = user.prefer_markets.take()
             .unwrap_or_else(|| Sites::iter().collect::<Vec<Sites>>() );
 
-        let all_market_prices: HashMap<String, Value> = {
-            let mut amp: HashMap<String, Value> = HashMap::new();
-            for market in &markets_to_check { 
-
-                let market_prices = match &user.pricing_provider {
-                    PricingProvider::Csgoskins => { csgotrader::get_market_data( market ).await? }, // IF I IMPLEMENT CSGOSKINS IN THE FUTURE
-                    PricingProvider::Csgotrader => { csgotrader::get_market_data( market ).await? },
-                };
-
-                amp.insert(market.to_string(), market_prices);
-            }
-            amp
-        };
+        let all_market_prices: HashMap<Sites, Value> = get_cached_markets_data(&markets_to_check, &user.pricing_provider).await?;
 
         if cs_inv.is_some() {
             progress.send( Progress { 

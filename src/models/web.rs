@@ -1,6 +1,7 @@
 use std::{collections::HashMap, str::FromStr};
 use std::sync::LazyLock;
 use std::fmt;
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use strum::EnumIter;
 use reqwest::header::{self, HeaderMap, HeaderValue};
@@ -62,8 +63,19 @@ impl Sites {
         };
         s
     }
-    pub fn to_string(&self) -> String {
-        self.as_str().to_string()
+    // pub fn to_string(&self) -> String {
+        // self.as_str().to_string()
+    // }
+    pub fn has_doppler(&self) -> bool {
+        match self {
+            &Sites::CSFLOAT => {true}
+            &Sites::BUFF163 => {true}
+            &Sites::YOUPIN => {false}
+            &Sites::CSMONEY => {true}
+            &Sites::BITSKINS => {false}
+            &Sites::SKINPORT => {false}
+            &Sites::STEAM => {false}
+        }
     }
 }
 
@@ -86,6 +98,14 @@ pub struct SteamJson {
     pub total_inventory_count: u16,
     pub success: i8,
     pub rwgrsn: i8,
+}
+
+// ------------------------------------------------------------
+
+#[derive(Deserialize, Serialize)]
+pub struct CachedMarket {
+    pub prices: Value,
+    pub timestamp: DateTime<Utc>
 }
 
 // ------------------------------------------------------------
@@ -312,18 +332,6 @@ pub static FIREFOX_USER_AGENTS: LazyLock<[&'static str; 66]> = LazyLock::new(|| 
 ]);
 
 // ------------------------------------------------------------
-
-pub static SITE_HAS_DOPPLER: LazyLock<HashMap<Sites, bool>> = LazyLock::new(|| {
-    HashMap::from( [
-        (Sites::CSFLOAT, true),
-        (Sites::BUFF163, true),
-        (Sites::YOUPIN, false),
-        (Sites::CSMONEY, true),
-        (Sites::BITSKINS, false),
-        (Sites::SKINPORT, false),
-        (Sites::STEAM, false)] 
-    )
-});
 
 /*
 pub static BUFFIDS: LazyLock<HashMap<&'static str, u32>> = LazyLock::new( || 

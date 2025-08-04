@@ -142,7 +142,7 @@ impl Default for App {
                     fetch_prices:               true,
                     fetch_steam:                true,
 
-                    ingore_steam_names: None
+                    ingore_steam_names:         None
                 }, 
                 sheet: SheetInfo {
                     path_to_sheet:              None,

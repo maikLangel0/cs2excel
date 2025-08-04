@@ -1,11 +1,13 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf, time::Duration};
+use chrono::Utc;
 use serde_json::Value;
+use tokio::fs;
 
 use reqwest::Client;
 use umya_spreadsheet::Worksheet;
 
 use crate::{
-    browser::{cookies::FirefoxDb, csfloat, csgotrader}, dprintln, gui::ice::Progress, models::{excel::ExcelData, price::{Currencies, Doppler, PriceType, PricingMode}, user_sheet::{SheetInfo, UserInfo}, web::{ExtraItemData, ItemInfoProvider, Sites, SteamData, SITE_HAS_DOPPLER}}, parsing::{self, csgoskins_url, item_csgotrader, market_name_parse}
+    browser::{cookies::FirefoxDb, csfloat, csgotrader}, dprintln, gui::ice::Progress, models::{excel::ExcelData, price::{Currencies, Doppler, PriceType, PricingMode, PricingProvider}, user_sheet::{SheetInfo, UserInfo}, web::{CachedMarket, ExtraItemData, ItemInfoProvider, Sites, SteamData}}, parsing::{self, csgoskins_url, item_csgotrader, market_name_parse}
 };
 
 pub fn get_steamloginsecure(sls: &Option<String>) -> Option<String> {
@@ -55,7 +57,7 @@ pub async fn get_exchange_rate(
 pub async fn get_market_price(
     user: &UserInfo,
     markets_to_check: &Vec<Sites>,
-    all_market_prices: &HashMap<String, Value>,
+    all_market_prices: &HashMap<Sites, Value>,
     rate: f64,
     item_name: &String,
     phase: &Option<String>,
@@ -72,10 +74,9 @@ pub async fn get_market_price(
         // Finds the prices for each market
         for market in markets_to_check {
             // If site does not have doppler pricings AND doppler is something, SKIP
-            if phase.is_some() && !*SITE_HAS_DOPPLER.get(market)
-                .ok_or_else(|| "Didnt find market in SITE_HAS_DOPPLER what?")? { continue; }
+            if phase.is_some() && !market.has_doppler() { continue; }
             
-            if let Some(market_prices) = all_market_prices.get( market.as_str() ) {
+            if let Some(market_prices) = all_market_prices.get(market) {
                 if let Some(price) = item_csgotrader::get_price(
                     item_name, 
                     market_prices, 
@@ -183,7 +184,7 @@ pub async fn insert_new_exceldata(
     steamdata: &SteamData, 
     extra_itemdata: &Option<ExtraItemData>,
     markets_to_check: &Vec<Sites>, 
-    all_market_prices: &HashMap<String, Value>, 
+    all_market_prices: &HashMap<Sites, Value>, 
     rate: f64, 
     row_in_excel: usize,
     sheet: &mut Worksheet,
@@ -351,3 +352,117 @@ pub async fn update_quantity_exceldata(
         }
     }
 }
+
+const CACHE_TIME: Duration = Duration::from_secs(60 * 60 * 6);
+
+pub async fn get_cached_markets_data(markets_to_check: &Vec<Sites>, pricing_provider: &PricingProvider) -> Result<HashMap<Sites, serde_json::Value>, String> {
+    let mut amp: HashMap<Sites, Value> = HashMap::new();
+
+    for market in markets_to_check { 
+        let market_prices = match pricing_provider {
+            PricingProvider::Csgoskins => // IF I IMPLEMENT CSGOSKINS IN THE FUTURE
+            { 
+                let cache_path = PathBuf::from( format!("{}_cache_csgotrader.json", market.as_str()) );
+                if cache_path.exists() {
+                    match load_cache(&cache_path).await {
+                        Some(cm) => {
+                            let elapsed = Utc::now().signed_duration_since(cm.timestamp);
+                            if elapsed.num_seconds() < CACHE_TIME.as_secs() as i64 { cm.prices } 
+                            else {
+                                let market_data = csgotrader::get_market_data(market).await?;
+                                save_cache(&cache_path, &market_data).await;
+                                market_data
+                            }
+                        },
+                        None => { return Err( format!("Couldn't load cached market from {}", cache_path.to_string_lossy()) ) },
+                    }
+                } else {
+                    let market_data = csgotrader::get_market_data(market).await?;
+                    save_cache(&cache_path, &market_data).await;
+                    market_data
+                }
+
+            }, 
+            PricingProvider::Csgotrader => 
+            { 
+                let cache_path = PathBuf::from( format!("cache\\{}_cache_csgotrader.json", market.as_str()) );
+                if cache_path.exists() {
+                    match load_cache(&cache_path).await {
+                        Some(cm) => {
+                            let elapsed = Utc::now().signed_duration_since(cm.timestamp);
+                            if elapsed.num_seconds() < CACHE_TIME.as_secs() as i64 { cm.prices } 
+                            else {
+                                let market_data = csgotrader::get_market_data(market).await?;
+                                save_cache(&cache_path, &market_data).await;
+                                market_data
+                            }
+                        },
+                        None => { return Err( format!("Couldn't load cached market from {}", cache_path.to_string_lossy()) ) },
+                    }
+                } else {
+                    let market_data = csgotrader::get_market_data(market).await?;
+                    let _ = save_cache(&cache_path, &market_data).await;
+                    market_data
+                }
+
+            },
+        };
+
+        amp.insert(market.to_owned(), market_prices);
+    }
+    Ok(amp)
+}
+
+async fn load_cache(cache_path: &PathBuf) -> Option<CachedMarket> {
+    let file = fs::read(cache_path).await.ok()?;
+    serde_json::from_slice(&file).ok()?
+}
+
+async fn save_cache(cache_path: &PathBuf, marketjson: &Value) {
+    let cached = CachedMarket {
+        prices: marketjson.clone(),
+        timestamp: Utc::now()
+    };
+
+    let bytes = match serde_json::to_vec(&cached) {
+        Ok(b) => b,
+        Err(e) => {
+            dprintln!("Error serializing cache | {}", e);
+            return;
+        }
+    };
+
+    match fs::write(cache_path, &bytes).await {
+        Ok(_) => {dprintln!("Cache saved successfully!")},
+        Err(e) => {dprintln!("Error saving cache | {}", e)},
+    }
+}
+
+// async fn get_cached_market_data<F, Fut>(cache_path: &PathBuf, market: &Sites, fetch: F) -> Result<Value, String>
+// where 
+    // F: for<'a> Fn(& Sites) -> Fut,
+    // Fut: sipper::Future<Output = Result<serde_json::Value, String>>
+// {
+    // if cache_path.exists() {
+        // match load_cache(&cache_path) {
+            // Some(cm) => {
+                // let elapsed = Utc::now().signed_duration_since(cm.timestamp);
+                // if elapsed.num_seconds() < CACHE_TIME.as_secs() as i64 {
+                    // Ok(cm.prices)
+                // } else {
+                    // let market_data = fetch(market).await?;
+                    // save_cache(&cache_path, &market_data);
+                    // Ok(market_data)
+                // }
+            // },
+            // None => {
+                // return Err( format!("Couldn't load cached market from {}", cache_path.to_string_lossy()) )
+            // },
+        // }
+    // } else {
+        // let market_data = fetch(market).await?;
+        // save_cache(&cache_path, &market_data);
+        // Ok(market_data)
+    // }
+// }
+
