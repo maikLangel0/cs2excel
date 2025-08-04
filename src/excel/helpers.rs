@@ -7,7 +7,7 @@ use reqwest::Client;
 use umya_spreadsheet::Worksheet;
 
 use crate::{
-    browser::{cookies::FirefoxDb, csfloat, csgotrader}, dprintln, gui::ice::Progress, models::{excel::ExcelData, price::{Currencies, Doppler, PriceType, PricingMode, PricingProvider}, user_sheet::{SheetInfo, UserInfo}, web::{CachedMarket, ExtraItemData, ItemInfoProvider, Sites, SteamData}}, parsing::{self, csgoskins_url, item_csgotrader, market_name_parse}
+    browser::{cookies::FirefoxDb, csfloat, csgotrader}, dprintln, gui::ice::Progress, models::{excel::ExcelData, price::{Currencies, Doppler, PriceType, PricingMode, PricingProvider}, user_sheet::{SheetInfo, UserInfo}, web::{CachedMarket, ExtraItemData, ItemInfoProvider, Sites, SteamData}}, parsing::{self, csgoskins_url, item_csgotrader, market_name_parse}, CACHE_TIME
 };
 
 pub fn get_steamloginsecure(sls: &Option<String>) -> Option<String> {
@@ -353,16 +353,19 @@ pub async fn update_quantity_exceldata(
     }
 }
 
-const CACHE_TIME: Duration = Duration::from_secs(60 * 60 * 6);
-
 pub async fn get_cached_markets_data(markets_to_check: &Vec<Sites>, pricing_provider: &PricingProvider) -> Result<HashMap<Sites, serde_json::Value>, String> {
     let mut amp: HashMap<Sites, Value> = HashMap::new();
+    
+    let cache_dir = dirs::cache_dir()
+        .unwrap_or_else(|| std::env::temp_dir() )
+        .join("cs2excel\\cache");
 
     for market in markets_to_check { 
         let market_prices = match pricing_provider {
             PricingProvider::Csgoskins => // IF I IMPLEMENT CSGOSKINS IN THE FUTURE
             { 
-                let cache_path = PathBuf::from( format!("{}_cache_csgotrader.json", market.as_str()) );
+                let cache_path = cache_dir.join( format!("{}_cache_csgotrader.json", market.as_str()) );
+                
                 if cache_path.exists() {
                     match load_cache(&cache_path).await {
                         Some(cm) => {
@@ -385,7 +388,7 @@ pub async fn get_cached_markets_data(markets_to_check: &Vec<Sites>, pricing_prov
             }, 
             PricingProvider::Csgotrader => 
             { 
-                let cache_path = PathBuf::from( format!("cache\\{}_cache_csgotrader.json", market.as_str()) );
+                let cache_path = cache_dir.join( format!("{}_cache_csgotrader.json", market.as_str()) );
                 if cache_path.exists() {
                     match load_cache(&cache_path).await {
                         Some(cm) => {
@@ -424,6 +427,8 @@ async fn save_cache(cache_path: &PathBuf, marketjson: &Value) {
         timestamp: Utc::now()
     };
 
+    println!("{}", cache_path.display());
+
     let bytes = match serde_json::to_vec(&cached) {
         Ok(b) => b,
         Err(e) => {
@@ -431,6 +436,13 @@ async fn save_cache(cache_path: &PathBuf, marketjson: &Value) {
             return;
         }
     };
+
+    if let Some(parent_dir) = cache_path.parent() {
+        if let Err(e) = fs::create_dir_all(parent_dir).await {
+            dprintln!("Failed to create cache directories: {}", e);
+            return;
+        }
+    }
 
     match fs::write(cache_path, &bytes).await {
         Ok(_) => {dprintln!("Cache saved successfully!")},

@@ -1,10 +1,15 @@
 // #![windows_subsystem = "windows"]
 
+use std::time::Duration;
+
 mod excel;
 mod models;
 mod parsing;
 mod browser;
 mod gui;
+
+// TTL for the pricing cache
+const CACHE_TIME: Duration = Duration::from_secs(60 * 60 * 6);
 
 // Sick macro by gipiti | only prints to console when build flag is not set
 #[macro_export]
