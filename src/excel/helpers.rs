@@ -1,7 +1,7 @@
-use std::{collections::HashMap, path::PathBuf, time::Duration};
+use std::{collections::HashMap, path::PathBuf};
 use chrono::Utc;
 use serde_json::Value;
-use tokio::fs;
+use tokio::{fs, io::AsyncWriteExt};
 
 use reqwest::Client;
 use umya_spreadsheet::Worksheet;
@@ -365,23 +365,22 @@ pub async fn get_cached_markets_data(markets_to_check: &Vec<Sites>, pricing_prov
             PricingProvider::Csgoskins => // IF I IMPLEMENT CSGOSKINS IN THE FUTURE
             { 
                 let cache_path = cache_dir.join( format!("{}_cache_csgotrader.json", market.as_str()) );
-                
                 if cache_path.exists() {
                     match load_cache(&cache_path).await {
-                        Some(cm) => {
+                        Ok(cm) => {
                             let elapsed = Utc::now().signed_duration_since(cm.timestamp);
                             if elapsed.num_seconds() < CACHE_TIME.as_secs() as i64 { cm.prices } 
                             else {
                                 let market_data = csgotrader::get_market_data(market).await?;
-                                save_cache(&cache_path, &market_data).await;
+                                save_cache(&cache_path, &market_data).await?;
                                 market_data
                             }
                         },
-                        None => { return Err( format!("Couldn't load cached market from {}", cache_path.to_string_lossy()) ) },
+                        Err(e) => { return Err( format!("Couldn't load cached market from {} \n{}", cache_path.to_string_lossy(), e) ) },
                     }
                 } else {
                     let market_data = csgotrader::get_market_data(market).await?;
-                    save_cache(&cache_path, &market_data).await;
+                    save_cache(&cache_path, &market_data).await?;
                     market_data
                 }
 
@@ -391,20 +390,20 @@ pub async fn get_cached_markets_data(markets_to_check: &Vec<Sites>, pricing_prov
                 let cache_path = cache_dir.join( format!("{}_cache_csgotrader.json", market.as_str()) );
                 if cache_path.exists() {
                     match load_cache(&cache_path).await {
-                        Some(cm) => {
+                        Ok(cm) => {
                             let elapsed = Utc::now().signed_duration_since(cm.timestamp);
                             if elapsed.num_seconds() < CACHE_TIME.as_secs() as i64 { cm.prices } 
                             else {
                                 let market_data = csgotrader::get_market_data(market).await?;
-                                save_cache(&cache_path, &market_data).await;
+                                save_cache(&cache_path, &market_data).await?;
                                 market_data
                             }
                         },
-                        None => { return Err( format!("Couldn't load cached market from {}", cache_path.to_string_lossy()) ) },
+                        Err(e) => { return Err( format!("Couldn't load cached market from {} \n{}", cache_path.to_string_lossy(), e) ) },
                     }
                 } else {
                     let market_data = csgotrader::get_market_data(market).await?;
-                    let _ = save_cache(&cache_path, &market_data).await;
+                    save_cache(&cache_path, &market_data).await?;
                     market_data
                 }
 
@@ -416,12 +415,13 @@ pub async fn get_cached_markets_data(markets_to_check: &Vec<Sites>, pricing_prov
     Ok(amp)
 }
 
-async fn load_cache(cache_path: &PathBuf) -> Option<CachedMarket> {
-    let file = fs::read(cache_path).await.ok()?;
-    serde_json::from_slice(&file).ok()?
+async fn load_cache(cache_path: &PathBuf) -> Result<CachedMarket, String> {
+    let file = fs::read(cache_path).await.map_err(|e| format!("Read sink failed! | {}", e))?;
+    let read = serde_json::from_slice::<CachedMarket>(&file).map_err(|e| format!("Failed to deserialize! | {}", e))?;
+    Ok(read)
 }
 
-async fn save_cache(cache_path: &PathBuf, marketjson: &Value) {
+async fn save_cache(cache_path: &PathBuf, marketjson: &Value) -> Result<(), String> {
     let cached = CachedMarket {
         prices: marketjson.clone(),
         timestamp: Utc::now()
@@ -433,21 +433,44 @@ async fn save_cache(cache_path: &PathBuf, marketjson: &Value) {
         Ok(b) => b,
         Err(e) => {
             dprintln!("Error serializing cache | {}", e);
-            return;
+            return Err( format!("Error serializing cache | {}", e) );
         }
     };
 
     if let Some(parent_dir) = cache_path.parent() {
         if let Err(e) = fs::create_dir_all(parent_dir).await {
             dprintln!("Failed to create cache directories: {}", e);
-            return;
+            return Err( format!("Failed to create cache directories: {}", e) );
         }
     }
 
-    match fs::write(cache_path, &bytes).await {
+    let mut file = match fs::OpenOptions::new()
+        .write(true)
+        .read(true)
+        .truncate(true)
+        .create(true)
+        .open(cache_path)
+        .await {
+            Ok(f) => {f},
+            Err(e) =>  {
+                dprintln!("Error building OpenOptions | {}", e); 
+                return Err( format!("Error building OpenOptions | {}", e) );
+            },
+        };
+
+    match file.write_all(&bytes).await {
         Ok(_) => {dprintln!("Cache saved successfully!")},
-        Err(e) => {dprintln!("Error saving cache | {}", e)},
+        Err(e) => {
+            dprintln!("Error saving cache | {}", e);
+            return Err( format!("Error building OpenOptions | {}", e))
+        },
     }
+
+    file.flush().await.map_err(|e| format!("Error flushing file | {}", e))?;
+    drop(file);
+
+    Ok(())
+
 }
 
 // async fn get_cached_market_data<F, Fut>(cache_path: &PathBuf, market: &Sites, fetch: F) -> Result<Value, String>

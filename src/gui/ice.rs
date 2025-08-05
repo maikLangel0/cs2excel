@@ -492,7 +492,7 @@ impl App {
             Exec::FinishRun(res) => {
                 match res {
                     Ok(_) => { state.editor_runtime_result.perform( text_editor::Action::Edit( Edit::Paste( Arc::new("\nFinished successfully!".to_string())) ) ) },
-                    Err(e) => { state.editor_runtime_result.perform( text_editor::Action::Edit( Edit::Paste( Arc::new(format!("\nError!\n {}", e)) ) ) ) },
+                    Err(e) => { state.editor_runtime_result.perform( text_editor::Action::Edit( Edit::Paste( Arc::new(format!("\nError!\n{}", e)) ) ) ) },
                 }
                 state.is_excel_running = false;
                 Task::none()
