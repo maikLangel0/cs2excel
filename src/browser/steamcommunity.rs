@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use reqwest::header::COOKIE;
 use serde_json::{from_value, Value};
 
-use crate::models::web::{SteamJson, SteamData};
+use crate::{models::web::{SteamData, SteamJson}};
 
 pub struct SteamInventory { 
     data: SteamJson,
@@ -14,19 +14,46 @@ impl SteamInventory {
         let client = reqwest::Client::new();
         //                                              https://steamcommunity.com/inventory/76561198389123475/730/2?l=english&count=2000
         let steam_response: Value = client.get(format!("https://steamcommunity.com/inventory/{}/{}/2?l=english&count=2000", steamid, gameid))
-            .header(COOKIE, if let Some(c) = cookie { c } else { String::new() } )
+            .header(COOKIE, if let Some(c) = &cookie { c } else { "" } )
             .send()
             .await.map_err( |e| format!("Failed sending the HTTP request to steam! \n{}", e) )?
             .json()
             .await.map_err( |e| format!("Failed to parse steam inventory to a JSON. \n{}", e) )?;
-        
+
         if steam_response.is_null() {
             return Err( "Oopsie JSON data is null! steamID and/or gameID might be wrong double check pls thank you!".into() );
         }
-
-        let data = from_value::<SteamJson>(steam_response).map_err( |e| 
-            format!("Parsing the json data from steam into the SteamJson struct did not work!\n{}", e) 
+        
+        let mut data = from_value::<SteamJson>(steam_response).map_err( |e| 
+            format!("Parsing the json data from steam into the SteamJson struct did not work! Usual cause is failure to get proper inventory data.\n{}", e) 
         )?;
+
+        let trade_protected: Option<Value> = if let Some(c) = &cookie && gameid == 730 {
+            match client.get(format!("https://steamcommunity.com/inventory/{}/{}/16", steamid, gameid))
+                .header(COOKIE, c)
+                .send()
+                .await.map_err( |e| format!("Failed sending the trade protect check HTTP request to steam! \n{}", e) ) 
+                {
+                    Ok(res) => {
+                        res.json::<Value>()
+                            .await
+                            .map_err( |e| format!("Failed to parse trade protected items from steam request to JSON. \n{}", e) ) 
+                            .ok()
+                    },
+                    Err(e) => { return Err(e) },
+                }
+        } else { None };
+
+        if let Some(tp) = trade_protected {
+            if let Some(assets) = tp.get("assets").and_then(|v| v.as_array())
+            && let Some(descriptions) = tp.get("descriptions").and_then(|v| v.as_array() )
+            && let Some(tic) = tp.get("total_inventory_count").and_then(|v| v.as_u64()) 
+            {
+                data.assets.append(&mut assets.clone());
+                data.descriptions.append(&mut descriptions.clone());
+                data.total_inventory_count += tic as u16;
+            }
+        }
 
         Ok( SteamInventory { data, steamid } )
     }

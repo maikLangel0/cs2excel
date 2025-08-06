@@ -310,7 +310,7 @@ pub async fn insert_new_exceldata(
     }
 
     progress.send( Progress { 
-        message: format!("Inserted {} | Row {}", &steamdata.name, row_in_excel), 
+        message: format!("INSERTED: {} | ROW {}\n", &steamdata.name, row_in_excel), 
         percent: 0.0 
     }).await;
 
@@ -427,7 +427,7 @@ async fn save_cache(cache_path: &PathBuf, marketjson: &Value) -> Result<(), Stri
         timestamp: Utc::now()
     };
 
-    println!("{}", cache_path.display());
+    dprintln!("{}", cache_path.display());
 
     let bytes = match serde_json::to_vec(&cached) {
         Ok(b) => b,
@@ -467,8 +467,6 @@ async fn save_cache(cache_path: &PathBuf, marketjson: &Value) -> Result<(), Stri
     }
 
     file.flush().await.map_err(|e| format!("Error flushing file | {}", e))?;
-    drop(file);
-
     Ok(())
 
 }

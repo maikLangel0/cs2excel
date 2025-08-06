@@ -12,6 +12,7 @@ mod gui;
 const CACHE_TIME: Duration = Duration::from_secs(60 * 60 * 6);
 
 // Sick macro by gipiti | only prints to console when build flag is not set
+/// Only creates the println! macro if not in release mode
 #[macro_export]
 macro_rules! dprintln {
     ($( $arg:tt )*) => {

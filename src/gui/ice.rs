@@ -513,23 +513,23 @@ impl App {
                     .on_toggle( |_| Exec::IgnoreAlreadySold ),
                 tooltip_default("Ignore items that are already sold, given you have a column defined for that in your spreadsheet.", 300, 100),
             ].width( Length::FillPortion(5) ).spacing(5),
-             row![
+            row![
                 checkbox("Group simular items?", user.group_simular_items)
                     .on_toggle( |_| Exec::GroupSimularItems ),
                 tooltip_default("If you have multiple of the same item, lets say Fracture Cases, it will group them together under one row and fill the quantity column set for your spreadsheet.", 300, 100),
             ].width( Length::FillPortion(5) ).spacing(5),
-             row![
+            row![
                 checkbox("Multiply quantity and price?", user.sum_quantity_prices)
                     .on_toggle( |_| Exec::SumQuantityPrices ),
                 tooltip_default("If you want the program to automatically calculate the price of items given the quantity of them * price.", 300, 100),
             ].width( Length::FillPortion(5) ).spacing(5),
-             row![
+            row![
                 padding_inner(20),
                 checkbox("Fetch prices?", user.fetch_prices)
                     .on_toggle( |_| Exec::FetchPrices ),
                 tooltip_default("Fetch prices and update the prices in your spreadsheet.", 300, 100),
             ].width( Length::FillPortion(5) ).spacing(5),
-             row![
+            row![
                 checkbox("Fetch from Steam?", user.fetch_steam)
                     .on_toggle( |_| Exec::FetchSteam ),
                 tooltip_default("Fetch your inventory from steam to fill new data in your spreadsheet.", 300, 100),
