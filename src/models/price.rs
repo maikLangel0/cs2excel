@@ -212,4 +212,31 @@ impl Doppler {
             Doppler::Phase4 => "Phase 4"
         }
     }
+
+    pub fn is_doppler(paintindex: u16) -> Option<Doppler> {
+        match paintindex {
+            415 => Some(Doppler::Ruby),
+            416 => Some(Doppler::Sapphire),
+            417 => Some(Doppler::BlackPearl),
+            418 => Some(Doppler::Phase1),
+            419 => Some(Doppler::Phase2),
+            420 => Some(Doppler::Phase3),
+            421 => Some(Doppler::Phase4),
+
+            // GLOCK GAMMA DOPPLER
+            1119 => Some(Doppler::Emerald),
+            1120 => Some(Doppler::Phase1),
+            1121 => Some(Doppler::Phase2),
+            1122 => Some(Doppler::Phase3),
+            1123 => Some(Doppler::Phase4),
+
+            // KNIFE GAMMA DOPPLER
+            568 => Some(Doppler::Emerald),
+            569 => Some(Doppler::Phase1),
+            570 => Some(Doppler::Phase2),
+            571 => Some(Doppler::Phase3),
+            572 => Some(Doppler::Phase4),
+            _ => None
+        }
+    }
 }

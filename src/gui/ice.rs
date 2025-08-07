@@ -501,7 +501,7 @@ impl App {
     }
 
     // VIEW LOGIC ----------state.is_excel_running = false;--------------------------------
-    fn view(state: &Self) -> Element<Exec> {
+    fn view<'a>(state: &'a Self) -> Element<'a, Exec> {
         let mut content: Column<Exec> = column![];
         let user = &state.usersheet.user;
         let sheet = &state.usersheet.sheet;

@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use crate::models::web::{ExtraItemData, PHASES};
+use crate::models::{price::Doppler, web::ExtraItemData};
 
 // Må få tak i doppler/phase, market, price
 pub fn parse_iteminfo_min(data: &Value, item_name: Option<&str>) -> Result<ExtraItemData, String> {
@@ -44,7 +44,7 @@ pub fn parse_iteminfo_min(data: &Value, item_name: Option<&str>) -> Result<Extra
             .map(|p| p as u16)
             .ok_or_else(|| "paintindex NOT FOUND")?;
 
-        if let Some(dplr) = PHASES.get(&tmp) { Some(dplr.clone()) } else { None }
+        if let Some(dplr) = Doppler::is_doppler(tmp) && name.to_lowercase().contains("doppler") { Some(dplr) } else { None }
     };
 
     let paintseed = {

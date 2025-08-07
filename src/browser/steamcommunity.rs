@@ -35,12 +35,13 @@ impl SteamInventory {
                 .await.map_err( |e| format!("Failed sending the trade protect check HTTP request to steam! \n{}", e) ) 
                 {
                     Ok(res) => {
+                        // Fails silently and just returns None since user might not have any trade protected items in inv OR its not their inv
                         res.json::<Value>()
                             .await
                             .map_err( |e| format!("Failed to parse trade protected items from steam request to JSON. \n{}", e) ) 
                             .ok()
                     },
-                    Err(e) => { return Err(e) },
+                    Err(e) => { return Err(e) }
                 }
         } else { None };
 

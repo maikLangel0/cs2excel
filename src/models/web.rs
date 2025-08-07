@@ -1,4 +1,4 @@
-use std::{collections::HashMap, str::FromStr};
+use std::str::FromStr;
 use std::sync::LazyLock;
 use std::fmt;
 use chrono::{DateTime, Utc};
@@ -167,34 +167,6 @@ impl fmt::Display for ItemInfoProvider {
 // pub struct InspectLink {
     // pub link: String
 // }
-
-// ---------------------------------------------------------------------------
-
-pub static PHASES: LazyLock<HashMap<u16, Doppler>> = LazyLock::new(|| {
-    HashMap::from([     
-        (415, Doppler::Ruby),
-        (416, Doppler::Sapphire),
-        (417, Doppler::BlackPearl),
-        (418, Doppler::Phase1),
-        (419, Doppler::Phase2),
-        (420, Doppler::Phase3),
-        (421, Doppler::Phase4),
-
-        // GLOCK GAMMA DOPPLER
-        (1119, Doppler::Emerald),
-        (1120, Doppler::Phase1),
-        (1121, Doppler::Phase2),
-        (1122, Doppler::Phase3),
-        (1123, Doppler::Phase4),
-
-        // KNIFE GAMMA DOPPLER
-        (568, Doppler::Emerald),
-        (569, Doppler::Phase1),
-        (570, Doppler::Phase2),
-        (571, Doppler::Phase3),
-        (572, Doppler::Phase4) 
-    ])
-});
 
 // ---------------------------------------------------------------------------
 
