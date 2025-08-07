@@ -141,7 +141,7 @@ pub fn run_program(
         
 
             if user.group_simular_items {
-                assert!(excel.col_quantity.is_some());
+                debug_assert!(excel.col_quantity.is_some());
 
                 match exceldata.iter_mut().enumerate().find( |(_, e)| e.name == steamdata.name ) { 
                     Some((index, data)) => {
@@ -228,9 +228,9 @@ pub fn run_program(
 
                     }
                 }
-                assert!(excel.col_inspect_link.is_some());
-                assert!(steamdata.inspect_link.is_some());
-                assert!(user.iteminfo_provider != ItemInfoProvider::None);
+                debug_assert!(excel.col_inspect_link.is_some());
+                debug_assert!(steamdata.inspect_link.is_some());
+                debug_assert!(user.iteminfo_provider != ItemInfoProvider::None);
 
                 // Only reached when exceldatas name is the same as steamdatas name AND 
                 // exceldatas phase is something AND user wants to fetch more iteminfo AND 
@@ -328,13 +328,13 @@ pub fn run_program(
             }).await;
         }
         
-        // Second iteration - updates the prices of all the items other than the 
+        // Second iteration - updates the prices of all the items other than the
         // one(s) inserted into the spreadsheet during the first iteration.
         for (i, data) in exceldata.iter().enumerate() {
             if !user.fetch_prices { break }
             if i == exceldata_initial_length { break }
 
-            if data.sold.is_some() { continue; }
+            if data.sold.is_some() && user.ignore_already_sold { continue; }
             if let Some(ignore) = &user.ingore_steam_names {
                 let mut pls_ingore = false;
                 for ignore_steam_name in ignore { 
@@ -388,11 +388,9 @@ pub fn run_program(
                 .set_value_string( &finishtime );
         }
 
+        // Writes the modified data to the spreadsheet
         set_spreadsheet(&excel.path_to_sheet, book).await
             .map_err(|e| format!("Couldnt write to spreadsheet! : {}", e))?;
-
-        // dprintln!("STEAMDATA: \n{:#?}\n", &cs_inv);
-        // dprintln!("EXCELDATA: \n{:#?}\n", &exceldata);
 
         progress.send( Progress { 
             message: format!("End time: {}\n", finishtime), 
@@ -404,11 +402,7 @@ pub fn run_program(
                 message: format!("Asset length: {}\nInventory length: {}\n", inv.get_assets_length(),  inv.get_total_inventory_length()), 
                 percent: 100.0
             }).await;
-            // dprintln!("Asset length: {}", inv.get_assets_length());
-            // dprintln!("Inventory length: {}", inv.get_total_inventory_length() );
         };
-        
-        //dprintln!("Finished!");
         Ok(())
     })
 
