@@ -132,7 +132,7 @@ impl Default for App {
                     pricing_mode:               PricingMode::Cheapest,
                     pricing_provider:           PricingProvider::Csgotrader,
 
-                    pause_time_ms:              1000,
+                    pause_time_ms:              1750,
                     steamid:                    0, //76561198389123475, // Angel0 - min inv
                     percent_threshold:          0,
 

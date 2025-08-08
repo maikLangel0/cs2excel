@@ -1,22 +1,48 @@
 use std::{path::PathBuf, str::FromStr};
-use umya_spreadsheet::{new_file, reader, writer, Spreadsheet, Worksheet, XlsxError};
-use whoami;
+use sipper::Sender;
+use umya_spreadsheet::{reader, writer, Spreadsheet, Worksheet, XlsxError};
 
-use crate::models::{excel::ExcelData, price::Doppler, user_sheet::SheetInfo};
+use crate::{excel::helpers::generate_fallback_path, gui::ice::Progress, models::{excel::ExcelData, price::Doppler, user_sheet::SheetInfo}};
 
-pub async fn get_spreadsheet(path: &Option<PathBuf>) -> Result<Spreadsheet, XlsxError> {
+pub async fn get_spreadsheet(path: &mut Option<PathBuf>, sheet_name: &mut Option<String>, progress: &mut Sender<Progress>) -> Result<Spreadsheet, String> {
     if let Some(pts) = path { 
-        let sheet = reader::xlsx::read(pts)?; 
+        let sheet = reader::xlsx::read(pts).map_err(|_| String::from("Failed to read file"))?; 
         Ok(sheet)
-    } else { Ok(new_file()) } 
+    } else { 
+        *sheet_name = None;
+        let mut new = false;
+
+        if path.is_none() { generate_fallback_path(path); new = true };
+
+        if !new {
+            let filename = path.as_ref()
+                .map(|p| p.to_str().unwrap_or_else(|| "| Failed PathBuf to_str |"))
+                .unwrap_or_else(|| "Path to the spreadsheet not set!")
+                .split("\\")
+                .collect::<Vec<&str>>();
+            
+            progress.send(Progress { 
+                message: format!("WARNING: Created a new spreadsheet as one with the name {} didn't exist.\n", filename[filename.len() - 1]), 
+                percent: 0.0 
+            }).await;
+        }
+        else {
+            progress.send(Progress { 
+                message: format!("WARNING: Created a new spreadsheet as one with the path\n{}\ndidn't exist.\n",path.clone().unwrap_or_else(|| PathBuf::from("C\\Users\\Goober")).to_string_lossy()), 
+                percent: 0.0 
+            }).await;
+        }
+        
+        Ok(umya_spreadsheet::new_file())
+     } 
 }
 
 pub async fn set_spreadsheet(path: &Option<PathBuf>, book: Spreadsheet) -> Result<(), XlsxError> {
-    if let Some(pts) = path { 
-        writer::xlsx::write(&book, pts)?
-    } else { 
-        let std_path = PathBuf::from( format!("C:/Users/{}", whoami::username()) );
-        writer::xlsx::write(&book, std_path)? 
+    if let Some(pts) = path { writer::xlsx::write(&book, pts)?} 
+    else { 
+        let mut path: Option<PathBuf> = None;
+        generate_fallback_path(&mut path);
+        writer::xlsx::write(&book, path.unwrap())? 
     }
     Ok(())
 }

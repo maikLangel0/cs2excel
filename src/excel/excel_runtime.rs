@@ -36,24 +36,8 @@ pub fn run_program(
         // BIG BRAIN; READ THE EXCEL SPREADSHEET FIRST TO GET ALL THE INFO AND THEN GET PRICES WOWOWO
         
         // Getting the Worksheet from either existing book or new book
-        let mut book: Spreadsheet = match get_spreadsheet(&excel.path_to_sheet).await {
-            Ok(v) => v,
-            Err(_) => {
-                excel.sheet_name = None;
-                let filename = excel.path_to_sheet.as_ref()
-                    .map(|p| p.to_str().unwrap_or_else(|| "| Failed PathBuf to_str |"))
-                    .unwrap_or_else(|| "| Failed Option<&str> unwrap |")
-                    .split("\\")
-                    .collect::<Vec<&str>>();
+        let mut book: Spreadsheet = get_spreadsheet(&mut excel.path_to_sheet, &mut excel.sheet_name, &mut progress).await?;
 
-                progress.send(Progress { 
-                    message: format!("WARNING: Created a new spreadsheet as one with the path {} didn't exist.\n", filename[filename.len() - 1]), 
-                    percent: 0.0 
-                }).await;
-
-                umya_spreadsheet::new_file()
-            }
-        };
         let sheet: &mut Worksheet = {
             if let Some(sn) = &excel.sheet_name { 
                 if let Some(buk) = book.get_sheet_by_name_mut(sn) { buk } 
@@ -69,7 +53,7 @@ pub fn run_program(
                         "Failed to get the first sheet in the spreadsheet with path: \n{:?}", excel.path_to_sheet.as_ref())
                     )?
                 }  
-            } else { book.get_sheet_mut(&0).ok_or_else(|| "Failed to get first sheet provided by new_file creation.")? }
+            } else { book.get_sheet_mut(&0).ok_or_else(|| "Failed to get first sheet provided by new file creation.")? }
         };
 
         // Client for fetch_more_iteminfo

@@ -1,5 +1,6 @@
-use std::{collections::HashMap, path::PathBuf};
+use std::{collections::HashMap, env, path::PathBuf};
 use chrono::Utc;
+use rand::{rng, seq::IndexedRandom};
 use serde_json::Value;
 use tokio::{fs, io::AsyncWriteExt};
 
@@ -498,4 +499,23 @@ async fn save_cache(cache_path: &PathBuf, marketjson: &Value) -> Result<(), Stri
         // Ok(market_data)
     // }
 // }
+
+const ALPHABET: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+pub fn rand_ascii_string(len: usize) -> String {
+    let mut rng = rng();
+    let fallback: u8 = b"e"[0];
+    (0..len).map(|_| *ALPHABET.choose(&mut rng).unwrap_or_else(|| &fallback) as char).collect()
+}
+
+pub fn generate_fallback_path(path: &mut Option<PathBuf>) {
+    let mut p = dirs::desktop_dir()
+        .or_else(|| dirs::home_dir())
+        .or_else(|| env::current_dir().ok())
+        .unwrap_or_else(|| PathBuf::from( format!("C\\Users\\{}", whoami::username()) ));
+
+    p.push(format!("cs2_invest_sheet_{}.xlsx", rand_ascii_string(16)));
+
+    *path = Some(p);
+}
 
