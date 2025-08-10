@@ -318,7 +318,7 @@ impl App {
                 state.text_input_row_stop_write_in_table = row;
                 Task::none()
             }
-            Exec::SheetName(sn) => { sheet.sheet_name = sn.to_option(); Task::none() }
+            Exec::SheetName(sn) =>          { sheet.sheet_name = sn.to_option(); Task::none() }
             Exec::ColSteamName(s) =>        { task_col_if_english_alphabetic(&mut sheet.col_steam_name, &s) }
             Exec::ColPrice(s) =>            { task_col_if_english_alphabetic(&mut sheet.col_price, &s) }
             Exec::ColGunStickerCase(gsc) => { task_col_if_english_alphabetic(&mut sheet.col_gun_sticker_case, &gsc) }

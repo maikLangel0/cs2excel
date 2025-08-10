@@ -444,7 +444,7 @@ pub fn is_user_input_valid(user: &UserInfo, excel: &SheetInfo) -> Result<(), Str
         return Err( String::from("pricing_mode can't be Hierarchical if percent_threshold is None!") )
     }
 
-    if user.steamid == 0 && user.steamid.checked_ilog10().unwrap_or(0) != 17 {
+    if user.steamid == 0 && user.steamid.checked_ilog10().unwrap_or(0) > 17 {
         return Err(String::from("steamid64 is invalid!"));
     }
 
