@@ -86,7 +86,7 @@ pub struct SteamData {
     pub quantity: Option<u16>,
     pub inspect_link: Option<String>,
     pub asset_id: u64, // IF MODE IS !GROUP_SIMULAR_ITEMS, THIS IS UNIQUE IDENTIFIER
-    pub instance_id: u64, // Used POTENTIALLY for batched float getting
+    // pub instance_id: u64, // Used POTENTIALLY for batched float getting
 }
 
 // ------------------------------------------------------------
@@ -111,10 +111,10 @@ pub struct CachedMarket {
 // ------------------------------------------------------------
 
 pub struct ExtraItemData {
-    pub name: String,
+    // pub name: String,
     pub float: Option<f64>,
-    pub max_float: Option<f64>,
-    pub min_float: Option<f64>,
+    // pub max_float: Option<f64>,
+    // pub min_float: Option<f64>,
     pub phase: Option<Doppler>, // PAINTINDEX: dopplers, 
     pub paintseed: Option<u16>  // Paintseed 
 }

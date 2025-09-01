@@ -22,21 +22,21 @@ pub fn parse_iteminfo_min(data: &Value, item_name: Option<&str>) -> Result<Extra
         if tmp == 0.0 { None } else { Some(tmp) }
     };
     
-    let max_float = {
-        let tmp = data.get("max")
-            .and_then(|m| m.as_f64() )
-            .unwrap_or( 1.0 );
+    // let max_float = {
+        // let tmp = data.get("max")
+            // .and_then(|m| m.as_f64() )
+            // .unwrap_or( 1.0 );
 
-        if tmp == 0.0 { None } else { Some(tmp) }
-    };
+        // if tmp == 0.0 { None } else { Some(tmp) }
+    // };
+ 
+    // let min_float = {
+        // let tmp = data.get("min")
+            // .and_then(|m| m.as_f64() )
+            // .unwrap_or( 0.0 );
 
-    let min_float = {
-        let tmp = data.get("min")
-            .and_then(|m| m.as_f64() )
-            .unwrap_or( 0.0 );
-
-        if tmp == 0.0 && float.is_none() { None } else { Some(tmp) }
-    };
+        // if tmp == 0.0 && float.is_none() { None } else { Some(tmp) }
+    // };
 
     let phase = {
         let tmp = data.get("paintindex")
@@ -56,5 +56,5 @@ pub fn parse_iteminfo_min(data: &Value, item_name: Option<&str>) -> Result<Extra
         if tmp == 0 { None } else { Some(tmp) }
     };
 
-    Ok( ExtraItemData { name, float, max_float, min_float, phase, paintseed } )
+    Ok( ExtraItemData { /*name,*/ float, /*max_float, min_float,*/ phase, paintseed } )
 }

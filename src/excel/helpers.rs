@@ -463,7 +463,7 @@ async fn save_cache(cache_path: &PathBuf, marketjson: &Value) -> Result<(), Stri
         Ok(_) => {dprintln!("Cache saved successfully!")},
         Err(e) => {
             dprintln!("Error saving cache | {}", e);
-            return Err( format!("Error building OpenOptions | {}", e))
+            return Err( format!("Error saving cache | {}", e))
         },
     }
 

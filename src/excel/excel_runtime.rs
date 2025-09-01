@@ -31,31 +31,7 @@ pub fn run_program(
                 percent: 0.0
             }).await;
         }
-        // -----------------------------------------------------------------------------------------------
-
-        // BIG BRAIN; READ THE EXCEL SPREADSHEET FIRST TO GET ALL THE INFO AND THEN GET PRICES WOWOWO
         
-        // Getting the Worksheet from either existing book or new book
-        let mut book: Spreadsheet = get_spreadsheet(&mut excel.path_to_sheet, &mut excel.sheet_name, &mut progress).await?;
-
-        let sheet: &mut Worksheet = {
-            if let Some(sn) = &excel.sheet_name { 
-                if let Some(buk) = book.get_sheet_by_name_mut(sn) { buk } 
-                else {
-                    dprintln!("WARNING: Automatically fetched first sheet in spreadsheet because {} was not found.", sn);
-
-                    progress.send(Progress { 
-                        message: format!("WARNING: Automatically fetched first sheet in spreadsheet because {} was not found.\n", sn), 
-                        percent: 0.0 
-                    }).await;
-
-                    book.get_sheet_mut(&0).ok_or_else(|| format!(
-                        "Failed to get the first sheet in the spreadsheet with path: \n{:?}", excel.path_to_sheet.as_ref())
-                    )?
-                }  
-            } else { book.get_sheet_mut(&0).ok_or_else(|| "Failed to get first sheet provided by new file creation.")? }
-        };
-
         // Client for fetch_more_iteminfo
         let mut iteminfo_client_base = match &user.iteminfo_provider {
             ItemInfoProvider::Csfloat => { csfloat::new_extra_iteminfo_client() },
@@ -67,28 +43,7 @@ pub fn run_program(
 
         // -----------------------------------------------------------------------------------------------
 
-        let mut exceldata: Vec<ExcelData> = get_exceldata(sheet, &excel, user.ignore_already_sold).await?;
-        let exceldata_initial_length: usize = exceldata.len();
-
-        progress.send( Progress { 
-            message: if exceldata.is_empty() {String::from("Read empty excel spreadsheet.\n")} else {format!("Read spreadsheet. First: {} | Last: {}\n", exceldata[0].name, exceldata[exceldata.len() - 1].name)}, 
-            percent: 0.0 }
-        ).await;
-
-        // dprintln!("Data gotten from excel spreadsheet: \n{:#?}", exceldata);
-        // if !exceldata.is_empty() { return Ok(()) }
-
-        //  exceldata_old_len er her fordi jeg har endret måte å oppdatere prisene i spreadsheet'n på.
-        //  Nå, hvis et item fra steam ikke er i spreadsheetn allerede, så oppdateres spreadsheetn med price, quantity,
-        //  phase og inspect link. exceldata_old_len skal være til når resten av itemsene skal oppdateres i pris,
-        //  da stopper itereringen ved exceldata_old_len i stedet for å hente prisen til item'ene som er nylig lagt
-        //  til og derfor også oppdatert allerede.
-
-        // -----------------------------------------------------------------------------------------------
-
         let steamcookie: Option<String> = if user.fetch_steam { get_steamloginsecure(&user.steamloginsecure) } else { None };
-
-        let rate = get_exchange_rate(&user.usd_to_x, &excel.rowcol_usd_to_x, sheet).await?;
 
         let sm_inv: Option<SteamInventory> = {
             if user.fetch_steam { Some( SteamInventory::init(user.steamid, 730, steamcookie).await? ) } 
@@ -115,6 +70,53 @@ pub fn run_program(
         let cs_inv_len = cs_inv.as_ref().and_then(|i| Some(i.len())).or_else(|| Some(0)).unwrap_or_else(|| 0);
 
         // -----------------------------------------------------------------------------------------------
+
+        // BIG BRAIN; READ THE EXCEL SPREADSHEET FIRST TO GET ALL THE INFO AND THEN GET PRICES WOWOWO
+        
+        // Getting the Worksheet from either existing book or new book
+        let mut book: Spreadsheet = get_spreadsheet(&mut excel.path_to_sheet, &mut excel.sheet_name, &mut progress).await?;
+
+        let sheet: &mut Worksheet = {
+            if let Some(sn) = &excel.sheet_name { 
+                if let Some(buk) = book.get_sheet_by_name_mut(sn) { buk } 
+                else {
+                    dprintln!("WARNING: Automatically fetched first sheet in spreadsheet because {} was not found.", sn);
+
+                    progress.send(Progress { 
+                        message: format!("WARNING: Automatically fetched first sheet in spreadsheet because {} was not found.\n", sn), 
+                        percent: 0.0 
+                    }).await;
+
+                    book.get_sheet_mut(&0).ok_or_else(|| format!(
+                        "Failed to get the first sheet in the spreadsheet with path: \n{:?}", excel.path_to_sheet.as_ref())
+                    )?
+                }  
+            } else { book.get_sheet_mut(&0).ok_or_else(|| "Failed to get first sheet provided by new file creation.")? }
+        };
+
+        let rate = get_exchange_rate(&user.usd_to_x, &excel.rowcol_usd_to_x, sheet).await?;
+
+        // -----------------------------------------------------------------------------------------------
+
+        let mut exceldata: Vec<ExcelData> = get_exceldata(sheet, &excel, user.ignore_already_sold).await?;
+        let exceldata_initial_length: usize = exceldata.len();
+
+        progress.send( Progress { 
+            message: if exceldata.is_empty() {String::from("Read empty excel spreadsheet.\n")} else {format!("Read spreadsheet. First: {} | Last: {}\n", exceldata[0].name, exceldata[exceldata.len() - 1].name)}, 
+            percent: 0.0 }
+        ).await;
+
+        // dprintln!("Data gotten from excel spreadsheet: \n{:#?}", exceldata);
+        // if !exceldata.is_empty() { return Ok(()) }
+
+        //  exceldata_old_len er her fordi jeg har endret måte å oppdatere prisene i spreadsheet'n på.
+        //  Nå, hvis et item fra steam ikke er i spreadsheetn allerede, så oppdateres spreadsheetn med price, quantity,
+        //  phase og inspect link. exceldata_old_len skal være til når resten av itemsene skal oppdateres i pris,
+        //  da stopper itereringen ved exceldata_old_len i stedet for å hente prisen til item'ene som er nylig lagt
+        //  til og derfor også oppdatert allerede.
+
+        // -----------------------------------------------------------------------------------------------
+        
         // Inserting and/or updating quantity + adding prices for newly inserted items | .flatten() only runs the loop if it is Some()
         for (i, steamdata) in cs_inv.iter().flatten().enumerate() { 
             

@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use serde_json::Value;
 
 use crate::{dprintln, gui::ice::Progress, models::{price::{Doppler, PriceType}, web::{ExtraItemData, Sites}}};
@@ -85,28 +83,30 @@ pub fn parse_iteminfo_min(data: &Value, item_name: Option<&str>) -> Result<Extra
         if tmp == 0.0 { None } else { Some(tmp) }
     };
 
-    let max_float = {
-        let tmp = data.get("max")
-            .and_then(|m| m.as_f64() )
-            .unwrap_or( 1.0 );
+    // let max_float = {
+        // let tmp = data.get("max")
+            // .and_then(|m| m.as_f64() )
+            // .unwrap_or( 1.0 );
 
-        if tmp == 0.0 { None } else { Some(tmp) }
+        // if tmp == 0.0 { None } else { Some(tmp) }
+    // };
+// 
+    // let min_float = {
+        // let tmp = data.get("min")
+            // .and_then(|m| m.as_f64() )
+            // .unwrap_or( 0.0 );
+
+        // if tmp == 0.0 && float.is_none() { None } else { Some(tmp) }
+    // };
+
+    let phase = {
+        let tmp = data.get("paintindex")
+            .and_then(|p| p.as_f64() )
+            .map(|p| p as u16)
+            .ok_or_else(|| "paintindex NOT FOUND")?;
+
+        if let Some(dplr) = Doppler::is_doppler(tmp) && name.to_lowercase().contains("doppler") { Some(dplr) } else { None }
     };
-
-    let min_float = {
-        let tmp = data.get("min")
-            .and_then(|m| m.as_f64() )
-            .unwrap_or( 0.0 );
-
-        if tmp == 0.0 && float.is_none() { None } else { Some(tmp) }
-    };
-
-    let phase = if let Some(dplr) = data.get("phase") { 
-        Some( Doppler::from_str( 
-            dplr.as_str().ok_or_else(|| "Dplr to string didnt work what.".to_string())? 
-        )? ) 
-    } else { None };
-
     let paintseed = {
         let tmp = data.get("paintseed")
             .and_then(|p| p.as_f64() )
@@ -116,5 +116,5 @@ pub fn parse_iteminfo_min(data: &Value, item_name: Option<&str>) -> Result<Extra
         if tmp == 0 { None } else { Some(tmp) }
     };
 
-    Ok( ExtraItemData { name, float, max_float, min_float, phase, paintseed } )
+    Ok( ExtraItemData { /*name,*/ float, /*max_float, min_float,*/ phase, paintseed } )
 }

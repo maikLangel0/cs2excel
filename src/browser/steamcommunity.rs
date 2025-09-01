@@ -124,27 +124,27 @@ impl SteamInventory {
                 entry.0 += 1;
             }
 
-            for (name, (quantity, inspect_link, asset_id, instance_id)) in name_quantity {
+            for (name, (quantity, inspect_link, asset_id, _instance_id)) in name_quantity {
                 inventory.push( 
                     SteamData { 
                         name: name.to_string(), 
                         quantity: Some(quantity), 
                         inspect_link: { if quantity == 1 { inspect_link } else { None } }, 
                         asset_id,
-                        instance_id
+                        // instance_id
                     } 
                 );
             }
         } 
         else {    
-            for (name, inspect_link, asset_id, instance_id) in market_names {
+            for (name, inspect_link, asset_id, _instance_id) in market_names {
                 inventory.push(
                     SteamData { 
                         name: name.to_string(), 
                         quantity: None, 
                         inspect_link, 
                         asset_id,
-                        instance_id
+                        // instance_id
                     } 
                 );
             }
