@@ -19,19 +19,12 @@ impl FirefoxDb {
         let user_profiles: String = std::fs::read_dir(profiles_path)?
             .filter_map(
                 |entry| {
-                    let entry = entry.unwrap();
-                    let path = entry.path();
-                    let path_str = path.to_string_lossy().to_string();
-                    
-                    if path_str.ends_with("release") { 
-                        Some(path_str)
-                    }
-                    else { 
-                        None
-                    }
+                    entry.ok()
+                        .map(|e| e.path().to_string_lossy().to_string())
+                        .filter(|path_str| path_str.ends_with("release"))
                 }
             ).next()
-            .ok_or_else(|| "No valid Firefox profile found")?;
+            .ok_or("No valid Firefox profile found")?;
         
         let db = Connection::open(
             PathBuf::from(

@@ -89,11 +89,10 @@ pub enum PriceType {
 }
 impl PriceType {
     pub fn as_str(&self) -> &'static str {
-        let s = match self {
+        match self {
             PriceType::StartingAt => "starting_at",
             PriceType::HightestOrder => "highest_order"
-        };
-        s
+        }
     }
 }
 
@@ -195,7 +194,7 @@ impl FromStr for Doppler {
             "sapphire" => Ok(Self::Sapphire),
             "blackpearl" => Ok(Self::BlackPearl),
             "emerald" => Ok(Self::Emerald),
-            _ => Err( String::from(format!("{} is not a valid doppler finish.", s)) )
+            _ => Err( format!("{} is not a valid doppler finish.", s) )
         }
     }
 }

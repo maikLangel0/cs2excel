@@ -10,14 +10,14 @@ pub fn parse_iteminfo_min(data: &Value, item_name: Option<&str>) -> Result<Extra
             data.get("full_item_name")
                 .and_then(|n| n.as_str() )
                 .map( str::to_owned )
-                .ok_or_else(|| "full_item_name NOT FOUND")?
+                .ok_or("full_item_name NOT FOUND")?
         }
     };
 
     let float = {
         let tmp = data.get("floatvalue")
             .and_then(|f| f.as_f64() )
-            .ok_or_else(|| "floatvalue NOT FOUND")?;
+            .ok_or("floatvalue NOT FOUND")?;
 
         if tmp == 0.0 { None } else { Some(tmp) }
     };
@@ -42,7 +42,7 @@ pub fn parse_iteminfo_min(data: &Value, item_name: Option<&str>) -> Result<Extra
         let tmp = data.get("paintindex")
             .and_then(|p| p.as_f64() )
             .map(|p| p as u16)
-            .ok_or_else(|| "paintindex NOT FOUND")?;
+            .ok_or("paintindex NOT FOUND")?;
 
         if let Some(dplr) = Doppler::is_doppler(tmp) && name.to_lowercase().contains("doppler") { Some(dplr) } else { None }
     };
@@ -51,7 +51,7 @@ pub fn parse_iteminfo_min(data: &Value, item_name: Option<&str>) -> Result<Extra
         let tmp = data.get("paintseed")
             .and_then(|p| p.as_f64() )
             .map(|p| p as u16)
-        .ok_or_else(|| "paintseed NOT FOUND")?;
+        .ok_or("paintseed NOT FOUND")?;
     
         if tmp == 0 { None } else { Some(tmp) }
     };

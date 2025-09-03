@@ -9,7 +9,7 @@ pub async fn get_exchange_rates() -> Result<HashMap<String, f64>, String> {
     let client = Client::new();
 
     // Sending the GET request trying to mimic the one used by the csgotrader.app extension
-    let response = client.get( format!("https://prices.csgotrader.app/latest/exchange_rates.json"))
+    let response = client.get( String::from("https://prices.csgotrader.app/latest/exchange_rates.json"))
         .headers( FIREFOX_CSGOTRADERAPP_HEADERS_BASE.to_owned() )
         .header( header::HOST, "prices.csgotrader.app" )
         .send()

@@ -1,5 +1,4 @@
 /// Used to keep track of the data fetched from the Excel spreadsheet. Only contains information that is neccessary to have when update / inserting data in the spreadsheet
-
 pub struct ExcelData {
     pub name: String, 
     // pub price: f64,

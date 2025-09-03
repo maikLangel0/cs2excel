@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use reqwest::header::COOKIE;
 use serde_json::{from_value, Value};
 
-use crate::{models::web::{SteamData, SteamJson}};
+use crate::{models::web::{SteamData, SteamJson, GAMES_TRADE_PROTECTED}};
 
 pub struct SteamInventory { 
     data: SteamJson,
@@ -12,9 +12,11 @@ impl SteamInventory {
     ///Initializes the connection to the steam inventory and stores the inventory JSON in self
     pub async fn init(steamid: u64, gameid: u32, cookie: Option<String>) -> Result<Self, String> {
         let client = reqwest::Client::new();
+        let cockie = cookie.unwrap_or("".to_string());
+        
         //                                              https://steamcommunity.com/inventory/76561198389123475/730/2?l=english&count=2000
         let steam_response: Value = client.get(format!("https://steamcommunity.com/inventory/{}/{}/2?l=english&count=2000", steamid, gameid))
-            .header(COOKIE, if let Some(c) = &cookie { c } else { "" } )
+            .header(COOKIE, &cockie )
             .send()
             .await.map_err( |e| format!("Failed sending the HTTP request to steam! \n{}", e) )?
             .json()
@@ -28,32 +30,28 @@ impl SteamInventory {
             format!("Parsing the json data from steam into the SteamJson struct did not work! Usual cause is failure to get proper inventory data.\n{}", e) 
         )?;
 
-        let trade_protected: Option<Value> = if let Some(c) = &cookie && gameid == 730 {
+        let trade_protected: Option<Value> = if !cockie.is_empty() && GAMES_TRADE_PROTECTED.contains(&gameid) {
             match client.get(format!("https://steamcommunity.com/inventory/{}/{}/16", steamid, gameid))
-                .header(COOKIE, c)
+                .header(COOKIE, &cockie)
                 .send()
                 .await.map_err( |e| format!("Failed sending the trade protect check HTTP request to steam! \n{}", e) ) 
                 {
                     Ok(res) => {
                         // Fails silently and just returns None since user might not have any trade protected items in inv OR its not their inv
-                        res.json::<Value>()
-                            .await
-                            .map_err( |e| format!("Failed to parse trade protected items from steam request to JSON. \n{}", e) ) 
-                            .ok()
+                        res.json::<Value>().await.ok()
                     },
                     Err(e) => { return Err(e) }
                 }
         } else { None };
 
-        if let Some(tp) = trade_protected {
-            if let Some(assets) = tp.get("assets").and_then(|v| v.as_array())
-            && let Some(descriptions) = tp.get("descriptions").and_then(|v| v.as_array() )
-            && let Some(tic) = tp.get("total_inventory_count").and_then(|v| v.as_u64()) 
-            {
-                data.assets.append(&mut assets.clone());
-                data.descriptions.append(&mut descriptions.clone());
-                data.total_inventory_count += tic as u16;
-            }
+        if let Some(tp) = trade_protected 
+        && let Some(assets) = tp.get("assets").and_then(|v| v.as_array())
+        && let Some(descriptions) = tp.get("descriptions").and_then(|v| v.as_array() )
+        && let Some(tic) = tp.get("total_inventory_count").and_then(|v| v.as_u64()) 
+        {
+            data.assets.append(&mut assets.clone());
+            data.descriptions.append(&mut descriptions.clone());
+            data.total_inventory_count += tic as u16;
         }
 
         Ok( SteamInventory { data, steamid } )
@@ -85,18 +83,14 @@ impl SteamInventory {
                         .ok_or_else(|| format!("'market_name' not found in the description! \nDescription: \n{:#?}", desc) )?; 
                     
                     let asset_id: u64 = asset.get("assetid")
-                        .unwrap_or_else(|| &Value::Null )
-                        .as_str()
-                        .unwrap_or_else(|| &"0" )
-                        .parse::<u64>()
-                        .unwrap();
+                        .and_then(|v| v.as_str())
+                        .and_then(|v| v.parse::<u64>().ok())
+                        .unwrap_or(0);
 
-                        let instance_id: u64 = asset.get("instanceid")
-                        .unwrap_or_else(|| &Value::Null )
-                        .as_str()
-                        .unwrap_or_else(|| &"0" )
-                        .parse::<u64>()
-                        .unwrap();
+                    let instance_id: u64 = asset.get("instanceid")
+                        .and_then(|v| v.as_str())
+                        .and_then(|v| v.parse::<u64>().ok())
+                        .unwrap_or(0);
 
                     let inspect: Option<String> = desc.get("actions")
                         .and_then( |v| v.as_array() )
@@ -150,7 +144,7 @@ impl SteamInventory {
             }
         }
         //dprintln!("ALL STEAM ITEM DATA: {inventory:#?}");
-        return Ok(inventory);
+        Ok(inventory)
     }
 
     pub fn get_assets_length(self: &SteamInventory) -> usize {

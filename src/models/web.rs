@@ -52,29 +52,28 @@ impl FromStr for Sites {
 }
 impl Sites {
     pub fn as_str(&self) -> &'static str {
-        let s = match self {
-            Self::BUFF163 => "buff163",
-            Self::YOUPIN => "youpin",
-            Self::CSFLOAT => "csfloat",
-            Self::CSMONEY => "csmoney",
-            Self::BITSKINS => "bitskins",
-            Self::SKINPORT => "skinport",
-            Self::STEAM => "steam"
-        };
-        s
+       match *self {
+            Sites::BUFF163 => "buff163",
+            Sites::YOUPIN => "youpin",
+            Sites::CSFLOAT => "csfloat",
+            Sites::CSMONEY => "csmoney",
+            Sites::BITSKINS => "bitskins",
+            Sites::SKINPORT => "skinport",
+            Sites::STEAM => "steam"
+        }
     }
     // pub fn to_string(&self) -> String {
         // self.as_str().to_string()
     // }
     pub fn has_doppler(&self) -> bool {
-        match self {
-            &Sites::CSFLOAT => {true}
-            &Sites::BUFF163 => {true}
-            &Sites::YOUPIN => {false}
-            &Sites::CSMONEY => {true}
-            &Sites::BITSKINS => {false}
-            &Sites::SKINPORT => {false}
-            &Sites::STEAM => {false}
+        match *self {
+            Sites::CSFLOAT => {true}
+            Sites::BUFF163 => {true}
+            Sites::YOUPIN => {false}
+            Sites::CSMONEY => {true}
+            Sites::BITSKINS => {false}
+            Sites::SKINPORT => {false}
+            Sites::STEAM => {false}
         }
     }
 }
@@ -154,6 +153,10 @@ impl fmt::Display for ItemInfoProvider {
         write!(f, "{}", self.as_str())
     }
 }
+
+// ---------------------------------------------------------------------------
+
+pub const GAMES_TRADE_PROTECTED: [u32; 1] = [730];
 
 // ---------------------------------------------------------------------------
 

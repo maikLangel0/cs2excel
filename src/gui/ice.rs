@@ -19,7 +19,7 @@ use rfd::AsyncFileDialog;
 const NO_LEN: Option<Length> = None;
 const STD_LEN: Length = Length::FillPortion(4);
 const NAUR_BYTES: &[u8] = include_bytes!("../../assets/images/peak_naur.png");
-const ADDITIONAL_INFO: &'static str = "IMPORTANT INFO: \
+const ADDITIONAL_INFO: &str = "IMPORTANT INFO: \
     \n\nEXCEL FILE NEEDS TO CLOSED THE INSTANCE YOU START THE PROGRAM AND THE INSTANCE THE PROGRAM ENDS! HAVING THE FILE OPEN WHEN CLICKING 'Run' WILL RESULT IN AN ERROR. IF PROGRAM IS OPEN AT THE END OF ITERATION, WRITING TO THE EXCEL FILE WILL NOT BE SUCCESSFUL.
     \nPlease always have a recent up-to-date backup of your spreadsheet(s) \
     \nPlease make sure the rows of the table has no gaps in it. if it does the program will not recognize the whole table and add information in random, not intended places.
@@ -176,7 +176,7 @@ impl Default for App {
             is_excel_running: false,
             editor_ignore_steam_names: text_editor::Content::new(),
             editor_prefer_markets: text_editor::Content::new(),
-            editor_runtime_result: text_editor::Content::from( Content::with_text( ADDITIONAL_INFO )),
+            editor_runtime_result: Content::with_text( ADDITIONAL_INFO ),
             text_pause_time_ms: String::new(),
             text_percent_threshold: String::new(),
             text_input_steamid: String::new(),
@@ -245,8 +245,7 @@ impl App {
                                 .map(|s| s.trim().to_owned())
                                 .collect::<Vec<String>>();
 
-                            let sites = sites_string.iter().filter_map( |s| Sites::from_str(s).ok() ).collect::<Vec<Sites>>();
-                            sites
+                            sites_string.iter().filter_map( |s| Sites::from_str(s).ok() ).collect::<Vec<Sites>>()
                         } )
                     } else { None };
                 };
@@ -262,7 +261,7 @@ impl App {
 
             Exec::Steamid(id) => {
                 if id.chars().any(|c| !c.is_ascii_digit()) { return Task::none() } // Filter only numbers
-                user.steamid = id.to_numeric().unwrap_or_else(|_| 0);
+                user.steamid = id.to_numeric().unwrap_or(0);
                 state.text_input_steamid = id;
                 Task::none()
             }
@@ -348,9 +347,9 @@ impl App {
                             .set_title("Get xlsx file")
                             .pick_file()
                             .await;
-                        save_file.and_then(|f| Some( f.inner().to_path_buf() ))
+                        save_file.map(|f| f.inner().to_path_buf() )
                     }, 
-                    |file| Exec::FinishPathToSheet(file)
+                    Exec::FinishPathToSheet
                 )
             }
             Exec::FinishPathToSheet(file) => {
@@ -372,9 +371,9 @@ impl App {
                             .set_title("Save JSON file")
                             .save_file()
                             .await;
-                        save_file.and_then(|f| Some( f.inner().to_path_buf() ))
+                        save_file.map(|f| f.inner().to_path_buf() )
                     }, 
-                    |file| Exec::FinishSaveData(file)
+                    Exec::FinishSaveData
                 )
             }
             Exec::FinishSaveData(file) => {
@@ -389,7 +388,7 @@ impl App {
                             }
                             else { state.saved_data = Err( String::from("Failed writing save file") )}
                         },
-                        Err(_) => { state.saved_data = Err(String::from("Failed creating file")) }
+                        Err(_) => { state.saved_data = Err( String::from("Failed creating file")) }
                     }
                 }
                 Task::none()
@@ -404,9 +403,9 @@ impl App {
                             .set_title("Load JSON file")
                             .pick_file()
                             .await;
-                        pick_file.and_then(|f| Some( f.inner().to_path_buf() ))
+                        pick_file.map(|f| f.inner().to_path_buf() )
                     }, 
-                    |file| Exec::FinishLoadData(file)
+                    Exec::FinishLoadData
                 )
             },
             Exec::FinishLoadData(file) => {
@@ -426,8 +425,7 @@ impl App {
                                 } else { String::new() };
                                 
                                 let pm_input: String = if let Some(pm) = &user.prefer_markets { 
-                                    let res = pm.iter().map(|m| m.as_str()).collect::<Vec<&str>>().join(", ");
-                                    res
+                                    pm.iter().map(|m| m.as_str()).collect::<Vec<&str>>().join(", ")
                                 } else { String::new() };
                                 
                                 state.loaded_data = Ok( path_to_file_name(path) );
@@ -485,7 +483,7 @@ impl App {
                 }
             }
             Exec::UpdateRun(update) => {
-                state.editor_runtime_result.perform( text_editor::Action::Edit( Edit::Paste( Arc::new(format!("{}", update.message)) ) ) );
+                state.editor_runtime_result.perform( text_editor::Action::Edit( Edit::Paste( Arc::new(update.message) ) ) );
                 state.runtime_progress = update.percent;
                 Task::none()
             }
@@ -897,7 +895,7 @@ impl App {
             match &state.usersheet.sheet.path_to_sheet {
                 Some(path) => format!(
                     "Found {}", {
-                        let tmp = path.to_str().unwrap_or_else(|| "file").split("\\").collect::<Vec<_>>();
+                        let tmp = path.to_str().unwrap_or("file").split("\\").collect::<Vec<_>>();
                         tmp[tmp.len() - 1]
                     }
                 ),

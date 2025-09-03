@@ -170,9 +170,7 @@ pub fn metadata_from_market_name(s_m_n: &str) -> [String; 3] {
 
         gun_sticker_case = "graffiti".to_string();
 
-        WEARS.iter().find( |&s| name_split.contains(s) ).map( |found| {
-            wear = found.to_string();
-        });
+        if let Some(found) = WEARS.iter().find( |&s| name_split.contains(s) ) { wear = found.to_string(); }
         
         skin_name = name_split.iter()
             .filter(|&&s| s != gun_sticker_case && !wear.contains(s) && s != "sealed")
@@ -183,15 +181,15 @@ pub fn metadata_from_market_name(s_m_n: &str) -> [String; 3] {
     
     // Graffiti boxes & Music boxes
     else if name.ends_with("box") {
-        if name.contains(&"graffiti") { gun_sticker_case = "graffiti box".to_string() } 
+        if name.contains("graffiti") { gun_sticker_case = "graffiti box".to_string() } 
         else { gun_sticker_case = "music kit box".to_string() }
 
         skin_name = name.replace(" graffiti box", "").replace(" music kit box", "").replace(" box", "");
-        
-        SPECIAL.iter().find( |&&s| skin_name.contains(s) ).map( |found| {
+
+        if let Some(found) = SPECIAL.iter().find( |&&s| skin_name.contains(s) ) {
             skin_name = skin_name.replace( format!("{} ", found).as_str(), "");
             skin_name.push_str( format!(" {}", found).as_str() );
-        });
+        }
     }
 
     // Passes
@@ -250,7 +248,7 @@ pub fn metadata_from_market_name(s_m_n: &str) -> [String; 3] {
             .filter(|&&f| name.contains(f))
             .max_by_key(|&&f| f.len() )
             .copied()
-            .unwrap_or(&"")
+            .unwrap_or("")
             .to_string();
         
         let skin_name_temp = name.replace(&gun_sticker_case, "")

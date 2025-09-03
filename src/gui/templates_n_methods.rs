@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path};
 use std::str::FromStr;
 use std::{borrow::Borrow, sync::LazyLock};
 
@@ -21,15 +21,10 @@ const RAD_SEC: Radius = Radius { top_left: 1.0, top_right: 1.0, bottom_right: 1.
 
 const ENGLISH_CHARS: [char; 26] = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'];
 
-pub fn path_to_file_name(path: &PathBuf) -> Option<String> {
-    let p = path.to_str()
-        .and_then(|s| Some (s.split("\\")
-        .collect::<Vec<&str>>() ));
-
-    match p {
-        Some(p) => { Some(p[p.len() - 1].to_string()) }
-        None => None
-    }
+pub fn path_to_file_name(path: &Path) -> Option<String> {
+    path.to_str()
+        .map(|s| s.split("\\").collect::<Vec<&str>>() )
+        .map(|p| p[p.len() - 1].to_string())
 }
 
 pub fn padding_inner<'a, Exec>(width: impl Into<Length>) -> Container<'a, Exec, Theme, Renderer> {
@@ -137,7 +132,7 @@ where
         .width(Length::Fill),
 
         text_editor(editor_state)
-            .on_action(move |act| exec(act))
+            .on_action(exec)
             .height(editor_height)
             .placeholder( field_placeholder.into() )
             .wrapping(Wrapping::WordOrGlyph),
@@ -200,8 +195,8 @@ where
         ].spacing(5),
         text_input(
             &field_placeholder.into(), 
-            field_value.as_ref().unwrap_or_else(|| &empty)
-        ).on_input(move |id| on_input(id))
+            field_value.as_ref().unwrap_or(&empty)
+        ).on_input(on_input)
         .width( Length::Fill)
     ].width( width )
     .padding(5)
@@ -240,13 +235,11 @@ where
         .on_input(move |e| on_input((e, *on_input_range.start(), *on_input_range.end())))
         .on_submit_maybe(
             Some(
-                ( ||{ 
-                    on_submit( {
-                        if value < *range.start() { *range.start() } 
-                        else if value > *range.end() { *range.end() } 
-                        else { value }
-                    } )
-                })()
+                on_submit( {
+                    if value < *range.start() { *range.start() } 
+                    else if value > *range.end() { *range.end() } 
+                    else { value }
+                } )
             ) 
         )
     ].width(width)

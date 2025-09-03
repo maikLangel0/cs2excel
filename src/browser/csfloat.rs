@@ -25,7 +25,7 @@ pub async fn fetch_iteminfo(
             format!("GET Request failed! {} Response text: {:#?}", 
                 &response.status(), 
                 &response.text().await.map_err(|_| String::from("Should never happen"))? 
-            ).into() 
+            )
         ) 
     }
     
@@ -34,7 +34,7 @@ pub async fn fetch_iteminfo(
             .text()
             .await
             .map_err(|e| format!("Could not turn json into text wat | {}.",e))? 
-    ).map_err( |_| format!("Could not turn text into serde json value what.") )?;
+    ).map_err( |_| String::from("Could not turn text into serde json value what.") )?;
     
     let iteminfo: Value = json_obj.get("iteminfo")
         .unwrap_or( &Value::Null )

@@ -16,8 +16,8 @@ pub async fn get_spreadsheet(path: &mut Option<PathBuf>, sheet_name: &mut Option
 
         if !new {
             let filename = path.as_ref()
-                .map(|p| p.to_str().unwrap_or_else(|| "| Failed PathBuf to_str |"))
-                .unwrap_or_else(|| "Path to the spreadsheet not set!")
+                .map(|p| p.to_str().unwrap_or("| Failed PathBuf to_str |"))
+                .unwrap_or("Path to the spreadsheet not set!")
                 .split("\\")
                 .collect::<Vec<&str>>();
             
@@ -28,7 +28,7 @@ pub async fn get_spreadsheet(path: &mut Option<PathBuf>, sheet_name: &mut Option
         }
         else {
             progress.send(Progress { 
-                message: format!("WARNING: Created a new spreadsheet as one with the path\n{}\ndidn't exist.\n",path.clone().unwrap_or_else(|| PathBuf::from("C\\Users\\Goober")).to_string_lossy()), 
+                message: format!("WARNING: Created a new spreadsheet as one with the path\n{}\ndidn't exist.\n",path.clone().map(|p| p.to_string_lossy().to_string()).unwrap_or("C\\Users\\Goober".to_string())), 
                 percent: 0.0 
             }).await;
         }
@@ -103,8 +103,7 @@ pub async fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo, ignore_sold
                 if let Some(cell) = sheet.get_cell(cell_special) {
 
                     let cell_value = cell.get_raw_value().to_string().trim().to_string();
-                    if cell_value.is_empty() { None } 
-                    else if Doppler::from_str(&cell_value).is_err() { None }
+                    if Doppler::from_str(&cell_value).is_err() { None }
                     else { Some(cell_value) }
 
                 } else { None }

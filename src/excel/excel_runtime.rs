@@ -38,7 +38,7 @@ pub fn run_program(
             ItemInfoProvider::Csgotrader => { csgotrader::new_extra_iteminfo_client() }
             ItemInfoProvider::None => { Client::new() }
         };
-
+        
         let iteminfo_client: &mut Client = &mut iteminfo_client_base;
 
         // -----------------------------------------------------------------------------------------------
@@ -67,7 +67,7 @@ pub fn run_program(
                 percent: 0.0 }
             ).await;
         }
-        let cs_inv_len = cs_inv.as_ref().and_then(|i| Some(i.len())).or_else(|| Some(0)).unwrap_or_else(|| 0);
+        let cs_inv_len = cs_inv.as_ref().map(|i| i.len()).unwrap_or(0);
 
         // -----------------------------------------------------------------------------------------------
 
@@ -91,7 +91,7 @@ pub fn run_program(
                         "Failed to get the first sheet in the spreadsheet with path: \n{:?}", excel.path_to_sheet.as_ref())
                     )?
                 }  
-            } else { book.get_sheet_mut(&0).ok_or_else(|| "Failed to get first sheet provided by new file creation.")? }
+            } else { book.get_sheet_mut(&0).ok_or("Failed to get first sheet provided by new file creation.")? }
         };
 
         let rate = get_exchange_rate(&user.usd_to_x, &excel.rowcol_usd_to_x, sheet).await?;
@@ -133,9 +133,10 @@ pub fn run_program(
                     Some((index, data)) => {
 
                         // Skip item if item is in ignore market names
-                        if let Some(ignore) = &user.ingore_steam_names { 
-                            if ignore.iter().any(|n| data.name == *n.trim() ) { continue; }
+                        if let Some(ignore) = &user.ingore_steam_names && ignore.iter().any(|n| data.name == *n.trim()) { 
+                            continue;
                         }
+                        
 
                         let row_in_excel: usize = index + excel.row_start_write_in_table as usize;
 
@@ -144,7 +145,7 @@ pub fn run_program(
                         if data.phase.is_some() && user.iteminfo_provider != ItemInfoProvider::None && steamdata.inspect_link.is_some() {}
                         else { 
                             update_quantity_exceldata(
-                                &steamdata, 
+                                steamdata, 
                                 &excel.col_quantity, 
                                 data, 
                                 row_in_excel, 
@@ -192,7 +193,7 @@ pub fn run_program(
                                     &user.iteminfo_provider, 
                                     &excel.col_inspect_link, 
                                     user.pause_time_ms, 
-                                    &steamdata,
+                                    steamdata,
                                     &mut progress
                                 ).await?
                             } else { None }
@@ -201,7 +202,7 @@ pub fn run_program(
                         exceldata.push( 
                             insert_new_exceldata(
                                 &user, &excel, 
-                                &steamdata, 
+                                steamdata, 
                                 &extra_itemdata,
                                 &markets_to_check, 
                                 &all_market_prices, 
@@ -226,21 +227,19 @@ pub fn run_program(
                     &user.iteminfo_provider, 
                     &excel.col_inspect_link, 
                     user.pause_time_ms, 
-                    &steamdata,
+                    steamdata,
                     &mut progress
-                ).await?.ok_or_else(|| "group_simular_items' path for dopplers failed WHAT")?;
+                ).await?.ok_or("group_simular_items' path for dopplers failed WHAT")?;
 
-                let phase: &Option<String> = &extra_itemdata.phase
-                    .as_ref()
-                    .and_then( |p| Some( p.as_str() ) )
-                    .map( str::to_owned );
+                let phase: &Option<String> = &extra_itemdata.phase.as_ref()
+                    .map(|p| p.as_str().to_string());
 
                 match exceldata.iter_mut().enumerate().find( |(_, e)| e.name == steamdata.name && e.phase == *phase ) {
                     Some((index, data)) => {
                         let row_in_excel: usize = index + excel.row_start_write_in_table as usize;
 
                         update_quantity_exceldata(
-                            &steamdata, 
+                            steamdata, 
                             &excel.col_quantity, 
                             data, 
                             row_in_excel, 
@@ -259,7 +258,7 @@ pub fn run_program(
                         exceldata.push( 
                             insert_new_exceldata(
                                 &user, &excel,
-                                &steamdata,
+                                steamdata,
                                 &Some(extra_itemdata),
                                 &markets_to_check,
                                 &all_market_prices,
@@ -279,7 +278,7 @@ pub fn run_program(
                 // DO NOT INSERT NEW STUFF IF THERE IS A LIMITER ON WHERE TO STOP WRITING
                 if excel.row_stop_write_in_table.is_some() { break; }
 
-                if exceldata.iter().find(|e| e.asset_id == Some(steamdata.asset_id) && e.name == steamdata.name).is_none() {
+                if !exceldata.iter().any(|e| e.asset_id == Some(steamdata.asset_id) && e.name == steamdata.name) {
                     let row_in_excel: usize = exceldata.len() + excel.row_start_write_in_table as usize;
 
                     let extra_itemdata: Option<ExtraItemData> = wrapper_fetch_iteminfo_via_itemprovider_persistent(
@@ -287,14 +286,14 @@ pub fn run_program(
                         &user.iteminfo_provider, 
                         &excel.col_inspect_link,
                         user.pause_time_ms, 
-                        &steamdata,
+                        steamdata,
                         &mut progress
                     ).await?;
 
                     exceldata.push( 
                         insert_new_exceldata(
                             &user, &excel,
-                            &steamdata,
+                            steamdata,
                             &extra_itemdata,
                             &markets_to_check,
                             &all_market_prices,
@@ -330,10 +329,10 @@ pub fn run_program(
             }
 
             let row_in_excel = i + excel.row_start_write_in_table as usize;
-            if let Some(stop_write) = excel.row_stop_write_in_table {
-                if row_in_excel >= stop_write as usize { break }
+            if let Some(stop_write) = excel.row_stop_write_in_table && row_in_excel >= stop_write as usize { 
+                break 
             }
-
+            
             let cell_price = format!("{}{}", excel.col_price, row_in_excel);
 
             let doppler: Option<Doppler> = {
@@ -348,7 +347,6 @@ pub fn run_program(
                 &all_market_prices, 
                 rate, 
                 &data.name, 
-                &data.phase, 
                 &doppler,
                 &mut progress
             ).await?;
@@ -357,11 +355,9 @@ pub fn run_program(
                 sheet.get_cell_value_mut(cell_price).set_value_number(pris);
             }
 
-            if let Some(marked) = market {
-                if let Some(col_market) = &excel.col_market {
-                    let cell_market = format!("{}{}", col_market, row_in_excel);
-                    sheet.get_cell_value_mut(cell_market).set_value_string(marked);
-                }
+            if let Some(marked) = market && let Some(col_market) = &excel.col_market {
+                let cell_market = format!("{}{}", col_market, row_in_excel);
+                sheet.get_cell_value_mut(cell_market).set_value_string(marked);
             }
         }
 
@@ -408,10 +404,8 @@ pub fn is_user_input_valid(user: &UserInfo, excel: &SheetInfo) -> Result<(), Str
     
     // --------------------
 
-    if excel.path_to_sheet.is_some() { 
-        if excel.sheet_name.is_none() {
-            return Err( String::from( "Sheet name can't be nothing if path to sheet is given." ) )
-        }
+    if excel.path_to_sheet.is_some() && excel.sheet_name.is_none() {
+         return Err( String::from( "Sheet name can't be nothing if path to sheet is given." ) )
     }
 
     if excel.col_inspect_link.is_none() {
@@ -458,16 +452,16 @@ pub fn is_user_input_valid(user: &UserInfo, excel: &SheetInfo) -> Result<(), Str
         return Err(String::from("col_price has to be given if you want to fetch prices!"))
     }
 
-    if let Some(date) = &excel.rowcol_date {
-        if !valid_cell_check(&date) { return Err( String::from("format of cell date is not valid!") ) }
+    if let Some(date) = &excel.rowcol_date && !valid_cell_check(date) { 
+        return Err( String::from("format of cell date is not valid!") )
     }
 
-    if let Some(utx) = &excel.rowcol_usd_to_x {
-        if !valid_cell_check(&utx) { return Err( String::from("format of cell usd_to_x is not valid!") ) }
+    if let Some(utx) = &excel.rowcol_usd_to_x && !valid_cell_check(utx) { 
+        return Err( String::from("format of cell usd_to_x is not valid!") )
     }
 
-    if let Some(stop) = excel.row_stop_write_in_table {
-        if excel.row_start_write_in_table < stop { return Err( String::from("Start write can't be less than stop write!")) }
+    if let Some(stop) = excel.row_stop_write_in_table && excel.row_start_write_in_table < stop { 
+        return Err( String::from("Start write can't be less than stop write!")) 
     }
 
     let mut all_excel: Vec<String> = Vec::from([excel.col_price.to_string(), excel.col_steam_name.to_string()]);
@@ -514,6 +508,5 @@ fn valid_cell_check(s: &str) -> bool {
 
     dprintln!("Sign: {}", final_signature);
     
-    if !valid_signatures.contains(&final_signature.as_str()) { return false }
-    else { true }
+    valid_signatures.contains(&final_signature.as_str())
 }
