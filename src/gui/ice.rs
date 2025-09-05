@@ -1020,7 +1020,7 @@ pub fn init_gui() -> Result<(), iced::Error> {
                 resizable: true, 
                 decorations: true, 
                 position: window::Position::Centered,
-                icon: icon::from_file("C:\\Users\\Mikae\\Desktop\\rusted\\cs2exe\\assets\\images\\whatsapp_is_calling.ico").ok(), 
+                icon: icon::from_file(".\\assets\\images\\whatsapp_is_calling.ico").ok(), 
                 ..Default::default() 
             }
         );
