@@ -3,6 +3,4 @@
 <img src=".\assets\images\cs2excel_showcase.gif"/>
 <h3>Building from source</h3>
 <p>Clone the repo:</p>
-```
-lol
-```
+# Idiot
