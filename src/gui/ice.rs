@@ -16,7 +16,7 @@ use crate::models::{price::{Currencies, PricingMode, PricingProvider}, user_shee
 use strum::IntoEnumIterator;
 use rfd::AsyncFileDialog;
 
-const FILL_PORTION: Length = Length::FillPortion(1);
+const FILL: Length = Length::Fill;
 const NAUR_BYTES: &[u8] = include_bytes!("../../assets/images/peak_naur.png");
 const ADDITIONAL_INFO: &str = "IMPORTANT INFO: \
     \n\nEXCEL FILE NEEDS TO CLOSED THE INSTANCE YOU START THE PROGRAM AND THE INSTANCE THE PROGRAM ENDS! HAVING THE FILE OPEN WHEN CLICKING 'Run' WILL RESULT IN AN ERROR. IF PROGRAM IS OPEN AT THE END OF ITERATION, WRITING TO THE EXCEL FILE WILL NOT BE SUCCESSFUL.
@@ -573,7 +573,7 @@ impl App {
                 state.pick_list_usd_to_x,
                 Some( user.usd_to_x ),
                 Exec::UsdToX,
-                FILL_PORTION
+                FILL
             ) 
         };
 
@@ -585,7 +585,7 @@ impl App {
                 state.pick_list_pricing_provider, 
                 Some( user.pricing_provider ), 
                 Exec::PricingProvider,
-                FILL_PORTION
+                FILL
             )
         };
 
@@ -597,7 +597,7 @@ impl App {
                 state.pick_list_pricing_mode, 
                 Some( user.pricing_mode ), 
                 Exec::PricingMode,
-                FILL_PORTION
+                FILL
             )
         };
         
@@ -607,7 +607,7 @@ impl App {
             state.pick_list_iteminfo_provider, 
             Some( user.iteminfo_provider ),
             Exec::IteminfoProvider,
-            FILL_PORTION
+            FILL
         );
 
         // All convert to numbers ------------------------------
@@ -620,7 +620,7 @@ impl App {
                 "Ex: 76561198389123475", 
                 Some( &state.text_input_steamid ), 
                 Exec::Steamid, 
-                FILL_PORTION
+                FILL
             )
         };
         let steamloginsecure = if !user.fetch_steam { column![] } 
@@ -632,7 +632,7 @@ impl App {
                 "Ex: 76561198389123475%7C%7CeyAidHlwIjogIkpXVCIsICJhbGciOiAiRWREU0EiIH0...", 
                 user.steamloginsecure.as_ref(), 
                 Exec::SteamLoginSecure, 
-                FILL_PORTION
+                FILL
             )
         };
         let row_start_write = text_input_template(
@@ -642,7 +642,7 @@ impl App {
             "Ex: 2", 
             Some( &state.text_input_row_start_write_in_table ), 
             Exec::RowStartWrite, 
-            FILL_PORTION
+            FILL
         );
         let row_stop_write = text_input_template(
             "Which row you want the program to stop reading and writing to your spreadsheet. Keep empty to read the whole table.",
@@ -651,7 +651,7 @@ impl App {
             "Ex: 99 OR no input", 
             Some( &state.text_input_row_stop_write_in_table ), 
             Exec::RowStopWrite, 
-            FILL_PORTION
+            FILL
         );
 
         // Sliders and text editors ------------------------------
@@ -666,7 +666,7 @@ impl App {
                 &state.text_pause_time_ms,
                 Exec::PauseTimeMs,
                 Exec::TextPauseTimeMs,
-                FILL_PORTION
+                FILL
             )
         };
         let ignore_steam_names = text_editor_template( 
@@ -675,7 +675,7 @@ impl App {
             "(Names Seperated By ',')",
             &state.editor_ignore_steam_names, 
             100,
-            FILL_PORTION,
+            FILL,
             (400.0, 125.0),
             Exec::IgnoreSteamNames
         );
@@ -687,7 +687,7 @@ impl App {
                 "(Market Names Seperated By ',')",
                 &state.editor_prefer_markets, 
                 100,
-                FILL_PORTION,
+                FILL,
                 (400.0, 125.0),
                 Exec::PreferMarkets
             )
@@ -702,7 +702,7 @@ impl App {
                 &state.text_percent_threshold,
                 Exec::PercentThreshold,
                 Exec::TextPercentThreshold,
-                FILL_PORTION)
+                FILL)
         } else { column![] };
 
         // Misc
@@ -713,7 +713,7 @@ impl App {
             "Ex: Sheet1", 
             sheet.sheet_name.as_ref(), 
             Exec::SheetName, 
-            FILL_PORTION
+            FILL
         );
 
         // Cols
@@ -724,7 +724,7 @@ impl App {
             "Ex: A", 
             Some( &sheet.col_steam_name ), 
             Exec::ColSteamName, 
-            FILL_PORTION
+            FILL
         );
         let col_price = if !user.fetch_prices { column![] } 
         else {
@@ -735,7 +735,7 @@ impl App {
                 "Ex: I", 
                 Some( &sheet.col_price ), 
                 Exec::ColPrice, 
-                FILL_PORTION
+                FILL
             )
         };
         let col_gun_sticker_case = text_input_template(
@@ -745,7 +745,7 @@ impl App {
             "Ex: B", 
             sheet.col_gun_sticker_case.as_ref(), 
             Exec::ColGunStickerCase, 
-            FILL_PORTION
+            FILL
         );
         let col_skin_name = text_input_template(
             "Name of column where the skin name can be written (Ex: blue laminate)",
@@ -754,7 +754,7 @@ impl App {
             "Ex: C", 
             sheet.col_skin_name.as_ref(), 
             Exec::ColSkinName, 
-            FILL_PORTION
+            FILL
         );
         let col_wear = text_input_template(
             "Name of column where the wear/variant can be written (Ex: fn, holo, holo-foil)",
@@ -763,7 +763,7 @@ impl App {
             "Ex: D", 
             sheet.col_wear.as_ref(), 
             Exec::ColWear, 
-            FILL_PORTION
+            FILL
         );
         let col_float = if user.iteminfo_provider == ItemInfoProvider::None || sheet.col_inspect_link.is_none() { column![] }
         else {
@@ -774,7 +774,7 @@ impl App {
                 "Ex: E", 
                 sheet.col_float.as_ref(), 
                 Exec::ColFloat, 
-                FILL_PORTION
+                FILL
             )
         };
         let col_pattern = if user.iteminfo_provider == ItemInfoProvider::None || sheet.col_inspect_link.is_none() { column![] }
@@ -786,7 +786,7 @@ impl App {
                 "Ex: F", 
                 sheet.col_pattern.as_ref(), 
                 Exec::ColPattern, 
-                FILL_PORTION
+                FILL
             )
         };
         let col_phase = if user.iteminfo_provider == ItemInfoProvider::None || sheet.col_inspect_link.is_none() { column![] }
@@ -798,7 +798,7 @@ impl App {
                 "Ex: G", 
                 sheet.col_phase.as_ref(), 
                 Exec::ColPhase, 
-                FILL_PORTION
+                FILL
             )
         };
         let col_quantity = text_input_template(
@@ -808,7 +808,7 @@ impl App {
             "Ex: H", 
             sheet.col_quantity.as_ref(), 
             Exec::ColQuantity, 
-            FILL_PORTION
+            FILL
         );
         let col_market = if !user.fetch_prices { column![] } 
         else {
@@ -819,7 +819,7 @@ impl App {
                 "Ex: J", 
                 sheet.col_market.as_ref(), 
                 Exec::ColMarket, 
-                FILL_PORTION
+                FILL
             )
         };
         let col_sold = if !user.fetch_prices || !user.ignore_already_sold { column![] } 
@@ -831,7 +831,7 @@ impl App {
                 "Ex: K", 
                 sheet.col_sold.as_ref(), 
                 Exec::ColSold, 
-                FILL_PORTION
+                FILL
             )
         };
         let col_inspect_link = if !user.fetch_prices { column![] } 
@@ -843,7 +843,7 @@ impl App {
                 "Ex: L", 
                 sheet.col_inspect_link.as_ref(), 
                 Exec::ColInspectLink, 
-                FILL_PORTION
+                FILL
             )
         };
         let col_csgoskins_link = text_input_template(
@@ -853,7 +853,7 @@ impl App {
             "Ex: M", 
             sheet.col_csgoskins_link.as_ref(), 
             Exec::ColCsgoskinsLink, 
-            FILL_PORTION
+            FILL
         );
         let col_assetid = if user.group_simular_items { column![] } 
         else {
@@ -864,7 +864,7 @@ impl App {
                 "Ex: N", 
                 sheet.col_asset_id.as_ref(), 
                 Exec::ColAssetId, 
-                FILL_PORTION
+                FILL
             )
         };
 
@@ -876,7 +876,7 @@ impl App {
             "Ex: O2 | $O2 | O$2 | $O$2", 
             sheet.rowcol_date.as_ref(), 
             Exec::CellDate, 
-            FILL_PORTION
+            FILL
         );
         let cell_usd_to_x = if user.usd_to_x != Currencies::None || !user.fetch_prices { column![] }
         else { 
@@ -887,7 +887,7 @@ impl App {
                 "Ex: P2 | $P2 | P$2 | $P$2", 
                 sheet.rowcol_usd_to_x.as_ref(), 
                 Exec::CellUsdToX, 
-                FILL_PORTION
+                FILL
             )
         };
 
@@ -900,7 +900,7 @@ impl App {
                 Err(e) => { e.to_string() }
             },
             None::<Pixels>,
-            Some( FILL_PORTION ), 
+            Some( FILL ), 
             None::<Length>,
             Exec::BeginSaveData
         );
@@ -912,7 +912,7 @@ impl App {
                 Err(e) => { e.to_string() }
             },
             None::<Pixels>,
-            Some( FILL_PORTION ), 
+            Some( FILL ), 
             None::<Length>,
             Exec::BeginLoadData
         );
@@ -927,14 +927,14 @@ impl App {
                 None => String::from("Path to sheet"),
             },
             None::<Pixels>,
-            Some( FILL_PORTION ), 
+            Some( FILL ), 
             None::<Length>,
             Exec::BeginPathToSheet 
         );
         let run_program = btn_base(
             "Run", 
             None::<Pixels>, 
-            Some( FILL_PORTION ), 
+            Some( FILL ), 
             None::<Length>, 
             Exec::BeginRun
         );
