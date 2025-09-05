@@ -34,6 +34,7 @@ num-traits = "0.2.19"
 rfd = { version = "0.15.4", features = ["file-handle-inner"] }
 sipper = "0.1.0"
 dirs = "6.0.0"
+open = "5.3.2"
 
 # indexmap = { version = "2.10.0" }
 

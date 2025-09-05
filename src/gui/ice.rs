@@ -6,7 +6,7 @@ use iced::widget::text_editor::{Content, Edit};
 use iced::alignment::Horizontal;
 use iced::widget::{checkbox, column, container, horizontal_rule, image, row, text_editor, Column, Row};
 use iced::window::{Settings, icon};
-use iced::{window, Element, Length, Size, Task, Subscription};
+use iced::{window, Element, Length, Pixels, Size, Subscription, Task};
 
 use crate::dprintln;
 use crate::excel::excel_runtime::{self, is_user_input_valid};
@@ -16,14 +16,17 @@ use crate::models::{price::{Currencies, PricingMode, PricingProvider}, user_shee
 use strum::IntoEnumIterator;
 use rfd::AsyncFileDialog;
 
-const NO_LEN: Option<Length> = None;
-const STD_LEN: Length = Length::FillPortion(4);
+const FILL_PORTION: Length = Length::FillPortion(1);
 const NAUR_BYTES: &[u8] = include_bytes!("../../assets/images/peak_naur.png");
 const ADDITIONAL_INFO: &str = "IMPORTANT INFO: \
     \n\nEXCEL FILE NEEDS TO CLOSED THE INSTANCE YOU START THE PROGRAM AND THE INSTANCE THE PROGRAM ENDS! HAVING THE FILE OPEN WHEN CLICKING 'Run' WILL RESULT IN AN ERROR. IF PROGRAM IS OPEN AT THE END OF ITERATION, WRITING TO THE EXCEL FILE WILL NOT BE SUCCESSFUL.
     \nPlease always have a recent up-to-date backup of your spreadsheet(s) \
     \nPlease make sure the rows of the table has no gaps in it. if it does the program will not recognize the whole table and add information in random, not intended places.
     \n'?' next to the name of an input means that thing is OPTIONAL";
+
+const CS2TRADER: &str = "https://csgotrader.app/";
+const CS2TRADER_REPO: &str = "https://github.com/gergelyszabo94/csgo-trader-extension";
+const CS2EXCEL_REPO: &str = "https://github.com/maikLangel0/cs2excel";
 
 #[derive(Debug, Clone)]
 pub struct Progress {
@@ -91,6 +94,8 @@ pub enum Exec {
     RuntimeResult(text_editor::Action),
 
     WindowResized(Size),
+    BeginOpenUrl(&'static str),
+    FinishOpenUrl(Result<(), String>),
     //Exit,
 }
 
@@ -203,7 +208,7 @@ impl Default for App {
 impl App {
     fn update(state: &mut Self, exec: Exec) -> Task<Exec> {
         if state.is_file_dialog_open && !matches!( exec, Exec::FinishLoadData(_) | Exec::FinishSaveData(_) /*| Exec::Exit */| Exec::FinishPathToSheet(_)) { return Task::none() }
-        if state.is_excel_running && !matches!(exec, Exec::UpdateRun(_) | Exec::FinishRun(_)) { return Task::none() }
+        if state.is_excel_running && !matches!(exec, Exec::UpdateRun(_) | Exec::FinishRun(_) | Exec::BeginOpenUrl(_)) { return Task::none() }
 
         let user = &mut state.usersheet.user;
         let sheet = &mut state.usersheet.sheet;
@@ -494,6 +499,22 @@ impl App {
                 }
                 state.is_excel_running = false;
                 Task::none()
+            },
+            Exec::BeginOpenUrl(s) => {
+                Task::perform(
+                    async move { open::that(s).map_err(|_| String::from("Failed to open URL")) }, 
+                    Exec::FinishOpenUrl
+                )
+            },
+            Exec::FinishOpenUrl(res) => {
+                match res {
+                    Ok(_) => {dprintln!("Worked :D")},
+                    Err(e) => {
+                        state.editor_runtime_result.perform( text_editor::Action::Edit( Edit::Paste( Arc::new(format!("\nError!\n{}", e))))); 
+                        dprintln!("{}", e)
+                    },
+                };
+                Task::none()
             }
         }
     }
@@ -552,7 +573,7 @@ impl App {
                 state.pick_list_usd_to_x,
                 Some( user.usd_to_x ),
                 Exec::UsdToX,
-                STD_LEN
+                FILL_PORTION
             ) 
         };
 
@@ -564,7 +585,7 @@ impl App {
                 state.pick_list_pricing_provider, 
                 Some( user.pricing_provider ), 
                 Exec::PricingProvider,
-                STD_LEN
+                FILL_PORTION
             )
         };
 
@@ -576,7 +597,7 @@ impl App {
                 state.pick_list_pricing_mode, 
                 Some( user.pricing_mode ), 
                 Exec::PricingMode,
-                STD_LEN
+                FILL_PORTION
             )
         };
         
@@ -586,7 +607,7 @@ impl App {
             state.pick_list_iteminfo_provider, 
             Some( user.iteminfo_provider ),
             Exec::IteminfoProvider,
-            STD_LEN
+            FILL_PORTION
         );
 
         // All convert to numbers ------------------------------
@@ -599,7 +620,7 @@ impl App {
                 "Ex: 76561198389123475", 
                 Some( &state.text_input_steamid ), 
                 Exec::Steamid, 
-                STD_LEN
+                FILL_PORTION
             )
         };
         let steamloginsecure = if !user.fetch_steam { column![] } 
@@ -611,7 +632,7 @@ impl App {
                 "Ex: 76561198389123475%7C%7CeyAidHlwIjogIkpXVCIsICJhbGciOiAiRWREU0EiIH0...", 
                 user.steamloginsecure.as_ref(), 
                 Exec::SteamLoginSecure, 
-                STD_LEN
+                FILL_PORTION
             )
         };
         let row_start_write = text_input_template(
@@ -621,7 +642,7 @@ impl App {
             "Ex: 2", 
             Some( &state.text_input_row_start_write_in_table ), 
             Exec::RowStartWrite, 
-            STD_LEN
+            FILL_PORTION
         );
         let row_stop_write = text_input_template(
             "Which row you want the program to stop reading and writing to your spreadsheet. Keep empty to read the whole table.",
@@ -630,7 +651,7 @@ impl App {
             "Ex: 99 OR no input", 
             Some( &state.text_input_row_stop_write_in_table ), 
             Exec::RowStopWrite, 
-            STD_LEN
+            FILL_PORTION
         );
 
         // Sliders and text editors ------------------------------
@@ -645,7 +666,7 @@ impl App {
                 &state.text_pause_time_ms,
                 Exec::PauseTimeMs,
                 Exec::TextPauseTimeMs,
-                STD_LEN
+                FILL_PORTION
             )
         };
         let ignore_steam_names = text_editor_template( 
@@ -654,7 +675,7 @@ impl App {
             "(Names Seperated By ',')",
             &state.editor_ignore_steam_names, 
             100,
-            STD_LEN,
+            FILL_PORTION,
             (400.0, 125.0),
             Exec::IgnoreSteamNames
         );
@@ -666,7 +687,7 @@ impl App {
                 "(Market Names Seperated By ',')",
                 &state.editor_prefer_markets, 
                 100,
-                STD_LEN,
+                FILL_PORTION,
                 (400.0, 125.0),
                 Exec::PreferMarkets
             )
@@ -681,7 +702,7 @@ impl App {
                 &state.text_percent_threshold,
                 Exec::PercentThreshold,
                 Exec::TextPercentThreshold,
-                STD_LEN)
+                FILL_PORTION)
         } else { column![] };
 
         // Misc
@@ -692,7 +713,7 @@ impl App {
             "Ex: Sheet1", 
             sheet.sheet_name.as_ref(), 
             Exec::SheetName, 
-            STD_LEN
+            FILL_PORTION
         );
 
         // Cols
@@ -703,7 +724,7 @@ impl App {
             "Ex: A", 
             Some( &sheet.col_steam_name ), 
             Exec::ColSteamName, 
-            STD_LEN
+            FILL_PORTION
         );
         let col_price = if !user.fetch_prices { column![] } 
         else {
@@ -714,7 +735,7 @@ impl App {
                 "Ex: I", 
                 Some( &sheet.col_price ), 
                 Exec::ColPrice, 
-                STD_LEN
+                FILL_PORTION
             )
         };
         let col_gun_sticker_case = text_input_template(
@@ -724,7 +745,7 @@ impl App {
             "Ex: B", 
             sheet.col_gun_sticker_case.as_ref(), 
             Exec::ColGunStickerCase, 
-            STD_LEN
+            FILL_PORTION
         );
         let col_skin_name = text_input_template(
             "Name of column where the skin name can be written (Ex: blue laminate)",
@@ -733,7 +754,7 @@ impl App {
             "Ex: C", 
             sheet.col_skin_name.as_ref(), 
             Exec::ColSkinName, 
-            STD_LEN
+            FILL_PORTION
         );
         let col_wear = text_input_template(
             "Name of column where the wear/variant can be written (Ex: fn, holo, holo-foil)",
@@ -742,7 +763,7 @@ impl App {
             "Ex: D", 
             sheet.col_wear.as_ref(), 
             Exec::ColWear, 
-            STD_LEN
+            FILL_PORTION
         );
         let col_float = if user.iteminfo_provider == ItemInfoProvider::None || sheet.col_inspect_link.is_none() { column![] }
         else {
@@ -753,7 +774,7 @@ impl App {
                 "Ex: E", 
                 sheet.col_float.as_ref(), 
                 Exec::ColFloat, 
-                STD_LEN
+                FILL_PORTION
             )
         };
         let col_pattern = if user.iteminfo_provider == ItemInfoProvider::None || sheet.col_inspect_link.is_none() { column![] }
@@ -765,7 +786,7 @@ impl App {
                 "Ex: F", 
                 sheet.col_pattern.as_ref(), 
                 Exec::ColPattern, 
-                STD_LEN
+                FILL_PORTION
             )
         };
         let col_phase = if user.iteminfo_provider == ItemInfoProvider::None || sheet.col_inspect_link.is_none() { column![] }
@@ -777,7 +798,7 @@ impl App {
                 "Ex: G", 
                 sheet.col_phase.as_ref(), 
                 Exec::ColPhase, 
-                STD_LEN
+                FILL_PORTION
             )
         };
         let col_quantity = text_input_template(
@@ -787,7 +808,7 @@ impl App {
             "Ex: H", 
             sheet.col_quantity.as_ref(), 
             Exec::ColQuantity, 
-            STD_LEN
+            FILL_PORTION
         );
         let col_market = if !user.fetch_prices { column![] } 
         else {
@@ -798,7 +819,7 @@ impl App {
                 "Ex: J", 
                 sheet.col_market.as_ref(), 
                 Exec::ColMarket, 
-                STD_LEN
+                FILL_PORTION
             )
         };
         let col_sold = if !user.fetch_prices || !user.ignore_already_sold { column![] } 
@@ -810,7 +831,7 @@ impl App {
                 "Ex: K", 
                 sheet.col_sold.as_ref(), 
                 Exec::ColSold, 
-                STD_LEN
+                FILL_PORTION
             )
         };
         let col_inspect_link = if !user.fetch_prices { column![] } 
@@ -822,7 +843,7 @@ impl App {
                 "Ex: L", 
                 sheet.col_inspect_link.as_ref(), 
                 Exec::ColInspectLink, 
-                STD_LEN
+                FILL_PORTION
             )
         };
         let col_csgoskins_link = text_input_template(
@@ -832,18 +853,18 @@ impl App {
             "Ex: M", 
             sheet.col_csgoskins_link.as_ref(), 
             Exec::ColCsgoskinsLink, 
-            STD_LEN
+            FILL_PORTION
         );
         let col_assetid = if user.group_simular_items { column![] } 
         else {
             text_input_template(
                 "Name of column where the assetID of the items in your inventory can be written and read. This is to seperate items with the same name when you do not want to group simular items.",
-                (300.0, 100.0), 
+                (350.0, 100.0), 
                 "Col assetid", 
                 "Ex: N", 
                 sheet.col_asset_id.as_ref(), 
                 Exec::ColAssetId, 
-                STD_LEN
+                FILL_PORTION
             )
         };
 
@@ -855,7 +876,7 @@ impl App {
             "Ex: O2 | $O2 | O$2 | $O$2", 
             sheet.rowcol_date.as_ref(), 
             Exec::CellDate, 
-            STD_LEN
+            FILL_PORTION
         );
         let cell_usd_to_x = if user.usd_to_x != Currencies::None || !user.fetch_prices { column![] }
         else { 
@@ -866,7 +887,7 @@ impl App {
                 "Ex: P2 | $P2 | P$2 | $P$2", 
                 sheet.rowcol_usd_to_x.as_ref(), 
                 Exec::CellUsdToX, 
-                STD_LEN
+                FILL_PORTION
             )
         };
 
@@ -878,7 +899,9 @@ impl App {
                     else { String::from("Save") }},
                 Err(e) => { e.to_string() }
             },
-            Some( STD_LEN ), NO_LEN,
+            None::<Pixels>,
+            Some( FILL_PORTION ), 
+            None::<Length>,
             Exec::BeginSaveData
         );
         let load = btn_base(
@@ -888,7 +911,9 @@ impl App {
                     else { String::from("Load") }},
                 Err(e) => { e.to_string() }
             },
-            Some( STD_LEN ), NO_LEN,
+            None::<Pixels>,
+            Some( FILL_PORTION ), 
+            None::<Length>,
             Exec::BeginLoadData
         );
         let path_to_sheet = btn_base( 
@@ -901,10 +926,40 @@ impl App {
                 ),
                 None => String::from("Path to sheet"),
             },
-            Some( STD_LEN ), NO_LEN,
+            None::<Pixels>,
+            Some( FILL_PORTION ), 
+            None::<Length>,
             Exec::BeginPathToSheet 
         );
-        let run_program = btn_base("Run", Some( STD_LEN ), NO_LEN, Exec::BeginRun);
+        let run_program = btn_base(
+            "Run", 
+            None::<Pixels>, 
+            Some( FILL_PORTION ), 
+            None::<Length>, 
+            Exec::BeginRun
+        );
+
+        let cs2traderapp = btn_base(
+            "Get The cs2trader Extension!", 
+            Some(13), 
+            Some(Length::Fixed(200.0)), 
+            None::<Length>, 
+            Exec::BeginOpenUrl(CS2TRADER)
+        );
+        let cs2excel_repo = btn_base(
+            "Cs2excel Github", 
+            Some(13), 
+            Some(Length::Fixed(200.0)), 
+            None::<Length>, 
+            Exec::BeginOpenUrl(CS2EXCEL_REPO)
+        );
+        let cs2traderapp_repo = btn_base(
+            "Cs2trader Github", 
+            Some(13), 
+            Some(Length::Fixed(200.0)), 
+            None::<Length>, 
+            Exec::BeginOpenUrl(CS2TRADER_REPO)
+        );
 
         // Main pushes ------------------------------
         content = content.push( column![
@@ -938,6 +993,8 @@ impl App {
 
             row![ text_editor_template(ADDITIONAL_INFO, "-#- Program Output -#-", "", &state.editor_runtime_result, Length::Fill, Length::Fill, (1000.0, 300.0), Exec::RuntimeResult)],
 
+            row![cs2traderapp, cs2traderapp_repo, cs2excel_repo].padding(4).spacing(150)
+
             //btn_base("Exit", Some(100), Some(50), Exec::Exit),
         ].align_x( Horizontal::Center));
 
@@ -952,7 +1009,7 @@ impl App {
 
 pub fn init_gui() -> Result<(), iced::Error> {
     let app = iced::application(App::default, App::update, App::view)
-        .title( "CS2EXCEL V2 | MLI | @maiklangel0" )
+        .title( "CS2EXCEL V2 | @maiklangel0" )
         .theme( |_| iced::Theme::TokyoNight )
         .subscription(|_| App::sub_window_resize() )
         .window( 

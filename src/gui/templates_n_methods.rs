@@ -5,7 +5,7 @@ use std::{borrow::Borrow, sync::LazyLock};
 use iced::alignment::{Horizontal, Vertical};
 use iced::border::Radius;
 use iced::widget::{text_editor, Column};
-use iced::{Background, Size, Task};
+use iced::{Background, Pixels, Size, Task};
 use iced::{widget::{button, container, pick_list, slider, text::{IntoFragment, Wrapping}, text_input, tooltip, Button, Container, Tooltip, column, row}, Border, Color, Length, Renderer, Shadow, Theme};
 use num_traits::FromPrimitive;
 
@@ -92,6 +92,7 @@ pub fn btn_style_base() -> impl Fn(&Theme, button::Status) -> button::Style {
 
 pub fn btn_base<'a, Exec, D> (
     txt: impl Into<String>, 
+    font_size: Option<impl Into<Pixels>>,
     width: Option<D>, 
     height: Option<D>,
     exec: Exec
@@ -99,7 +100,12 @@ pub fn btn_base<'a, Exec, D> (
 where 
     D: Into<Length>,
 {
-    let mut btn = button( iced::widget::text(txt.into() ).align_x( Horizontal::Center ).align_y( Vertical::Center ) ).on_press(exec);
+    let mut btn = button( 
+        iced::widget::text(txt.into() )
+            .align_x( Horizontal::Center )
+            .align_y( Vertical::Center )
+            .size(if let Some(size) = font_size { size.into() } else { Pixels::from(16) })  
+        ).on_press(exec);
 
     btn = if let Some(w) = width { btn.width( w ) } else { btn };
     btn = if let Some(h) = height { btn.height( h ) } else { btn };
