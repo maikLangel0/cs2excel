@@ -1,12 +1,19 @@
 <h1> CS2EXCEL </h1>
 <h2>GUI Utility to create, update and manage your CS2 inventory</h2>
 <img src=".\assets\images\cs2excel_showcase.gif"/>
+<h2>Features:</h2>
+<ul>
+    <li>Create speadsheets with a lot of custom settings</li>
+    <li>Update spreadsheets with new info and prices</li>
+    <!--<li></li>-->
+</ul>
+
 <h3>Building from source</h3>
 <p>Make sure you have git, rust and cargo installed.</p>
 <p>Clone the repo:</p>
 
 ```
-git clone "repo"
+git clone https://github.com/maikLangel0/cs2excel.git
 ```
 
 <p>Build:</p>
