@@ -132,7 +132,8 @@ pub async fn fetch_iteminfo_via_itemprovider_persistent(
                     Ok(tmp)
                 }
                 ItemInfoProvider::Csgotrader => {
-                    let tmp = csgotrader::fetch_iteminfo_persistent(client, progress, inspect, 10, pause_time_ms as u64).await?;
+                    // TODO: MB IMPLEMENT FETCH_ITEMINFO_PERSISTENT for CSGOTRADER
+                    let tmp = csfloat::fetch_iteminfo_persistent(client, progress, inspect, 10, pause_time_ms as u64).await?;
                     Ok(tmp)
                 }
                 ItemInfoProvider::None => { Ok(None) }
@@ -167,7 +168,7 @@ pub async fn wrapper_fetch_iteminfo_via_itemprovider_persistent(
                 Ok(Some(res)) 
             },
             ItemInfoProvider::Csgotrader => { 
-                let res = parsing::item_csgotrader::parse_iteminfo_min(&json_body, Some(&steamdata.name) )?;
+                let res = parsing::item_csfloat::parse_iteminfo_min(&json_body, Some(&steamdata.name) )?;
                 Ok(Some(res))
             }
             ItemInfoProvider::None => Ok(None)
@@ -316,7 +317,7 @@ pub async fn update_quantity_exceldata(
         
         dprintln!("UPDATED {} QUANTITY TO {:?} | ROW {}\n", &steamdata.name, &data.quantity, &row_in_excel);
         progress.send( Progress { 
-            message: format!("UPDATED {} QUANTITY TO {:?} | ROW {}\n", &steamdata.name, &data.quantity, &row_in_excel), 
+            message: format!("UPDATED {} QUANTITY TO {:?} | ROW {}\n", &steamdata.name, &data.quantity.unwrap_or(0), &row_in_excel), 
             percent: 0.0 
         }).await;
     }
