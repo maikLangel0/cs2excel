@@ -1,9 +1,9 @@
 [package]
-name = "cs_api_testing"
-version = "0.1.0"
+name = "cs2excel"
+version = "0.1.1"
 edition = "2024"
 authors = ["Mikael Lunde Isaksen"]
-license = "MIT"
+license = "GPL-3.0"
 description = "Program to manage Counter Strike 2 inventories, track their value etc."
 
 [[bin]]

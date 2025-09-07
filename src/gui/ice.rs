@@ -839,7 +839,7 @@ impl App {
             text_input_template(
                 "Name of column where the inspect link for the items can be written and read \n(Ex: steam://rungame/730/76561202255233023/+csgo_econ_action_preview%20S76561198389123475A34543022281D9279926981479153949)",
                 (300.0, 100.0), 
-                if !matches!(user.iteminfo_provider, ItemInfoProvider::None) {"Col inspect link?"} else {"Col inspect link"}, 
+                if matches!(user.iteminfo_provider, ItemInfoProvider::None) {"Col inspect link?"} else {"Col inspect link"}, 
                 "Ex: L", 
                 sheet.col_inspect_link.as_ref(), 
                 Exec::ColInspectLink, 

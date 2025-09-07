@@ -1022,8 +1022,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "cs_api_testing"
-version = "0.1.0"
+name = "cs2excel"
+version = "0.1.1"
 dependencies = [
  "chrono",
  "dirs",
