@@ -1,8 +1,9 @@
 <h1> CS2EXCEL </h1>
 <h2>GUI Utility to create, update and manage your CS2 inventory</h2>
 <img src=".\assets\images\cs2excel_showcase.gif"/>
+<h2>Showcase & How To Use</h2>
 
-[Showcase & How To Use](https://www.youtube.com/watch?v=BrO1avZPLWA)
+[![Watch](\assets\images\cs2excel_thumb.jpg)](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
 
 <h2>Features:</h2>
 <ul>
