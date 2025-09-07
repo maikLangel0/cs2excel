@@ -3,7 +3,7 @@
 <img src=".\assets\images\cs2excel_showcase.gif"/>
 <h2>Showcase & How To Use</h2>
 
-[![Watch](\assets\images\cs2excel_thumb.jpg)](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
+[![Watch](.\assets\images\cs2excel_thumb.jpg)](https://www.youtube.com/watch?v=dQw4w9WgXcQ)
 
 <h2>Features:</h2>
 <ul>
