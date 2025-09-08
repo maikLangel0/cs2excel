@@ -18,6 +18,7 @@ use rfd::AsyncFileDialog;
 
 const FILL: Length = Length::Fill;
 const NAUR_BYTES: &[u8] = include_bytes!("../../assets/images/peak_naur.png");
+const WHATSAPP: &[u8] = include_bytes!("../../assets/images/whatsapp_is_calling_96x96.ico");
 const ADDITIONAL_INFO: &str = "IMPORTANT INFO: \
     \n\nEXCEL FILE NEEDS TO CLOSED THE INSTANCE YOU START THE PROGRAM AND THE INSTANCE THE PROGRAM ENDS! HAVING THE FILE OPEN WHEN CLICKING 'Run' WILL RESULT IN AN ERROR. IF PROGRAM IS OPEN AT THE END OF ITERATION, WRITING TO THE EXCEL FILE WILL NOT BE SUCCESSFUL.
     \nPlease always have a recent up-to-date backup of your spreadsheet(s) \
@@ -1020,7 +1021,7 @@ pub fn init_gui() -> Result<(), iced::Error> {
                 resizable: true, 
                 decorations: true, 
                 position: window::Position::Centered,
-                icon: icon::from_file("assets\\images\\whatsapp_is_calling.ico").ok(), 
+                icon: icon::from_file_data(WHATSAPP, None).ok(), 
                 ..Default::default() 
             }
         );
