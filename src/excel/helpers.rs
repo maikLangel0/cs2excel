@@ -1,4 +1,4 @@
-use std::{collections::HashMap, env, path::PathBuf};
+use std::{collections::HashMap, env, path::{Path, PathBuf}};
 use chrono::Utc;
 use rand::{rng, seq::IndexedRandom};
 use serde_json::Value;
@@ -219,7 +219,6 @@ pub async fn insert_new_exceldata(
             sheet.get_cell_value_mut(cell_sn).set_value_string(skin_name);
         }
         
-
         if let Some(col_wear) = &excel.col_wear && !wear.is_empty() {
             let cell_wear = format!("{}{}", col_wear, row_in_excel);
             sheet.get_cell_value_mut(cell_wear).set_value_string(wear);
@@ -333,12 +332,10 @@ pub async fn get_cached_markets_data(markets_to_check: &Vec<Sites>, pricing_prov
     for market in markets_to_check { 
         let market_prices = match pricing_provider {
             PricingProvider::Csgoskins => { // IF I IMPLEMENT CSGOSKINS IN THE FUTURE
-                let cache_path = cache_dir.join( format!("{}_cache_csgotrader.json", market.as_str()) );
-                get_cached_market_data(&cache_path, market, csgotrader::get_market_data).await?
+                get_cached_market_data(cache_dir.as_path(), &PricingProvider::Csgotrader, market, csgotrader::get_market_data).await?
             }, 
             PricingProvider::Csgotrader => {
-                let cache_path = cache_dir.join( format!("{}_cache_csgotrader.json", market.as_str()) );
-                get_cached_market_data(&cache_path, market, csgotrader::get_market_data).await?
+                get_cached_market_data(cache_dir.as_path(), pricing_provider, market, csgotrader::get_market_data).await?
             },
         };
 
@@ -347,13 +344,13 @@ pub async fn get_cached_markets_data(markets_to_check: &Vec<Sites>, pricing_prov
     Ok(amp)
 }
 
-async fn load_cache(cache_path: &PathBuf) -> Result<CachedMarket, String> {
+async fn load_cache(cache_path: &Path) -> Result<CachedMarket, String> {
     let file = fs::read(cache_path).await.map_err(|e| format!("Read sink failed! | {}", e))?;
     let read = serde_json::from_slice::<CachedMarket>(&file).map_err(|e| format!("Failed to deserialize! | {}", e))?;
     Ok(read)
 }
 
-async fn save_cache(cache_path: &PathBuf, marketjson: &Value) -> Result<(), String> {
+async fn save_cache(cache_path: &Path, marketjson: &Value) -> Result<(), String> {
     let cached = CachedMarket {
         prices: marketjson.clone(),
         timestamp: Utc::now()
@@ -379,8 +376,7 @@ async fn save_cache(cache_path: &PathBuf, marketjson: &Value) -> Result<(), Stri
         .read(true)
         .truncate(true)
         .create(true)
-        .open(cache_path)
-        .await {
+        .open(cache_path).await {
             Ok(f) => {f},
             Err(e) =>  {
                 dprintln!("Error building OpenOptions | {}", e); 
@@ -401,11 +397,13 @@ async fn save_cache(cache_path: &PathBuf, marketjson: &Value) -> Result<(), Stri
 
 }
 
-async fn get_cached_market_data<'a, F, Fut>(cache_path: &PathBuf, market: &'a Sites, fetch: F) -> Result<Value, String>
+async fn get_cached_market_data<'a, F, Fut>(cache_dir: &Path, iteminfo_provider: &PricingProvider, market: &'a Sites, fetch: F) -> Result<serde_json::Value, String>
 where 
     F: Fn(&'a Sites) -> Fut,
-    Fut: sipper::Future<Output = Result<serde_json::Value, String>>
+    Fut: Future<Output = Result<serde_json::Value, String>>
 {
+    let cache_path = cache_dir.join( format!("{}_cache_{}.json", market.as_str(), iteminfo_provider.as_str().to_lowercase()) );
+
     if cache_path.exists() {
         match load_cache(&cache_path).await {
             Ok(cm) => {
