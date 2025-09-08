@@ -332,51 +332,13 @@ pub async fn get_cached_markets_data(markets_to_check: &Vec<Sites>, pricing_prov
 
     for market in markets_to_check { 
         let market_prices = match pricing_provider {
-            PricingProvider::Csgoskins => // IF I IMPLEMENT CSGOSKINS IN THE FUTURE
-            { 
+            PricingProvider::Csgoskins => { // IF I IMPLEMENT CSGOSKINS IN THE FUTURE
                 let cache_path = cache_dir.join( format!("{}_cache_csgotrader.json", market.as_str()) );
-                if cache_path.exists() {
-                    match load_cache(&cache_path).await {
-                        Ok(cm) => {
-                            let elapsed = Utc::now().signed_duration_since(cm.timestamp);
-                            if elapsed.num_seconds() < CACHE_TIME.as_secs() as i64 { cm.prices } 
-                            else {
-                                let market_data = csgotrader::get_market_data(market).await?;
-                                save_cache(&cache_path, &market_data).await?;
-                                market_data
-                            }
-                        },
-                        Err(e) => { return Err( format!("Couldn't load cached market from {} \n{}", cache_path.to_string_lossy(), e) ) },
-                    }
-                } else {
-                    let market_data = csgotrader::get_market_data(market).await?;
-                    save_cache(&cache_path, &market_data).await?;
-                    market_data
-                }
-
+                get_cached_market_data(&cache_path, market, csgotrader::get_market_data).await?
             }, 
-            PricingProvider::Csgotrader => 
-            { 
+            PricingProvider::Csgotrader => {
                 let cache_path = cache_dir.join( format!("{}_cache_csgotrader.json", market.as_str()) );
-                if cache_path.exists() {
-                    match load_cache(&cache_path).await {
-                        Ok(cm) => {
-                            let elapsed = Utc::now().signed_duration_since(cm.timestamp);
-                            if elapsed.num_seconds() < CACHE_TIME.as_secs() as i64 { cm.prices } 
-                            else {
-                                let market_data = csgotrader::get_market_data(market).await?;
-                                save_cache(&cache_path, &market_data).await?;
-                                market_data
-                            }
-                        },
-                        Err(e) => { return Err( format!("Couldn't load cached market from {} \n{}", cache_path.to_string_lossy(), e) ) },
-                    }
-                } else {
-                    let market_data = csgotrader::get_market_data(market).await?;
-                    save_cache(&cache_path, &market_data).await?;
-                    market_data
-                }
-
+                get_cached_market_data(&cache_path, market, csgotrader::get_market_data).await?
             },
         };
 
@@ -439,33 +401,33 @@ async fn save_cache(cache_path: &PathBuf, marketjson: &Value) -> Result<(), Stri
 
 }
 
-// async fn get_cached_market_data<F, Fut>(cache_path: &PathBuf, market: &Sites, fetch: F) -> Result<Value, String>
-// where 
-    // F: for<'a> Fn(& Sites) -> Fut,
-    // Fut: sipper::Future<Output = Result<serde_json::Value, String>>
-// {
-    // if cache_path.exists() {
-        // match load_cache(&cache_path) {
-            // Some(cm) => {
-                // let elapsed = Utc::now().signed_duration_since(cm.timestamp);
-                // if elapsed.num_seconds() < CACHE_TIME.as_secs() as i64 {
-                    // Ok(cm.prices)
-                // } else {
-                    // let market_data = fetch(market).await?;
-                    // save_cache(&cache_path, &market_data);
-                    // Ok(market_data)
-                // }
-            // },
-            // None => {
-                // return Err( format!("Couldn't load cached market from {}", cache_path.to_string_lossy()) )
-            // },
-        // }
-    // } else {
-        // let market_data = fetch(market).await?;
-        // save_cache(&cache_path, &market_data);
-        // Ok(market_data)
-    // }
-// }
+async fn get_cached_market_data<'a, F, Fut>(cache_path: &PathBuf, market: &'a Sites, fetch: F) -> Result<Value, String>
+where 
+    F: Fn(&'a Sites) -> Fut,
+    Fut: sipper::Future<Output = Result<serde_json::Value, String>>
+{
+    if cache_path.exists() {
+        match load_cache(&cache_path).await {
+            Ok(cm) => {
+                let elapsed = Utc::now().signed_duration_since(cm.timestamp);
+                if elapsed.num_seconds() < CACHE_TIME.as_secs() as i64 {
+                    Ok(cm.prices)
+                } else {
+                    let market_data = fetch(market).await?;
+                    save_cache(&cache_path, &market_data).await?;
+                    Ok(market_data)
+                }
+            },
+            Err(e) => {
+                return Err( format!("Couldn't load cached market from {} \n{}", cache_path.to_string_lossy(), e) ) 
+            },
+        }
+    } else {
+        let market_data = fetch(market).await?;
+        save_cache(&cache_path, &market_data).await?;
+        Ok(market_data)
+    }
+}
 
 const ALPHABET: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 

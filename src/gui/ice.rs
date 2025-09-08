@@ -441,7 +441,7 @@ impl App {
                                 state.text_percent_threshold = user.percent_threshold.to_string();
                                 state.text_input_steamid = user.steamid.to_string();
                                 state.text_input_row_start_write_in_table = sheet.row_start_write_in_table.to_string();
-                                state.text_input_row_stop_write_in_table = if let Some(srit) = sheet.row_stop_write_in_table {srit.to_string()} else {String::new()};
+                                state.text_input_row_stop_write_in_table = sheet.row_stop_write_in_table.map(|s| s.to_string()).unwrap_or(String::new());
                                 
                                 dprintln!("STATE: {:#?}", state);
                             },

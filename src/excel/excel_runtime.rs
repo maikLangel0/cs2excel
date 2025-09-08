@@ -183,10 +183,10 @@ pub fn run_program(
                         let extra_itemdata: Option<ExtraItemData> = if let Some(quant) = steamdata.quantity {
                             if quant == 1 || steamdata.name.contains( " doppler ") {
                                 
-                                progress.send( Progress { 
-                                    message: String::from(""),
-                                    percent: (i / cs_inv_len * 100) as f32
-                                }).await;
+                                // progress.send( Progress { 
+                                    // message: String::from(""),
+                                    // percent: (i / cs_inv_len * 100) as f32
+                                // }).await;
 
                                 wrapper_fetch_iteminfo_via_itemprovider_persistent(
                                     iteminfo_client, 
