@@ -1,4 +1,5 @@
-use std::{collections::HashMap, env, path::{Path, PathBuf}};
+use std::{env, path::{Path, PathBuf}};
+use ahash::{HashMap, HashMapExt};
 use chrono::Utc;
 use rand::{rng, seq::IndexedRandom};
 use serde_json::Value;
@@ -136,7 +137,7 @@ pub async fn fetch_iteminfo_via_itemprovider_persistent(
                     let tmp = csfloat::fetch_iteminfo_persistent(client, progress, inspect, 10, pause_time_ms as u64).await?;
                     Ok(tmp)
                 }
-                ItemInfoProvider::None => { Ok(None) }
+                ItemInfoProvider::Steam => { Ok(None) }
             }
             
         } else { Ok(None) }
@@ -171,7 +172,7 @@ pub async fn wrapper_fetch_iteminfo_via_itemprovider_persistent(
                 let res = parsing::item_csfloat::parse_iteminfo_min(&json_body, Some(&steamdata.name) )?;
                 Ok(Some(res))
             }
-            ItemInfoProvider::None => Ok(None)
+            ItemInfoProvider::Steam => Ok(None)
         }
     } else { Ok(None) }
 }
@@ -203,81 +204,65 @@ pub async fn insert_new_exceldata(
     ).await?;
 
     // Inserting into the spreadsheet
-    let cell_steam_name = format!("{}{}", excel.col_steam_name, row_in_excel);
-    sheet.get_cell_value_mut(cell_steam_name).set_value_string(&steamdata.name);
+    insert_string_in_sheet(sheet, &excel.col_steam_name, row_in_excel, &steamdata.name);
 
     if excel.col_gun_sticker_case.is_some() || excel.col_skin_name.is_some() || excel.col_wear.is_some() {
         let [gun_sticker_case, skin_name, wear] = market_name_parse::metadata_from_market_name(&steamdata.name);
 
         if let Some(col_gun_sticker_case) = &excel.col_gun_sticker_case && !gun_sticker_case.is_empty() {
-            let cell_gsc = format!("{}{}", col_gun_sticker_case, row_in_excel);
-            sheet.get_cell_value_mut(cell_gsc).set_value_string(gun_sticker_case);
+            insert_string_in_sheet(sheet, &col_gun_sticker_case, row_in_excel, &gun_sticker_case);
         }
-
         if let Some(col_skin_name) = &excel.col_skin_name && !skin_name.is_empty() {
-            let cell_sn = format!("{}{}", col_skin_name, row_in_excel);
-            sheet.get_cell_value_mut(cell_sn).set_value_string(skin_name);
+            insert_string_in_sheet(sheet, &col_skin_name, row_in_excel, &skin_name);
         }
-        
         if let Some(col_wear) = &excel.col_wear && !wear.is_empty() {
-            let cell_wear = format!("{}{}", col_wear, row_in_excel);
-            sheet.get_cell_value_mut(cell_wear).set_value_string(wear);
+            insert_string_in_sheet(sheet, &col_wear, row_in_excel, &wear);
         }
     }
 
-    if let Some(itemdata) = extra_itemdata {
-        
-        if let Some(col_float) = &excel.col_float && let Some(float) = itemdata.float {
-            let cell_float = format!("{}{}", col_float, row_in_excel);
-            sheet.get_cell_value_mut(cell_float).set_value_number(float);
-            
+    // Helgardering, i teorien så skal extra_itemdata alltid være None hvis IteminfoProvider::Steam
+    if steamdata.quantity == Some(1) || steamdata.quantity == None {
+        if let Some(itemdata) = extra_itemdata {
+            if let Some(col_float) = &excel.col_float && let Some(float) = itemdata.float {
+                insert_number_in_sheet(sheet, &col_float, row_in_excel, float);
+            }
+            if let Some(col_pattern) = &excel.col_pattern && let Some(pattern) = itemdata.paintseed {
+                insert_number_in_sheet(sheet, &col_pattern, row_in_excel, pattern);
+            }
+            if let Some(col_phase) = &excel.col_phase && let Some(faze) = &itemdata.phase {
+                insert_string_in_sheet(sheet, &col_phase, row_in_excel, faze.as_str());
+            }
+        } // Use data from steam if extra_itemdata is None
+        else { 
+            if let Some(col_float) = &excel.col_float && let Some(float) = steamdata.float {
+                insert_number_in_sheet(sheet, &col_float, row_in_excel, float);
+            }
+            if let Some(col_pattern) = &excel.col_pattern && let Some(pattern) = steamdata.pattern {
+                insert_number_in_sheet(sheet, &col_pattern, row_in_excel, pattern);
+            }
         }
-
-        if let Some(col_pattern) = &excel.col_pattern && let Some(pattern) = itemdata.paintseed {
-            let cell_pattern = format!("{}{}", col_pattern, row_in_excel);
-            sheet.get_cell_value_mut(cell_pattern).set_value_number(pattern);
-            
-        }
-
-        if let Some(col_phase) = &excel.col_phase && let Some(faze) = &itemdata.phase {
-            let cell_phase = format!("{}{}", col_phase, row_in_excel);
-            sheet.get_cell_value_mut(cell_phase).set_value_string(faze.as_str());
-        }
-        
     }
 
     if let Some(col_quantity) = &excel.col_quantity && let Some(quantity) = steamdata.quantity {
-        let cell_quantity = format!("{}{}", col_quantity, row_in_excel);
-        sheet.get_cell_value_mut(cell_quantity).set_value_number(quantity);
+        insert_number_in_sheet(sheet, &col_quantity, row_in_excel, quantity);
     }
-
     if let Some(monetary) = price {
-        let cell_price = format!("{}{}", &excel.col_price, row_in_excel);
-        sheet.get_cell_value_mut(cell_price).set_value_number(monetary);
+        insert_number_in_sheet(sheet, &excel.col_price, row_in_excel, monetary);
     }
-
     if let Some(col_market) = &excel.col_market && let Some(marquet) = market {
-            let cell_market = format!("{}{}", col_market, row_in_excel);
-            sheet.get_cell_value_mut(cell_market).set_value_string(marquet);
+        insert_string_in_sheet(sheet, col_market, row_in_excel, &marquet);
     }
-
     if let Some(col_inspect_link) = &excel.col_inspect_link && let Some(inspect_link) = &steamdata.inspect_link {
-        let cell = format!("{}{}", col_inspect_link, row_in_excel);
-        sheet.get_cell_value_mut(cell).set_value_string(inspect_link);
+        insert_string_in_sheet(sheet, &col_inspect_link, row_in_excel, inspect_link);
     }
-
     if let Some(col_asset_id) = &excel.col_asset_id && !user.group_simular_items {
-        let cell = format!("{}{}", col_asset_id, row_in_excel);
-        sheet.get_cell_value_mut(cell).set_value_number(steamdata.asset_id as f64);
+        insert_number_in_sheet(sheet, &col_asset_id, row_in_excel, steamdata.asset_id as f64);
     }
-
     if let Some(col_csgoskins_link) = &excel.col_csgoskins_link {
         let csgoskins_url = csgoskins_url::create_csgoskins_urls(&steamdata.name);
-
-        let cell = format!("{}{}", col_csgoskins_link, row_in_excel);
         let link = format!("https://csgoskins.gg/items/{}", csgoskins_url);
-
-        sheet.get_cell_value_mut(cell).set_value_string(link);
+        
+        insert_string_in_sheet(sheet, &col_csgoskins_link, row_in_excel, &link);
     }
 
     progress.send( Progress { 
@@ -309,17 +294,29 @@ pub async fn update_quantity_exceldata(
     && let Some(data_quantity) = data.quantity 
     && data_quantity < steam_quantity
     {
-        let cell_quantity = format!("{}{}", col_quantity, row_in_excel);
         data.quantity = Some(steam_quantity);
+        insert_number_in_sheet(sheet, &col_quantity, row_in_excel, steam_quantity);
 
-        sheet.get_cell_value_mut( cell_quantity.as_ref() ).set_value_number(steam_quantity);
-        
-        dprintln!("UPDATED {} QUANTITY TO {:?} | ROW {}\n", &steamdata.name, &data.quantity, &row_in_excel);
         progress.send( Progress { 
-            message: format!("UPDATED {} QUANTITY TO {:?} | ROW {}\n", &steamdata.name, &data.quantity.unwrap_or(0), &row_in_excel), 
+            message: format!(
+                "UPDATED {} QUANTITY TO {} | ROW {}\n", 
+                &steamdata.name, 
+                &data.quantity.unwrap_or(0), 
+                &row_in_excel
+            ), 
             percent: 0.0 
         }).await;
     }
+}
+
+fn insert_number_in_sheet(sheet: &mut Worksheet, col: &str, row_in_excel: usize, value: impl Into<f64>) {
+    let cell = format!("{}{}", col, row_in_excel);
+    sheet.get_cell_value_mut(cell).set_value_number(value);
+}
+
+pub fn insert_string_in_sheet(sheet: &mut Worksheet, col: &str, row_in_excel: usize, value: impl Into<String>) {
+    let cell = format!("{}{}", col, row_in_excel);
+    sheet.get_cell_value_mut(cell).set_value_string(value);
 }
 
 pub async fn get_cached_markets_data(markets_to_check: &Vec<Sites>, pricing_provider: &PricingProvider) -> Result<HashMap<Sites, serde_json::Value>, String> {
@@ -446,3 +443,10 @@ pub fn generate_fallback_path(path: &mut Option<PathBuf>) {
     *path = Some(p);
 }
 
+pub fn clear_extra_iteminfo_given_quantity(sheet: &mut Worksheet, quantity: Option<u16>, row_in_excel: usize, cols: (Option<&str>, Option<&str>, Option<&str>) ) {
+    if quantity != Some(1) {
+        if let Some(col) = cols.0 { insert_string_in_sheet(sheet, col, row_in_excel, ""); }
+        if let Some(col) = cols.1 { insert_string_in_sheet(sheet, col, row_in_excel, ""); }
+        if let Some(col) = cols.2 { insert_string_in_sheet(sheet, col, row_in_excel, ""); }
+    }
+}

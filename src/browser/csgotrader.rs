@@ -1,4 +1,5 @@
-use std::{collections::HashMap, io::Read, time::Duration};
+use std::{io::Read, time::Duration};
+use ahash::{HashMap};
 use reqwest::{header::{self, HeaderMap, HeaderValue}, Client};
 use flate2::read::GzDecoder;
 use serde_json::{self, Value};

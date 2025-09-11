@@ -1,10 +1,10 @@
 [package]
 name = "cs2excel"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2024"
 authors = ["Mikael Lunde Isaksen"]
 license = "GPL-3.0"
-description = "Program to manage Counter Strike 2 inventories, track their value etc."
+description = "Create, manage, update and track your CS2 inventory value."
 
 [[bin]]
 name = "cs2excel"
@@ -35,6 +35,7 @@ rfd = { version = "0.15.4", features = ["file-handle-inner"] }
 sipper = "0.1.0"
 dirs = "6.0.0"
 open = "5.3.2"
+ahash = "0.8.12"
 
 # indexmap = { version = "2.10.0" }
 

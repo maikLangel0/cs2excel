@@ -132,7 +132,7 @@ impl Default for App {
                     prefer_markets:             None,
                     steamloginsecure:           None, 
                     // iteminfo_provider:          ItemInfoProvider::Csfloat , // "Bots are temporarily not allowed on CSGOFloat Inspect API due to new rate limits imposed by Valve"
-                    iteminfo_provider:          ItemInfoProvider::None,
+                    iteminfo_provider:          ItemInfoProvider::Steam,
                     usd_to_x:                   Currencies::None,
 
                     pricing_mode:               PricingMode::Cheapest,
@@ -192,7 +192,7 @@ impl Default for App {
 
             pick_list_pricing_provider: [PricingProvider::Csgoskins, PricingProvider::Csgotrader],
             pick_list_pricing_mode: [PricingMode::Cheapest, PricingMode::Hierarchical, PricingMode::MostExpensive, PricingMode::Random],
-            pick_list_iteminfo_provider: [ItemInfoProvider::Csfloat, ItemInfoProvider::Csgotrader, ItemInfoProvider::None], 
+            pick_list_iteminfo_provider: [ItemInfoProvider::Csfloat, ItemInfoProvider::Csgotrader, ItemInfoProvider::Steam], 
             pick_list_usd_to_x: {
                 let mut arr = [Currencies::None; 52];
                 for (i, item) in Currencies::iter().enumerate() {
@@ -459,10 +459,10 @@ impl App {
                         state.editor_runtime_result = text_editor::Content::new();
                         dprintln!("Attempt to run.");
 
-                        if user.iteminfo_provider == ItemInfoProvider::None {
-                            state.editor_runtime_result.perform( text_editor::Action::Edit( Edit::Paste( Arc::new("WARNING: Pricing for doppler phases will not be accurate when fetch more iteminfo is off.\n".to_string()) ) ) );
+                        if user.iteminfo_provider == ItemInfoProvider::Steam {
+                            state.editor_runtime_result.perform( text_editor::Action::Edit( Edit::Paste( Arc::new("WARNING: Pricing for doppler phases will not be accurate when Iteminfo Provider is Steam.\n".to_string()) ) ) );
                         }
-                        if user.iteminfo_provider == ItemInfoProvider::None && sheet.col_inspect_link.is_some() {
+                        if sheet.col_inspect_link.is_none() {
                             state.editor_runtime_result.perform( text_editor::Action::Edit( Edit::Paste( Arc::new("WARNING: col inspect link is not defined so you will not be able to fetch more iteminfo (float, doppler phase, pattern, correct price of dopplers).\n".to_string()) ) ) );
                         }
                         if user.usd_to_x != Currencies::None && sheet.rowcol_usd_to_x.is_some() {
@@ -656,7 +656,7 @@ impl App {
         );
 
         // Sliders and text editors ------------------------------
-        let pause_time_ms = if user.iteminfo_provider == ItemInfoProvider::None { column![] } 
+        let pause_time_ms = if user.iteminfo_provider == ItemInfoProvider::Steam { column![] } 
         else {
             slider_template(
                 "If you fetch additional iteminfo, this is the time between each fetch.",
@@ -766,7 +766,7 @@ impl App {
             Exec::ColWear, 
             FILL
         );
-        let col_float = if user.iteminfo_provider == ItemInfoProvider::None || sheet.col_inspect_link.is_none() { column![] }
+        let col_float = if sheet.col_inspect_link.is_none() { column![] }
         else {
             text_input_template(
                 "Name of column where the float can be written (Ex: 0.169067069888115)",
@@ -778,7 +778,7 @@ impl App {
                 FILL
             )
         };
-        let col_pattern = if user.iteminfo_provider == ItemInfoProvider::None || sheet.col_inspect_link.is_none() { column![] }
+        let col_pattern = if sheet.col_inspect_link.is_none() { column![] }
         else {
             text_input_template(
                 "Name of column where the pattern can be written and read (Ex: 661)",
@@ -790,7 +790,7 @@ impl App {
                 FILL
             )
         };
-        let col_phase = if user.iteminfo_provider == ItemInfoProvider::None || sheet.col_inspect_link.is_none() { column![] }
+        let col_phase = if sheet.col_inspect_link.is_none() { column![] }
         else {
             text_input_template(
                 "Name of column where the phase can be written (Ex: phase 4, emerald)",
@@ -840,7 +840,7 @@ impl App {
             text_input_template(
                 "Name of column where the inspect link for the items can be written and read \n(Ex: steam://rungame/730/76561202255233023/+csgo_econ_action_preview%20S76561198389123475A34543022281D9279926981479153949)",
                 (300.0, 100.0), 
-                if matches!(user.iteminfo_provider, ItemInfoProvider::None) {"Col inspect link?"} else {"Col inspect link"}, 
+                if matches!(user.iteminfo_provider, ItemInfoProvider::Steam) {"Col inspect link?"} else {"Col inspect link"}, 
                 "Ex: L", 
                 sheet.col_inspect_link.as_ref(), 
                 Exec::ColInspectLink, 

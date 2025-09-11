@@ -1,14 +1,15 @@
-use std::{collections::HashMap, str::FromStr};
+use std::str::FromStr;
 
 use reqwest::Client;
 use strum::IntoEnumIterator;
 use umya_spreadsheet::{Spreadsheet, Worksheet};
 use serde_json::Value;
+use ahash::HashMap;
 
 use iced::task::{Straw, sipper};
 
 use crate::{
-    browser::{csfloat, csgotrader, steamcommunity::SteamInventory}, dprintln, excel::{excel_ops::{get_exceldata, get_spreadsheet, set_spreadsheet}, helpers::{get_cached_markets_data, get_exchange_rate, get_market_price, get_steamloginsecure, insert_new_exceldata, update_quantity_exceldata, wrapper_fetch_iteminfo_via_itemprovider_persistent}}, gui::{ice::Progress, templates_n_methods::IsEnglishAlphabetic}, models::{  
+    browser::{csfloat, csgotrader, steamcommunity::SteamInventory}, dprintln, excel::{excel_ops::{get_exceldata, get_spreadsheet, set_spreadsheet}, helpers::{clear_extra_iteminfo_given_quantity, get_cached_markets_data, get_exchange_rate, get_market_price, get_steamloginsecure, insert_new_exceldata, insert_string_in_sheet, update_quantity_exceldata, wrapper_fetch_iteminfo_via_itemprovider_persistent}}, gui::{ice::Progress, templates_n_methods::IsEnglishAlphabetic}, models::{  
         excel::ExcelData, price::{Doppler, PricingMode}, 
         user_sheet::{SheetInfo, UserInfo}, 
         web::{ExtraItemData, ItemInfoProvider, Sites, SteamData}
@@ -25,9 +26,9 @@ pub fn run_program(
 
         progress.send( Progress { message: "Running main program\n".to_owned(), percent: 0.0 }).await;
 
-        if user.fetch_prices && user.iteminfo_provider != ItemInfoProvider::None && excel.col_inspect_link.is_some() {
+        if user.fetch_prices && user.iteminfo_provider != ItemInfoProvider::Steam && excel.col_inspect_link.is_some() {
             progress.send( Progress { 
-                message: String::from("Will Fetch additional iteminfo. If it takes more than 20 sec for a iteration, its not successfull.\n"), 
+                message: String::from("Will Fetch additional iteminfo using 3rd party API. This makes doppler prices accurate.\n"), 
                 percent: 0.0
             }).await;
         }
@@ -35,8 +36,8 @@ pub fn run_program(
         // Client for fetch_more_iteminfo
         let mut iteminfo_client_base = match &user.iteminfo_provider {
             ItemInfoProvider::Csfloat => { csfloat::new_extra_iteminfo_client() },
-            ItemInfoProvider::Csgotrader => { csgotrader::new_extra_iteminfo_client() }
-            ItemInfoProvider::None => { Client::new() }
+            ItemInfoProvider::Csgotrader => { csgotrader::new_extra_iteminfo_client() },
+            ItemInfoProvider::Steam => { Client::new() }, // Not needed for steam
         };
         
         let iteminfo_client: &mut Client = &mut iteminfo_client_base;
@@ -121,28 +122,65 @@ pub fn run_program(
         for (i, steamdata) in cs_inv.iter().flatten().enumerate() { 
             
             progress.send( Progress { 
-                message: if user.group_simular_items { format!("NAME: {} | QUANTITY: {} | HAS INSPECTLINK?: {}\n", steamdata.name, steamdata.quantity.unwrap_or(0), if steamdata.inspect_link.is_some() {"YES"} else {"NO"})} else {format!("NAME: {} | HAS INSPECTLINK?: {} | ASSETID: {}\n", steamdata.name, if steamdata.inspect_link.is_some() {"YES"} else {"NO"}, steamdata.asset_id)}, 
+                message: if user.group_simular_items { 
+                    format!(
+                        "NAME: {} | QUANTITY: {} | HAS INSPECTLINK?: {}\n", 
+                        steamdata.name, 
+                        steamdata.quantity.unwrap_or(0), 
+                        if steamdata.inspect_link.is_some() {"YES"} else {"NO"}
+                    )
+                } else {
+                    format!(
+                        "NAME: {} | HAS INSPECTLINK?: {} | ASSETID: {}\n", 
+                        steamdata.name, 
+                        if steamdata.inspect_link.is_some() {"YES"} else {"NO"}, 
+                        steamdata.asset_id
+                    )
+                }, 
                 percent: (i as f32 / cs_inv_len as f32 * 99.0) 
             } ).await;
         
-
             if user.group_simular_items {
-                debug_assert!(excel.col_quantity.is_some());
-
                 match exceldata.iter_mut().enumerate().find( |(_, e)| e.name == steamdata.name ) { 
                     Some((index, data)) => {
 
                         // Skip item if item is in ignore market names
-                        if let Some(ignore) = &user.ingore_steam_names && ignore.iter().any(|n| data.name == *n.trim()) { 
-                            continue;
-                        }
+                        if let Some(ignore) = &user.ingore_steam_names 
+                        && ignore.iter().any(|n| data.name == *n.trim()) { continue; }
                         
-
                         let row_in_excel: usize = index + excel.row_start_write_in_table as usize;
 
                         // if exceldatas data has phase info AND user wants to fetch more iteminfo AND cs inventory's steamdata has an inspect link,
-                        // don't update quantity and jump to next iteration of cs inv. Instead execute the logic underneath this match statement
-                        if data.phase.is_some() && user.iteminfo_provider != ItemInfoProvider::None && steamdata.inspect_link.is_some() {}
+                        // don't update quantity and jump to next iteration of cs inv. Instead execute the logic underneath match statement
+                        if data.phase.is_some() // data.phase being Some means excel.col_phase has to be Some aswell
+                        && user.iteminfo_provider != ItemInfoProvider::Steam 
+                        && steamdata.inspect_link.is_some() {
+                            
+                        }
+                        
+                        // FOR CASES WHERE DOPPLER GOT FETCHED FIRST USING STEAM THEN FETCHED LATER USING 3RD PARTY API
+                        else if data.phase.is_none() 
+                        && user.iteminfo_provider != ItemInfoProvider::Steam 
+                        && steamdata.inspect_link.is_some() 
+                        && data.quantity == Some(1)
+                        && let Some(col_phase) = &excel.col_phase
+                        && data.name.to_lowercase().contains(" doppler") 
+                        {
+                            let iteminfo: ExtraItemData = wrapper_fetch_iteminfo_via_itemprovider_persistent(
+                                iteminfo_client, 
+                                &user.iteminfo_provider, 
+                                &excel.col_inspect_link, 
+                                user.pause_time_ms, 
+                                steamdata, 
+                                &mut progress
+                            ).await?.ok_or("Watafak".to_string())?;
+
+                            if let Some(phase) = iteminfo.phase {
+                                insert_string_in_sheet(sheet, col_phase, row_in_excel, phase.as_str());
+                            }
+                            continue;
+                        }
+                        // "Base case after hyper-spesific clauses above"
                         else { 
                             update_quantity_exceldata(
                                 steamdata, 
@@ -154,20 +192,11 @@ pub fn run_program(
                             ).await; 
 
                             // If quantity is more than 1, remove data in float, pattern and inspect_link if its set
-                            if data.quantity > Some(1) {
-                                if let Some(col_float) = &excel.col_float {
-                                    let cell = format!("{}{}", col_float, row_in_excel);
-                                    sheet.get_cell_value_mut(cell).set_value_string("");
-                                }
-                                if let Some(col_pattern) = &excel.col_pattern {
-                                    let cell = format!("{}{}", col_pattern, row_in_excel);
-                                    sheet.get_cell_value_mut(cell).set_value_string("");
-                                }
-                                if let Some(col_inspect) = &excel.col_inspect_link {
-                                    let cell = format!("{}{}", col_inspect, row_in_excel);
-                                    sheet.get_cell_value_mut(cell).set_value_string("");
-                                }
-                            }
+                            clear_extra_iteminfo_given_quantity(
+                                sheet, data.quantity, row_in_excel,
+                                (excel.col_float.as_deref(), excel.col_pattern.as_deref(), excel.col_inspect_link.as_deref()), 
+                                
+                            );
 
                             continue;
                         }
@@ -180,14 +209,9 @@ pub fn run_program(
 
                         let row_in_excel: usize = exceldata.len() + excel.row_start_write_in_table as usize;
 
-                        let extra_itemdata: Option<ExtraItemData> = if let Some(quant) = steamdata.quantity {
-                            if quant == 1 || steamdata.name.contains( " doppler ") {
-                                
-                                // progress.send( Progress { 
-                                    // message: String::from(""),
-                                    // percent: (i / cs_inv_len * 100) as f32
-                                // }).await;
-
+                        let extra_itemdata: Option<ExtraItemData> = 
+                            if steamdata.quantity == Some(1) || steamdata.name.to_lowercase().contains( " doppler") { 
+                                // Min retarda ass bygde extra iteminfo checken inn i wrapper funksjonen så trust at hvis IteminfoProvider er Steam så blir denne None
                                 wrapper_fetch_iteminfo_via_itemprovider_persistent(
                                     iteminfo_client, 
                                     &user.iteminfo_provider, 
@@ -196,8 +220,8 @@ pub fn run_program(
                                     steamdata,
                                     &mut progress
                                 ).await?
-                            } else { None }
-                        } else { None };
+                            } 
+                            else { None };
 
                         exceldata.push( 
                             insert_new_exceldata(
@@ -215,9 +239,12 @@ pub fn run_program(
 
                     }
                 }
+
+                // ONLY REACHES HERE IF ITEM HAS PHASE, ITEMINFO PROVIDER IS NOT STEAM AND HAS INSPECT LINK.
+
                 debug_assert!(excel.col_inspect_link.is_some());
                 debug_assert!(steamdata.inspect_link.is_some());
-                debug_assert!(user.iteminfo_provider != ItemInfoProvider::None);
+                debug_assert!(user.iteminfo_provider != ItemInfoProvider::Steam);
 
                 // Only reached when exceldatas name is the same as steamdatas name AND 
                 // exceldatas phase is something AND user wants to fetch more iteminfo AND 
@@ -257,7 +284,8 @@ pub fn run_program(
 
                         exceldata.push( 
                             insert_new_exceldata(
-                                &user, &excel,
+                                &user, 
+                                &excel,
                                 steamdata,
                                 &Some(extra_itemdata),
                                 &markets_to_check,
@@ -320,6 +348,7 @@ pub fn run_program(
             if i == exceldata_initial_length { break }
 
             if data.sold.is_some() && user.ignore_already_sold { continue; }
+            
             if let Some(ignore) = &user.ingore_steam_names {
                 let mut pls_ingore = false;
                 for ignore_steam_name in ignore { 
@@ -394,11 +423,11 @@ pub fn run_program(
 // -------------------------------------------------------------------------------------------
 
 pub fn is_user_input_valid(user: &UserInfo, excel: &SheetInfo) -> Result<(), String> {
-    if user.iteminfo_provider == ItemInfoProvider::None {
-        dprintln!("WARNING: Pricing for doppler phases will not be accurate with fetch_more_iteminfo off.")
+    if user.iteminfo_provider == ItemInfoProvider::Steam {
+        dprintln!("WARNING: Pricing for doppler phases will not be accurate with Steam as ItemInfoProvider.")
     }
 
-    if user.iteminfo_provider == ItemInfoProvider::None && excel.col_inspect_link.is_some() {
+    if user.iteminfo_provider == ItemInfoProvider::Steam && excel.col_inspect_link.is_some() {
         dprintln!("WARNING: col_inspect_link is not defined so you will not be able to fetch_more_iteminfo (float, doppler phase, pattern, price of doppler).")
     }
     
@@ -415,7 +444,7 @@ pub fn is_user_input_valid(user: &UserInfo, excel: &SheetInfo) -> Result<(), Str
         if excel.col_pattern.is_some() { return Err( String::from( "Column for pattern given but no column for inspect link." ) ) }
     }
 
-    if user.iteminfo_provider != ItemInfoProvider::None && excel.col_inspect_link.is_some() && excel.col_phase.is_none() {
+    if user.iteminfo_provider != ItemInfoProvider::Steam && excel.col_inspect_link.is_some() && excel.col_phase.is_none() {
         return Err( String::from( "Phase of doppler knives will not be pricechecked correctly when reading over the spreadsheet in the future becuase col_phase is not set!" ))
     }
 

@@ -80,19 +80,23 @@ impl Sites {
 
 // ------------------------------------------------------------
 
+#[derive(Debug)]
 pub struct SteamData {
     pub name: String,
     pub quantity: Option<u16>,
     pub inspect_link: Option<String>,
+    pub float: Option<f64>,
+    pub pattern: Option<u32>,
     pub asset_id: u64, // IF MODE IS !GROUP_SIMULAR_ITEMS, THIS IS UNIQUE IDENTIFIER
     // pub instance_id: u64, // Used POTENTIALLY for batched float getting
 }
 
 // ------------------------------------------------------------
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct SteamJson {
     pub assets: Vec<Value>,
+    pub asset_properties: Vec<Value>,
     pub descriptions: Vec<Value>,
     pub total_inventory_count: u16,
     pub success: i8,
@@ -115,7 +119,7 @@ pub struct ExtraItemData {
     // pub max_float: Option<f64>,
     // pub min_float: Option<f64>,
     pub phase: Option<Doppler>, // PAINTINDEX: dopplers, 
-    pub paintseed: Option<u16>  // Paintseed 
+    pub paintseed: Option<u32>  // Paintseed 
 }
 
 // ---------------------------------------------------------------------------
@@ -124,14 +128,14 @@ pub struct ExtraItemData {
 pub enum ItemInfoProvider {
     Csgotrader,
     Csfloat,
-    None
+    Steam,
 }
 impl ItemInfoProvider {
     pub fn as_str(&self) -> &'static str {
         match self {
             ItemInfoProvider::Csgotrader => "CsgoTrader",
             ItemInfoProvider::Csfloat => "CsFloat",
-            ItemInfoProvider::None => "None"
+            ItemInfoProvider::Steam => "Steam",
         }
     } 
 }
@@ -140,10 +144,10 @@ impl FromStr for ItemInfoProvider {
 
     fn from_str(s: &str) -> Result<Self, String> {
         match s.to_lowercase().as_str() {
-            "" => Ok(ItemInfoProvider::None),
+            "" => Ok(ItemInfoProvider::Steam),
             "csfloat" => Ok(ItemInfoProvider::Csfloat),
             "csgotrader" => Ok(ItemInfoProvider::Csgotrader),
-            "none" => Ok(ItemInfoProvider::None),
+            "steam" => Ok(ItemInfoProvider::Steam),
             _ => Err( format!("ItemInfoProvider {} is not allowed!", s))
         }
     }

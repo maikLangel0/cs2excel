@@ -16,4 +16,3 @@ pub struct ExcelData {
     // pub inspect_link: Option<String>, // Brukes for å inspecte + pricechecke hvis -
     // pub phase: Option<String>         // - special er noe, aka hvis det er en sapphire så kan prisen 
 // }                                     // for en sapphire hentes korrekt via float api'et til csgotrader 
-

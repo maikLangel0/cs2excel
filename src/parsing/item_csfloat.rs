@@ -50,7 +50,7 @@ pub fn parse_iteminfo_min(data: &Value, item_name: Option<&str>) -> Result<Extra
     let paintseed = {
         let tmp = data.get("paintseed")
             .and_then(|p| p.as_f64() )
-            .map(|p| p as u16)
+            .map(|p| p as u32)
         .ok_or("paintseed NOT FOUND")?;
     
         if tmp == 0 { None } else { Some(tmp) }

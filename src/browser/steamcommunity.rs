@@ -1,9 +1,31 @@
-use std::collections::HashMap;
+
+use ahash::{HashMap, HashMapExt};
 use reqwest::header::COOKIE;
 use serde_json::{from_value, Value};
 
-use crate::{models::web::{SteamData, SteamJson, GAMES_TRADE_PROTECTED}};
+use crate::models::web::{SteamData, SteamJson, GAMES_TRADE_PROTECTED};
 
+struct Description<'a> {
+    inspect: Option<&'a str>,
+    name_on_market: &'a str,
+    is_tradable: bool,
+    has_owner_descriptions: bool,
+}
+
+struct Properties {
+    float: Option<f64>,
+    pattern: Option<u32>,
+}
+
+struct IntermediateSteamData<'a> {
+    inspect_link: Option<String>,
+    name_on_market: &'a str,
+    asset_id: u64,
+    float: Option<f64>,
+    pattern: Option<u32>
+}
+
+#[derive(Debug)]
 pub struct SteamInventory { 
     data: SteamJson,
     steamid: u64,
@@ -44,13 +66,15 @@ impl SteamInventory {
                 }
         } else { None };
 
-        if let Some(tp) = trade_protected 
+        if let Some(tp) = trade_protected  
         && let Some(assets) = tp.get("assets").and_then(|v| v.as_array())
         && let Some(descriptions) = tp.get("descriptions").and_then(|v| v.as_array() )
+        && let Some(asset_properties) = tp.get("asset_properties").and_then(|v| v.as_array() )
         && let Some(tic) = tp.get("total_inventory_count").and_then(|v| v.as_u64()) 
         {
             data.assets.append(&mut assets.clone());
             data.descriptions.append(&mut descriptions.clone());
+            data.asset_properties.append(&mut asset_properties.clone());
             data.total_inventory_count += tic as u16;
         }
 
@@ -60,90 +84,164 @@ impl SteamInventory {
     ///Gets the names of the items in the inventory aswell as the quantity. 
     /// 
     ///`marketable` is true if you only want items from inventory that can be traded and/or listed to the community market.
+    /// 
+    /// The assets serde_json::Value the de-facto iterator, while descriptions and asset_properties are turned into hashmaps.
     pub fn get_steam_items(self: &SteamInventory, group_simular_items: bool, marketable: bool) -> Result<Vec<SteamData>, String> { 
-        let mut market_names: Vec<( &str, Option<String>, u64, u64 )> = Vec::new(); // name & inspect link & asset id
         
-        for asset in &self.data.assets {
-            for desc in &self.data.descriptions {
-                
-                //if "classid"s correlate, can fetch metadata for the skin/item from item_descriptions
-                if asset.get("classid")
-                    .ok_or_else(|| format!("'classid' not found in the asset: \n{:#?}", asset) )? 
-                ==  desc.get("classid")
-                    .ok_or_else(|| format!("'classid' not found in the description: \n{:#?}", desc) )? 
-                { 
-                    let empty: Vec<Value> = Vec::new();
-                    let tradable: i64 = desc.get("tradable").and_then( |v| v.as_i64() ).unwrap_or( 0 ); 
-                    let owner: &Vec<Value> = desc.get("owner_descriptions").and_then( |v| v.as_array() ).unwrap_or( &empty ); 
-                    
-                    // if only marketable allowed and (not tradable and no owner_descriptions), SKIP
-                    if marketable && tradable == 0 && owner.is_empty() { continue }
-                    
-                    let market_name: &str = desc.get("market_name").and_then( |v| v.as_str() )
-                        .ok_or_else(|| format!("'market_name' not found in the description! \nDescription: \n{:#?}", desc) )?; 
-                    
-                    let asset_id: u64 = asset.get("assetid")
-                        .and_then(|v| v.as_str())
-                        .and_then(|v| v.parse::<u64>().ok())
-                        .unwrap_or(0);
+        let mut desc_map: HashMap<u64, Description> = HashMap::new(); // classid key
+        let mut asset_prop_map: HashMap<u64, Properties> = HashMap::new(); // assetid key
+        
+        // construct hashmap for Descriptions
+        for desc in &self.data.descriptions {
+            let classid = desc.get("classid")
+                .and_then(|v| v.as_str())
+                .and_then(|s| s.parse::<u64>().ok())
+                .ok_or_else(|| String::from("Classid fetch failed desc wat."))?;
 
-                    let instance_id: u64 = asset.get("instanceid")
-                        .and_then(|v| v.as_str())
-                        .and_then(|v| v.parse::<u64>().ok())
-                        .unwrap_or(0);
+            let name_on_market: &str = desc.get("market_name").and_then( |v| v.as_str() )
+                .ok_or_else(|| String::from("Market name from desc failed wat."))?; 
 
-                    let inspect: Option<String> = desc.get("actions")
-                        .and_then( |v| v.as_array() )
-                        .and_then( |arr| arr.first() )
-                        .and_then( |obj| obj.get("link") )
-                        .and_then( |v| v.as_str() )
-                        .map( |s| 
-                            s.replace( "%owner_steamid%", &self.steamid.to_string() )
-                            .replace( "%assetid%", &asset_id.to_string() )
-                        );
+            let is_tradable = desc.get("tradable").and_then(|v| v.as_i64()).unwrap_or(0) != 0;
 
-                    market_names.push( (market_name, inspect, asset_id, instance_id) );
-                    break;
+            let has_owner_descriptions = desc.get("owner_descriptions").is_some();
+
+            let inspect: Option<&str> = desc.get("actions")
+                .and_then( |v| v.as_array() )
+                .and_then( |arr| arr.first() )
+                .and_then( |obj| obj.get("link") )
+                .and_then( |v| v.as_str() );
+
+            desc_map.insert(classid, Description { inspect, name_on_market, is_tradable, has_owner_descriptions });
+        }
+
+        // Construct hashmap for Properties
+        for prop in &self.data.asset_properties {
+            let asset_id = prop.get("assetid")
+                .and_then(|v| v.as_str())
+                .and_then(|s| s.parse::<u64>().ok())
+                .ok_or_else(|| String::from("Assetid fetch failed asset_properties wat."))?;
+
+            let asset_properties_iter = prop.get("asset_properties")
+                .ok_or_else(|| String::from("Failed to fetch asset_properties from asset_properties wat."))?
+                .as_array()
+                .ok_or_else(|| String::from("Failed to turn into array wat."))?
+                .iter();
+
+            let mut float: Option<f64> = None;
+            let mut pattern: Option<u32> = None;
+
+            for property in asset_properties_iter {
+                if let Some(flt) = property.get("float_value")
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| s.parse::<f64>().ok()) 
+                {
+                        float = Some(flt);
+                }
+
+                if let Some(ptrn) = property.get("int_value")
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| s.parse::<u32>().ok()) 
+                {
+                        pattern = Some(ptrn);
                 }
             }
+
+            asset_prop_map.insert(asset_id, Properties { float, pattern });
+        }
+
+        let mut intermediate: Vec<IntermediateSteamData> = Vec::with_capacity(self.data.assets.len());
+
+        for asset in &self.data.assets {
+            let class_id = asset.get("classid")
+                .and_then(|v| v.as_str())
+                .and_then(|v| v.parse::<u64>().ok())
+                .ok_or_else(|| String::from("No classid in assets WHAT."))?;
+
+            let description = desc_map.get(&class_id).ok_or_else(|| String::from("Description not found from hashmap WHAT."))?;
+            
+            if marketable && !description.is_tradable && !description.has_owner_descriptions { continue }
+
+            let asset_id: u64 = asset.get("assetid")
+                .and_then(|v| v.as_str())
+                .and_then(|v| v.parse::<u64>().ok())
+                .ok_or_else(|| String::from("No assetid in assets WHAT."))?;
+            
+            let (float, pattern): (Option<f64>, Option<u32>) = 
+                if let Some(property) = asset_prop_map.get(&asset_id) { 
+                    (property.float, property.pattern)
+                } else { (None, None) };
+            
+            let inspect_link: Option<String> = description.inspect.map(|s| s
+                .replace( "%owner_steamid%", &self.steamid.to_string() )
+                .replace( "%assetid%", &asset_id.to_string() ) 
+            );
+                
+            intermediate.push( 
+                IntermediateSteamData { 
+                    inspect_link, 
+                    name_on_market: description.name_on_market, 
+                    asset_id, 
+                    float, 
+                    pattern
+                }
+            );
         }
 
         let mut inventory: Vec<SteamData> = Vec::new();
-        
+
         if group_simular_items {
-            let mut name_quantity: HashMap<&str, (u16, Option<String>, u64, u64)> = HashMap::new();
-
-            for (name, inspect_link, asset_id, instance_id) in market_names {
-                let entry = name_quantity.entry(name).or_insert( (0, inspect_link, asset_id, instance_id) );
-                entry.0 += 1;
+            struct NamedValues { 
+                inspect_link: Option<String>,
+                float: Option<f64>,
+                asset_id: u64,
+                pattern: Option<u32>,
+                quantity: u16, 
             }
 
-            for (name, (quantity, inspect_link, asset_id, _instance_id)) in name_quantity {
-                inventory.push( 
-                    SteamData { 
-                        name: name.to_string(), 
-                        quantity: Some(quantity), 
-                        inspect_link: { if quantity == 1 { inspect_link } else { None } }, 
-                        asset_id,
-                        // instance_id
-                    } 
+            let mut data_mapped_with_quantity: HashMap<&str, NamedValues> = HashMap::new();
+
+            for data in intermediate {
+                let entry = data_mapped_with_quantity.entry(data.name_on_market)
+                    .or_insert( 
+                        NamedValues { 
+                            inspect_link: data.inspect_link, 
+                            float: data.float, 
+                            asset_id: data.asset_id, 
+                            pattern: data.pattern, 
+                            quantity: 0
+                        }
                 );
+                entry.quantity += 1;
             }
-        } 
-        else {    
-            for (name, inspect_link, asset_id, _instance_id) in market_names {
+
+            for (name, data) in data_mapped_with_quantity {
                 inventory.push(
                     SteamData { 
                         name: name.to_string(), 
-                        quantity: None, 
-                        inspect_link, 
-                        asset_id,
-                        // instance_id
-                    } 
+                        quantity: Some(data.quantity), 
+                        inspect_link: data.inspect_link, 
+                        float: data.float, 
+                        pattern: data.pattern, 
+                        asset_id: data.asset_id 
+                    }
                 );
             }
         }
-        //dprintln!("ALL STEAM ITEM DATA: {inventory:#?}");
+        else {
+            for data in intermediate {
+                inventory.push(
+                    SteamData { 
+                        name: data.name_on_market.to_string(), 
+                        quantity: None, 
+                        inspect_link: data.inspect_link, 
+                        float: data.float, 
+                        pattern: data.pattern, 
+                        asset_id: data.asset_id 
+                    }
+                );
+            }
+        }
+        
         Ok(inventory)
     }
 
