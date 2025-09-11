@@ -574,6 +574,7 @@ impl App {
                 state.pick_list_usd_to_x,
                 Some( user.usd_to_x ),
                 Exec::UsdToX,
+                (400.0, 100.0),
                 FILL
             ) 
         };
@@ -581,11 +582,12 @@ impl App {
         let pricing_provider = if !user.fetch_prices { column![] } 
         else { 
             pick_list_template(
-                "Which site/API that fetches the prices. \nPS: ONLY CsgoTrader IMPLEMENTED",
+                "Which site/API that fetches the prices. \nPS: Only CsgoTrader implemented.",
                 "Pricing provider",
                 state.pick_list_pricing_provider, 
                 Some( user.pricing_provider ), 
                 Exec::PricingProvider,
+                (300.0, 75.0),
                 FILL
             )
         };
@@ -598,16 +600,18 @@ impl App {
                 state.pick_list_pricing_mode, 
                 Some( user.pricing_mode ), 
                 Exec::PricingMode,
+                (400.0, 75.0),
                 FILL
             )
         };
         
         let iteminfo_provider = pick_list_template(
-            "Which site/API fetches the dditional info about your items like float, pattern etc... \nPS: ONLY CSFLOAT IMPLEMENTED AND IT MIGHT BE DOWN DUE TO VALVE CHANGING API RULES UNLUCKY.",
+            "Which site/API fetches the additional info about your items like float, pattern etc... \nOnly CSFloat and Steam implemented. Use Steam 99% of the time, but if you have a doppler knife/gun in your inventory, use csfloat to get accurate pricing.",
             "Iteminfo provider",
             state.pick_list_iteminfo_provider, 
             Some( user.iteminfo_provider ),
             Exec::IteminfoProvider,
+            (500.0, 125.0),
             FILL
         );
 

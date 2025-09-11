@@ -309,11 +309,12 @@ pub async fn update_quantity_exceldata(
     }
 }
 
-fn insert_number_in_sheet(sheet: &mut Worksheet, col: &str, row_in_excel: usize, value: impl Into<f64>) {
+#[inline]
+pub fn insert_number_in_sheet(sheet: &mut Worksheet, col: &str, row_in_excel: usize, value: impl Into<f64>) {
     let cell = format!("{}{}", col, row_in_excel);
     sheet.get_cell_value_mut(cell).set_value_number(value);
 }
-
+#[inline]
 pub fn insert_string_in_sheet(sheet: &mut Worksheet, col: &str, row_in_excel: usize, value: impl Into<String>) {
     let cell = format!("{}{}", col, row_in_excel);
     sheet.get_cell_value_mut(cell).set_value_string(value);
@@ -443,6 +444,7 @@ pub fn generate_fallback_path(path: &mut Option<PathBuf>) {
     *path = Some(p);
 }
 
+#[inline]
 pub fn clear_extra_iteminfo_given_quantity(sheet: &mut Worksheet, quantity: Option<u16>, row_in_excel: usize, cols: (Option<&str>, Option<&str>, Option<&str>) ) {
     if quantity != Some(1) {
         if let Some(col) = cols.0 { insert_string_in_sheet(sheet, col, row_in_excel, ""); }

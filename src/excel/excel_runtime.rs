@@ -9,7 +9,7 @@ use ahash::HashMap;
 use iced::task::{Straw, sipper};
 
 use crate::{
-    browser::{csfloat, csgotrader, steamcommunity::SteamInventory}, dprintln, excel::{excel_ops::{get_exceldata, get_spreadsheet, set_spreadsheet}, helpers::{clear_extra_iteminfo_given_quantity, get_cached_markets_data, get_exchange_rate, get_market_price, get_steamloginsecure, insert_new_exceldata, insert_string_in_sheet, update_quantity_exceldata, wrapper_fetch_iteminfo_via_itemprovider_persistent}}, gui::{ice::Progress, templates_n_methods::IsEnglishAlphabetic}, models::{  
+    browser::{csfloat, csgotrader, steamcommunity::SteamInventory}, dprintln, excel::{excel_ops::{get_exceldata, get_spreadsheet, set_spreadsheet}, helpers::{clear_extra_iteminfo_given_quantity, get_cached_markets_data, get_exchange_rate, get_market_price, get_steamloginsecure, insert_new_exceldata, insert_number_in_sheet, insert_string_in_sheet, update_quantity_exceldata, wrapper_fetch_iteminfo_via_itemprovider_persistent}}, gui::{ice::Progress, templates_n_methods::IsEnglishAlphabetic}, models::{  
         excel::ExcelData, price::{Doppler, PricingMode}, 
         user_sheet::{SheetInfo, UserInfo}, 
         web::{ExtraItemData, ItemInfoProvider, Sites, SteamData}
@@ -154,8 +154,10 @@ pub fn run_program(
                         // don't update quantity and jump to next iteration of cs inv. Instead execute the logic underneath match statement
                         if data.phase.is_some() // data.phase being Some means excel.col_phase has to be Some aswell
                         && user.iteminfo_provider != ItemInfoProvider::Steam 
-                        && steamdata.inspect_link.is_some() {
-                            
+                        && steamdata.inspect_link.is_some() {   
+                            // Only path that does not end in a 'continue; keyword. Executes the match statement below this match. 
+                            // This is needed because you can have two of the same knife, but it can have different phases.
+                            // Doing the check here would not cover that possibility so it has to be its´ own loop.
                         }
                         
                         // FOR CASES WHERE DOPPLER GOT FETCHED FIRST USING STEAM THEN FETCHED LATER USING 3RD PARTY API
@@ -173,14 +175,31 @@ pub fn run_program(
                                 user.pause_time_ms, 
                                 steamdata, 
                                 &mut progress
-                            ).await?.ok_or("Watafak".to_string())?;
+                            ).await?.ok_or("Watafak.".to_string())?;
 
-                            if let Some(phase) = iteminfo.phase {
+                            let (market, price) = get_market_price(
+                                &user, 
+                                &markets_to_check, 
+                                &all_market_prices,
+                                rate, 
+                                &steamdata.name, 
+                                &iteminfo.phase, 
+                                &mut progress
+                            ).await?;
+
+                            if let Some(phase) = &iteminfo.phase {
                                 insert_string_in_sheet(sheet, col_phase, row_in_excel, phase.as_str());
                             }
+                            if let Some(price) = price {
+                                insert_number_in_sheet(sheet, &excel.col_price, row_in_excel, price);
+                            }
+                            if let Some(market) = market && let Some(col_market) = &excel.col_market {
+                                insert_string_in_sheet(sheet, col_market, row_in_excel, market);
+                            }
+
                             continue;
                         }
-                        // "Base case after hyper-spesific clauses above"
+                        // "Base case" after hyper-spesific clauses above
                         else { 
                             update_quantity_exceldata(
                                 steamdata, 
@@ -193,7 +212,9 @@ pub fn run_program(
 
                             // If quantity is more than 1, remove data in float, pattern and inspect_link if its set
                             clear_extra_iteminfo_given_quantity(
-                                sheet, data.quantity, row_in_excel,
+                                sheet, 
+                                data.quantity, 
+                                row_in_excel,
                                 (excel.col_float.as_deref(), excel.col_pattern.as_deref(), excel.col_inspect_link.as_deref()), 
                                 
                             );
@@ -210,7 +231,7 @@ pub fn run_program(
                         let row_in_excel: usize = exceldata.len() + excel.row_start_write_in_table as usize;
 
                         let extra_itemdata: Option<ExtraItemData> = 
-                            if steamdata.quantity == Some(1) || steamdata.name.to_lowercase().contains( " doppler") { 
+                            if steamdata.quantity == Some(1) || steamdata.name.to_lowercase().contains( " doppler") {
                                 // Min retarda ass bygde extra iteminfo checken inn i wrapper funksjonen så trust at hvis IteminfoProvider er Steam så blir denne None
                                 wrapper_fetch_iteminfo_via_itemprovider_persistent(
                                     iteminfo_client, 

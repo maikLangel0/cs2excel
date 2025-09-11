@@ -152,6 +152,7 @@ pub fn pick_list_template<'a, T, L, V, F, Exec>(
     options: L,
     selected: Option<V>,
     on_selected: F,
+    tooltip_size: impl Into<Size>,
     width: impl Into<Length>,
 ) -> Column<'a, Exec>
 where
@@ -161,9 +162,11 @@ where
     V: Borrow<T> + 'a,
     F: Fn(T) -> Exec + 'a,
 {
+    let size: Size = tooltip_size.into();
+
     column![
         row![
-            tooltip_default(tooltip_content, 400, 100).padding(3),
+            tooltip_default(tooltip_content, size.width, size.height).padding(3),
             iced::widget::text(field_name.into()).width(Length::Fill).center(),
             padding_inner(30)
         ].spacing(5),
