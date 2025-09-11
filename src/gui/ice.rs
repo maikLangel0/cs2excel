@@ -790,7 +790,7 @@ impl App {
                 FILL
             )
         };
-        let col_phase = if sheet.col_inspect_link.is_none() { column![] }
+        let col_phase = if sheet.col_inspect_link.is_none() || user.iteminfo_provider == ItemInfoProvider::Steam { column![] }
         else {
             text_input_template(
                 "Name of column where the phase can be written (Ex: phase 4, emerald)",
