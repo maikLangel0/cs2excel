@@ -209,60 +209,33 @@ pub async fn insert_new_exceldata(
     if excel.col_gun_sticker_case.is_some() || excel.col_skin_name.is_some() || excel.col_wear.is_some() {
         let [gun_sticker_case, skin_name, wear] = market_name_parse::metadata_from_market_name(&steamdata.name);
 
-        if let Some(col_gun_sticker_case) = &excel.col_gun_sticker_case && !gun_sticker_case.is_empty() {
-            insert_string_in_sheet(sheet, &col_gun_sticker_case, row_in_excel, &gun_sticker_case);
-        }
-        if let Some(col_skin_name) = &excel.col_skin_name && !skin_name.is_empty() {
-            insert_string_in_sheet(sheet, &col_skin_name, row_in_excel, &skin_name);
-        }
-        if let Some(col_wear) = &excel.col_wear && !wear.is_empty() {
-            insert_string_in_sheet(sheet, &col_wear, row_in_excel, &wear);
-        }
+        if let Some(col_gun_sticker_case) = &excel.col_gun_sticker_case && !gun_sticker_case.is_empty() { insert_string_in_sheet(sheet, &col_gun_sticker_case, row_in_excel, &gun_sticker_case); }
+        if let Some(col_skin_name)        = &excel.col_skin_name && !skin_name.is_empty()               { insert_string_in_sheet(sheet, &col_skin_name, row_in_excel, &skin_name); }
+        if let Some(col_wear)             = &excel.col_wear && !wear.is_empty()                         { insert_string_in_sheet(sheet, &col_wear, row_in_excel, &wear); }
     }
 
-    // Helgardering, i teorien så skal extra_itemdata alltid være None hvis IteminfoProvider::Steam
+    if let Some(col_quantity)     = &excel.col_quantity && let Some(quantity) = steamdata.quantity              { insert_number_in_sheet(sheet, &col_quantity, row_in_excel, quantity); }
+    if let Some(monetary)         = price                                                                       { insert_number_in_sheet(sheet, &excel.col_price, row_in_excel, monetary); }
+    if let Some(col_market)       = &excel.col_market && let Some(marquet) = market                             { insert_string_in_sheet(sheet, col_market, row_in_excel, &marquet); }
+    if let Some(col_inspect_link) = &excel.col_inspect_link && let Some(inspect_link) = &steamdata.inspect_link { insert_string_in_sheet(sheet, &col_inspect_link, row_in_excel, inspect_link); }
+    if let Some(col_asset_id)     = &excel.col_asset_id && !user.group_simular_items                            { insert_number_in_sheet(sheet, &col_asset_id, row_in_excel, steamdata.asset_id as f64); }
+
     if steamdata.quantity == Some(1) || steamdata.quantity == None {
         if let Some(itemdata) = extra_itemdata {
-            if let Some(col_float) = &excel.col_float && let Some(float) = itemdata.float {
-                insert_number_in_sheet(sheet, &col_float, row_in_excel, float);
-            }
-            if let Some(col_pattern) = &excel.col_pattern && let Some(pattern) = itemdata.paintseed {
-                insert_number_in_sheet(sheet, &col_pattern, row_in_excel, pattern);
-            }
-            if let Some(col_phase) = &excel.col_phase && let Some(faze) = &itemdata.phase {
-                insert_string_in_sheet(sheet, &col_phase, row_in_excel, faze.as_str());
-            }
+            if let Some(col_float)   = &excel.col_float && let Some(float) = itemdata.float         { insert_number_in_sheet(sheet, &col_float, row_in_excel, float); }
+            if let Some(col_pattern) = &excel.col_pattern && let Some(pattern) = itemdata.paintseed { insert_number_in_sheet(sheet, &col_pattern, row_in_excel, pattern); }
+            if let Some(col_phase)   = &excel.col_phase && let Some(faze) = &itemdata.phase         { insert_string_in_sheet(sheet, &col_phase, row_in_excel, faze.as_str()); }
         } // Use data from steam if extra_itemdata is None
         else { 
-            if let Some(col_float) = &excel.col_float && let Some(float) = steamdata.float {
-                insert_number_in_sheet(sheet, &col_float, row_in_excel, float);
-            }
-            if let Some(col_pattern) = &excel.col_pattern && let Some(pattern) = steamdata.pattern {
-                insert_number_in_sheet(sheet, &col_pattern, row_in_excel, pattern);
-            }
+            if let Some(col_float)   = &excel.col_float && let Some(float) = steamdata.float       { insert_number_in_sheet(sheet, &col_float, row_in_excel, float); }
+            if let Some(col_pattern) = &excel.col_pattern && let Some(pattern) = steamdata.pattern { insert_number_in_sheet(sheet, &col_pattern, row_in_excel, pattern); }
         }
     }
 
-    if let Some(col_quantity) = &excel.col_quantity && let Some(quantity) = steamdata.quantity {
-        insert_number_in_sheet(sheet, &col_quantity, row_in_excel, quantity);
-    }
-    if let Some(monetary) = price {
-        insert_number_in_sheet(sheet, &excel.col_price, row_in_excel, monetary);
-    }
-    if let Some(col_market) = &excel.col_market && let Some(marquet) = market {
-        insert_string_in_sheet(sheet, col_market, row_in_excel, &marquet);
-    }
-    if let Some(col_inspect_link) = &excel.col_inspect_link && let Some(inspect_link) = &steamdata.inspect_link {
-        insert_string_in_sheet(sheet, &col_inspect_link, row_in_excel, inspect_link);
-    }
-    if let Some(col_asset_id) = &excel.col_asset_id && !user.group_simular_items {
-        insert_number_in_sheet(sheet, &col_asset_id, row_in_excel, steamdata.asset_id as f64);
-    }
     if let Some(col_csgoskins_link) = &excel.col_csgoskins_link {
         let csgoskins_url = csgoskins_url::create_csgoskins_urls(&steamdata.name);
         let link = format!("https://csgoskins.gg/items/{}", csgoskins_url);
-        
-        insert_string_in_sheet(sheet, &col_csgoskins_link, row_in_excel, &link);
+         insert_string_in_sheet(sheet, &col_csgoskins_link, row_in_excel, &link);
     }
 
     progress.send( Progress { 

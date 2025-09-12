@@ -107,9 +107,6 @@ pub fn run_program(
             percent: 0.0 }
         ).await;
 
-        // dprintln!("Data gotten from excel spreadsheet: \n{:#?}", exceldata);
-        // if !exceldata.is_empty() { return Ok(()) }
-
         //  exceldata_old_len er her fordi jeg har endret måte å oppdatere prisene i spreadsheet'n på.
         //  Nå, hvis et item fra steam ikke er i spreadsheetn allerede, så oppdateres spreadsheetn med price, quantity,
         //  phase og inspect link. exceldata_old_len skal være til når resten av itemsene skal oppdateres i pris,
@@ -175,7 +172,7 @@ pub fn run_program(
                                 user.pause_time_ms, 
                                 steamdata, 
                                 &mut progress
-                            ).await?.ok_or("Watafak.".to_string())?;
+                            ).await?.ok_or("Iteminfo fetched is None when that shouldnt be possible.".to_string())?;
 
                             let (market, price) = get_market_price(
                                 &user, 
@@ -187,15 +184,9 @@ pub fn run_program(
                                 &mut progress
                             ).await?;
 
-                            if let Some(phase) = &iteminfo.phase {
-                                insert_string_in_sheet(sheet, col_phase, row_in_excel, phase.as_str());
-                            }
-                            if let Some(price) = price {
-                                insert_number_in_sheet(sheet, &excel.col_price, row_in_excel, price);
-                            }
-                            if let Some(market) = market && let Some(col_market) = &excel.col_market {
-                                insert_string_in_sheet(sheet, col_market, row_in_excel, market);
-                            }
+                            if let Some(phase) = &iteminfo.phase { insert_string_in_sheet(sheet, col_phase, row_in_excel, phase.as_str()); }
+                            if let Some(price) = price { insert_number_in_sheet(sheet, &excel.col_price, row_in_excel, price); }
+                            if let Some(market) = market && let Some(col_market) = &excel.col_market { insert_string_in_sheet(sheet, col_market, row_in_excel, market); }
 
                             continue;
                         }
@@ -234,7 +225,7 @@ pub fn run_program(
                             if steamdata.quantity == Some(1) || steamdata.name.to_lowercase().contains( " doppler") {
                                 // Min retarda ass bygde extra iteminfo checken inn i wrapper funksjonen så trust at hvis IteminfoProvider er Steam så blir denne None
                                 wrapper_fetch_iteminfo_via_itemprovider_persistent(
-                                    iteminfo_client, 
+                                    iteminfo_client,
                                     &user.iteminfo_provider, 
                                     &excel.col_inspect_link, 
                                     user.pause_time_ms, 
@@ -315,7 +306,6 @@ pub fn run_program(
                                 sheet,
                                 &mut progress
                             ).await? 
-
                         );
                     }
                 }
@@ -327,30 +317,67 @@ pub fn run_program(
                 // DO NOT INSERT NEW STUFF IF THERE IS A LIMITER ON WHERE TO STOP WRITING
                 if excel.row_stop_write_in_table.is_some() { break; }
 
-                if !exceldata.iter().any(|e| e.asset_id == Some(steamdata.asset_id) && e.name == steamdata.name) {
-                    let row_in_excel: usize = exceldata.len() + excel.row_start_write_in_table as usize;
+                match exceldata.iter().enumerate().find(|(_, e)| e.asset_id == Some(steamdata.asset_id) && e.name == steamdata.name) {
+                    Some((index, data)) => {
+                        
+                        if data.phase.is_none()
+                        && user.iteminfo_provider != ItemInfoProvider::Steam
+                        && steamdata.inspect_link.is_some()
+                        && let Some(col_phase) = &excel.col_phase
+                        && data.name.to_lowercase().contains(" doppler")
+                        {
+                            let row_in_excel: usize = index + excel.row_start_write_in_table as usize;
 
-                    let extra_itemdata: Option<ExtraItemData> = wrapper_fetch_iteminfo_via_itemprovider_persistent(
-                        iteminfo_client, 
-                        &user.iteminfo_provider, 
-                        &excel.col_inspect_link,
-                        user.pause_time_ms, 
-                        steamdata,
-                        &mut progress
-                    ).await?;
+                            let iteminfo: ExtraItemData = wrapper_fetch_iteminfo_via_itemprovider_persistent(
+                                iteminfo_client, 
+                                &user.iteminfo_provider, 
+                                &excel.col_inspect_link, 
+                                user.pause_time_ms, 
+                                steamdata, 
+                                &mut progress
+                            ).await?.ok_or("Iteminfo fetched is None when that shouldnt be possible.".to_string())?;
 
-                    exceldata.push( 
-                        insert_new_exceldata(
-                            &user, &excel,
+                            let (market, price) = get_market_price(
+                                &user, 
+                                &markets_to_check, 
+                                &all_market_prices,
+                                rate, 
+                                &steamdata.name, 
+                                &iteminfo.phase, 
+                                &mut progress
+                            ).await?;
+
+                            if let Some(phase) = &iteminfo.phase { insert_string_in_sheet(sheet, col_phase, row_in_excel, phase.as_str()); }
+                            if let Some(price) = price { insert_number_in_sheet(sheet, &excel.col_price, row_in_excel, price); }
+                            if let Some(market) = market && let Some(col_market) = &excel.col_market { insert_string_in_sheet(sheet, col_market, row_in_excel, market); }
+                        } 
+                    }
+                    None => {
+                        let row_in_excel: usize = exceldata.len() + excel.row_start_write_in_table as usize;
+
+                        let extra_itemdata: Option<ExtraItemData> = wrapper_fetch_iteminfo_via_itemprovider_persistent(
+                            iteminfo_client, 
+                            &user.iteminfo_provider, 
+                            &excel.col_inspect_link,
+                            user.pause_time_ms, 
                             steamdata,
-                            &extra_itemdata,
-                            &markets_to_check,
-                            &all_market_prices,
-                            rate, row_in_excel, 
-                            sheet,
                             &mut progress
-                        ).await? 
-                    );
+                        ).await?;
+
+                        exceldata.push( 
+                            insert_new_exceldata(
+                                &user, &excel,
+                                steamdata,
+                                &extra_itemdata,
+                                &markets_to_check,
+                                &all_market_prices,
+                                rate, row_in_excel, 
+                                sheet,
+                                &mut progress
+                            ).await? 
+                        );
+                    }
+                    
                 }
             }
         }
@@ -382,8 +409,6 @@ pub fn run_program(
             if let Some(stop_write) = excel.row_stop_write_in_table && row_in_excel >= stop_write as usize { 
                 break 
             }
-            
-            let cell_price = format!("{}{}", excel.col_price, row_in_excel);
 
             let doppler: Option<Doppler> = {
                 if let Some(phase) = &data.phase {
@@ -401,14 +426,8 @@ pub fn run_program(
                 &mut progress
             ).await?;
 
-            if let Some(pris) = price {
-                sheet.get_cell_value_mut(cell_price).set_value_number(pris);
-            }
-
-            if let Some(marked) = market && let Some(col_market) = &excel.col_market {
-                let cell_market = format!("{}{}", col_market, row_in_excel);
-                sheet.get_cell_value_mut(cell_market).set_value_string(marked);
-            }
+            if let Some(pris) = price { insert_number_in_sheet(sheet, &excel.col_price, row_in_excel, pris); }
+            if let Some(marked) = market && let Some(col_market) = &excel.col_market { insert_string_in_sheet(sheet, col_market, row_in_excel, &marked); }
         }
 
         let finishtime = chrono::Local::now()
@@ -455,7 +474,7 @@ pub fn is_user_input_valid(user: &UserInfo, excel: &SheetInfo) -> Result<(), Str
     // --------------------
 
     if excel.path_to_sheet.is_some() && excel.sheet_name.is_none() {
-         return Err( String::from( "Sheet name can't be nothing if path to sheet is given." ) )
+        return Err( String::from( "Sheet name can't be nothing if path to sheet is given." ) )
     }
 
     if excel.col_inspect_link.is_none() {

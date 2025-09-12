@@ -89,9 +89,8 @@ pub async fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo, ignore_sold
                 let cell_quantity = format!("{}{}", quant, &iter);
 
                 if let Some(cell) = sheet.get_cell(cell_quantity) {
-
                     let cell_value = cell.get_raw_value().to_string().trim().to_string(); 
-                    Some(cell_value.parse::<u16>().map_err(|_| "Quantity failed parsing")?)
+                    Some(cell_value.parse::<u16>().map_err(|_| "Quantity failed parsing.")?)
 
                 } else { None }
             } else { None }

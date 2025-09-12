@@ -465,9 +465,10 @@ impl App {
                         if sheet.col_inspect_link.is_none() {
                             state.editor_runtime_result.perform( text_editor::Action::Edit( Edit::Paste( Arc::new("WARNING: col inspect link is not defined so you will not be able to fetch more iteminfo (float, doppler phase, pattern, correct price of dopplers).\n".to_string()) ) ) );
                         }
-                        if user.usd_to_x != Currencies::None && sheet.rowcol_usd_to_x.is_some() {
-                            user.usd_to_x = Currencies::None;
-                        }
+                        if user.usd_to_x != Currencies::None && sheet.rowcol_usd_to_x.is_some() { user.usd_to_x = Currencies::None; }
+                        if sheet.col_asset_id.is_some() && user.group_simular_items { sheet.col_asset_id = None; }
+                        if sheet.col_quantity.is_some() && !user.group_simular_items { sheet.col_quantity = None; }
+
                         // ---------------------
                         let user = user.clone();
                         let sheet = sheet.clone();
@@ -806,15 +807,18 @@ impl App {
                 FILL
             )
         };
-        let col_quantity = text_input_template(
-            "Name of column where the quantity can be written and read (Ex: 67)",
-            (300.0, 100.0), 
-            if user.group_simular_items {"Col quantity"} else {"Col quantity?"}, 
-            "Ex: H", 
-            sheet.col_quantity.as_ref(), 
-            Exec::ColQuantity, 
-            FILL
-        );
+        let col_quantity = if !user.group_simular_items { column![] } 
+        else { 
+            text_input_template(
+                "Name of column where the quantity can be written and read (Ex: 67)",
+                (300.0, 100.0), 
+                "Col quantity", 
+                "Ex: H", 
+                sheet.col_quantity.as_ref(), 
+                Exec::ColQuantity, 
+                FILL
+            )
+        };
         let col_market = if !user.fetch_prices { column![] } 
         else {
             text_input_template(
@@ -990,10 +994,10 @@ impl App {
             row![col_full_name, col_gun_sticker_case, col_skin_name, col_wear, col_float ].padding(4).spacing(5),
             horizontal_rule(5),
 
-            row![col_pattern, col_phase, col_quantity, col_price, col_market, col_sold].padding(4).spacing(5),
+            row![col_pattern, col_phase, col_quantity, col_assetid, col_price, col_market].padding(4).spacing(5),
             horizontal_rule(5),
 
-            row![col_inspect_link, col_csgoskins_link, col_assetid, cell_date, cell_usd_to_x].padding(4).spacing(5),
+            row![col_sold, col_inspect_link, col_csgoskins_link, cell_date, cell_usd_to_x].padding(4).spacing(5),
             horizontal_rule(5),
 
             row![ text_editor_template(ADDITIONAL_INFO, "-#- Program Output -#-", "", &state.editor_runtime_result, Length::Fill, Length::Fill, (1000.0, 300.0), Exec::RuntimeResult)],
