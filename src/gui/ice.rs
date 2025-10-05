@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::{fs::File, io::BufReader, path::PathBuf, str::FromStr};
 
+use ahash::HashSet;
 use iced::widget::image::Handle;
 use iced::widget::text_editor::{Content, Edit};
 use iced::alignment::Horizontal;
@@ -236,14 +237,14 @@ impl App {
                                 .split(",")
                                 .filter(|s| !s.is_empty() )
                                 .map(|s| s.trim().to_owned())
-                                .collect::<Vec<String>>()
+                                .collect::<HashSet<String>>()
                             ) 
                     } else { None };
                 }
                 Task::none()
             },
             Exec::PreferMarkets(act) => {
-                if matches!(&act, &text_editor::Action::Edit(_)) { 
+                if matches!(act, text_editor::Action::Edit(_)) { 
                     user.prefer_markets = if !state.editor_prefer_markets.text().is_empty() {
                         Some( {
                             let sites_string = state.editor_prefer_markets.text()
@@ -251,7 +252,7 @@ impl App {
                                 .map(|s| s.trim().to_owned())
                                 .collect::<Vec<String>>();
 
-                            sites_string.iter().filter_map( |s| Sites::from_str(s).ok() ).collect::<Vec<Sites>>()
+                            sites_string.iter().filter_map( |s| Sites::from_str(s).ok() ).collect::<HashSet<Sites>>()
                         } )
                     } else { None };
                 };
@@ -427,7 +428,7 @@ impl App {
                                 *sheet = load.sheet;
 
                                 let isn_input: String = if let Some(isn) = &user.ingore_steam_names { 
-                                    isn.join(", ") 
+                                    isn.iter().map(|s| s.clone()).collect::<Vec<String>>().join(", ")
                                 } else { String::new() };
                                 
                                 let pm_input: String = if let Some(pm) = &user.prefer_markets { 

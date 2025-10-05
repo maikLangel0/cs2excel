@@ -4,7 +4,7 @@ use reqwest::Client;
 use strum::IntoEnumIterator;
 use umya_spreadsheet::{Spreadsheet, Worksheet};
 use serde_json::Value;
-use ahash::HashMap;
+use ahash::{HashMap, HashSet};
 
 use iced::task::{Straw, sipper};
 
@@ -58,7 +58,8 @@ pub fn run_program(
         // -----------------------------------------------------------------------------------------------
 
         let markets_to_check: Vec<Sites> = user.prefer_markets.take()
-            .unwrap_or_else(|| Sites::iter().collect::<Vec<Sites>>() );
+            .unwrap_or_else(|| Sites::iter().collect::<HashSet<Sites>>() )
+            .into_iter().collect::<Vec<Sites>>();
 
         let all_market_prices: HashMap<Sites, Value> = get_cached_markets_data(&markets_to_check, &user.pricing_provider).await?;
 
