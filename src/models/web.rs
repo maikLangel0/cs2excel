@@ -96,7 +96,7 @@ pub struct SteamData {
 #[derive(Deserialize, Serialize, Debug)]
 pub struct SteamJson {
     pub assets: Vec<Value>,
-    pub asset_properties: Vec<Value>,
+    pub asset_properties: Option<Vec<Value>>,
     pub descriptions: Vec<Value>,
     pub total_inventory_count: u16,
     pub success: i8,

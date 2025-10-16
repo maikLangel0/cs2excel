@@ -1,9 +1,8 @@
-use std::sync::Arc;
 use std::{fs::File, io::BufReader, path::PathBuf, str::FromStr};
 
 use ahash::HashSet;
 use iced::widget::image::Handle;
-use iced::widget::text_editor::{Content, Edit};
+use iced::widget::text_editor::Content;
 use iced::alignment::Horizontal;
 use iced::widget::{checkbox, column, container, horizontal_rule, image, row, text_editor, Column, Row};
 use iced::window::{Settings, icon};
@@ -11,7 +10,7 @@ use iced::{window, Element, Length, Pixels, Size, Subscription, Task};
 
 use crate::dprintln;
 use crate::excel::excel_runtime::{self, is_user_input_valid};
-use crate::gui::templates_n_methods::{btn_base, padding_inner, path_to_file_name, pick_list_template, slider_template, task_cell_if_english_alphabetic, task_col_if_english_alphabetic, text_editor_template, text_input_template, tooltip_default, ToNumeric, ToOption};
+use crate::gui::templates_n_methods::{btn_base, editor_paste, padding_inner, path_to_file_name, pick_list_template, slider_template, task_cell_if_english_alphabetic, task_col_if_english_alphabetic, text_editor_template, text_input_template, tooltip_default, ToNumeric, ToOption};
 use crate::models::{price::{Currencies, PricingMode, PricingProvider}, user_sheet::{SheetInfo, UserInfo, UserSheet}, web::{ItemInfoProvider, Sites}};
 
 use strum::IntoEnumIterator;
@@ -24,7 +23,8 @@ const ADDITIONAL_INFO: &str = "IMPORTANT INFO: \
     \n\nEXCEL FILE NEEDS TO CLOSED THE INSTANCE YOU START THE PROGRAM AND THE INSTANCE THE PROGRAM ENDS! HAVING THE FILE OPEN WHEN CLICKING 'Run' WILL RESULT IN AN ERROR. IF PROGRAM IS OPEN AT THE END OF ITERATION, WRITING TO THE EXCEL FILE WILL NOT BE SUCCESSFUL.
     \nPlease always have a recent up-to-date backup of your spreadsheet(s) \
     \nPlease make sure the rows of the table has no gaps in it. if it does the program will not recognize the whole table and add information in random, not intended places.
-    \n'?' next to the name of an input means that thing is OPTIONAL";
+    \n'?' next to the name of an input means that thing is OPTIONAL
+    \nFor some reason float and pattern on items out of tradehold does not show as of the 16th of October 2025, so older items might not include that metadata when using Steam as iteminfo provider.";
 
 const CS2TRADER: &str = "https://csgotrader.app/";
 const CS2TRADER_REPO: &str = "https://github.com/gergelyszabo94/csgo-trader-extension";
@@ -461,10 +461,10 @@ impl App {
                         dprintln!("Attempt to run.");
 
                         if user.iteminfo_provider == ItemInfoProvider::Steam {
-                            state.editor_runtime_result.perform( text_editor::Action::Edit( Edit::Paste( Arc::new("WARNING: Pricing for doppler phases will not be accurate when Iteminfo Provider is Steam.\n".to_string()) ) ) );
+                            state.editor_runtime_result.perform( editor_paste("WARNING: Pricing for doppler phases will not be accurate when Iteminfo Provider is Steam.\n") );
                         }
                         if sheet.col_inspect_link.is_none() {
-                            state.editor_runtime_result.perform( text_editor::Action::Edit( Edit::Paste( Arc::new("WARNING: col inspect link is not defined so you will not be able to fetch more iteminfo (float, doppler phase, pattern, correct price of dopplers).\n".to_string()) ) ) );
+                            state.editor_runtime_result.perform( editor_paste("WARNING: col inspect link is not defined so you will not be able to fetch more iteminfo (float, doppler phase, pattern, correct price of dopplers).\n") );
                         }
                         if user.usd_to_x != Currencies::None && sheet.rowcol_usd_to_x.is_some() { user.usd_to_x = Currencies::None; }
                         if sheet.col_asset_id.is_some() && user.group_simular_items { sheet.col_asset_id = None; }
@@ -485,20 +485,20 @@ impl App {
                     Err(e) => { 
                         dprintln!("User input is not valid! \n{}", e); 
                         state.editor_runtime_result = text_editor::Content::new();
-                        state.editor_runtime_result.perform(text_editor::Action::Edit( Edit::Paste(Arc::new(e)) ));
+                        state.editor_runtime_result.perform( editor_paste(&e));
                         Task::none() 
                     },
                 }
             }
             Exec::UpdateRun(update) => {
-                state.editor_runtime_result.perform( text_editor::Action::Edit( Edit::Paste( Arc::new(update.message) ) ) );
+                state.editor_runtime_result.perform( editor_paste(update.message.as_str()) );
                 state.runtime_progress = update.percent;
                 Task::none()
             }
             Exec::FinishRun(res) => {
                 match res {
-                    Ok(_) => { state.editor_runtime_result.perform( text_editor::Action::Edit( Edit::Paste( Arc::new("\nFinished successfully!".to_string())) ) ) },
-                    Err(e) => { state.editor_runtime_result.perform( text_editor::Action::Edit( Edit::Paste( Arc::new(format!("\nError!\n{}", e)) ) ) ) },
+                    Ok(_) => { state.editor_runtime_result.perform( editor_paste("\nFinished successfully!")) },
+                    Err(e) => { state.editor_runtime_result.perform( editor_paste(&format!("\nError!\n{}", e)) ) },
                 }
                 state.is_excel_running = false;
                 Task::none()
@@ -513,7 +513,7 @@ impl App {
                 match res {
                     Ok(_) => {dprintln!("Worked :D")},
                     Err(e) => {
-                        state.editor_runtime_result.perform( text_editor::Action::Edit( Edit::Paste( Arc::new(format!("\nError!\n{}", e))))); 
+                        state.editor_runtime_result.perform( editor_paste(&format!("\nError!\n{}", e))); 
                         dprintln!("{}", e)
                     },
                 };

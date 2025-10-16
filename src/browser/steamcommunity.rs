@@ -49,11 +49,11 @@ impl SteamInventory {
         }
         
         let mut data = from_value::<SteamJson>(steam_response).map_err( |e| 
-            format!("Parsing the json data from steam into the SteamJson struct did not work! Usual cause is failure to get proper inventory data.\n{}", e) 
+            format!("Parsing the json data from steam into the SteamJson struct did not work! Usual cause is failure to get proper inventory data.\n{}.", e) 
         )?;
 
         let trade_protected: Option<Value> = if !cockie.is_empty() && GAMES_TRADE_PROTECTED.contains(&gameid) {
-            match client.get(format!("https://steamcommunity.com/inventory/{}/{}/16", steamid, gameid))
+            match client.get(format!("https://steamcommunity.com/inventory/{}/{}/16?l?=english&count=2000", steamid, gameid))
                 .header(COOKIE, &cockie)
                 .send()
                 .await.map_err( |e| format!("Failed sending the trade protect check HTTP request to steam! \n{}", e) ) 
@@ -72,9 +72,14 @@ impl SteamInventory {
         && let Some(asset_properties) = tp.get("asset_properties").and_then(|v| v.as_array() )
         && let Some(tic) = tp.get("total_inventory_count").and_then(|v| v.as_u64()) 
         {
+            if let Some(ref mut ass) = data.asset_properties {
+                ass.append(&mut asset_properties.clone());
+            } else {
+                data.asset_properties = Some( asset_properties.clone() );
+            }
+
             data.assets.append(&mut assets.clone());
             data.descriptions.append(&mut descriptions.clone());
-            data.asset_properties.append(&mut asset_properties.clone());
             data.total_inventory_count += tic as u16;
         }
 
@@ -113,40 +118,42 @@ impl SteamInventory {
 
             desc_map.insert(classid, Description { inspect, name_on_market, is_tradable, has_owner_descriptions });
         }
-
+        
         // Construct hashmap for Properties
-        for prop in &self.data.asset_properties {
-            let asset_id = prop.get("assetid")
-                .and_then(|v| v.as_str())
-                .and_then(|s| s.parse::<u64>().ok())
-                .ok_or_else(|| String::from("Assetid fetch failed asset_properties wat."))?;
+        if let Some(ass_prop) = &self.data.asset_properties {    
+            for prop in ass_prop {
+               let asset_id = prop.get("assetid")
+                   .and_then(|v| v.as_str())
+                   .and_then(|s| s.parse::<u64>().ok())
+                   .ok_or_else(|| String::from("Assetid fetch failed asset_properties wat."))?;
 
-            let asset_properties_iter = prop.get("asset_properties")
-                .ok_or_else(|| String::from("Failed to fetch asset_properties from asset_properties wat."))?
-                .as_array()
-                .ok_or_else(|| String::from("Failed to turn into array wat."))?
-                .iter();
+               let asset_properties_iter = prop.get("asset_properties")
+                   .ok_or_else(|| String::from("Failed to fetch asset_properties from asset_properties wat."))?
+                   .as_array()
+                   .ok_or_else(|| String::from("Failed to turn into array wat."))?
+                   .iter();
 
-            let mut float: Option<f64> = None;
-            let mut pattern: Option<u32> = None;
+               let mut float: Option<f64> = None;
+               let mut pattern: Option<u32> = None;
 
-            for property in asset_properties_iter {
-                if let Some(flt) = property.get("float_value")
-                    .and_then(|v| v.as_str())
-                    .and_then(|s| s.parse::<f64>().ok()) 
-                {
-                        float = Some(flt);
-                }
+               for property in asset_properties_iter {
+                   if let Some(flt) = property.get("float_value")
+                       .and_then(|v| v.as_str())
+                       .and_then(|s| s.parse::<f64>().ok()) 
+                   {
+                           float = Some(flt);
+                   }
 
-                if let Some(ptrn) = property.get("int_value")
-                    .and_then(|v| v.as_str())
-                    .and_then(|s| s.parse::<u32>().ok()) 
-                {
-                        pattern = Some(ptrn);
-                }
+                   if let Some(ptrn) = property.get("int_value")
+                       .and_then(|v| v.as_str())
+                       .and_then(|s| s.parse::<u32>().ok()) 
+                   {
+                           pattern = Some(ptrn);
+                   }
+               }
+
+               asset_prop_map.insert(asset_id, Properties { float, pattern });
             }
-
-            asset_prop_map.insert(asset_id, Properties { float, pattern });
         }
 
         let mut intermediate: Vec<IntermediateSteamData> = Vec::with_capacity(self.data.assets.len());
@@ -167,9 +174,11 @@ impl SteamInventory {
                 .ok_or_else(|| String::from("No assetid in assets WHAT."))?;
             
             let (float, pattern): (Option<f64>, Option<u32>) = 
-                if let Some(property) = asset_prop_map.get(&asset_id) { 
-                    (property.float, property.pattern)
-                } else { (None, None) };
+                if asset_prop_map.is_empty() { (None, None) } else {
+                    if let Some(property) = asset_prop_map.get(&asset_id) { 
+                        (property.float, property.pattern)
+                    } else { (None, None) }
+                };
             
             let inspect_link: Option<String> = description.inspect.map(|s| s
                 .replace( "%owner_steamid%", &self.steamid.to_string() )

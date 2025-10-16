@@ -1,9 +1,11 @@
 use std::path::{Path};
 use std::str::FromStr;
+use std::sync::Arc;
 use std::{borrow::Borrow, sync::LazyLock};
 
 use iced::alignment::{Horizontal, Vertical};
 use iced::border::Radius;
+use iced::widget::text_editor::{Action, Edit};
 use iced::widget::{text_editor, Column};
 use iced::{Background, Pixels, Size, Task};
 use iced::{widget::{button, container, pick_list, slider, text::{IntoFragment, Wrapping}, text_input, tooltip, Button, Container, Tooltip, column, row}, Border, Color, Length, Renderer, Shadow, Theme};
@@ -25,6 +27,10 @@ pub fn path_to_file_name(path: &Path) -> Option<String> {
     path.to_str()
         .map(|s| s.split("\\").collect::<Vec<&str>>() )
         .map(|p| p[p.len() - 1].to_string())
+}
+
+pub fn editor_paste(msg: &str) -> Action {
+    text_editor::Action::Edit( Edit::Paste( Arc::new(msg.to_string()) ) )
 }
 
 pub fn padding_inner<'a, Exec>(width: impl Into<Length>) -> Container<'a, Exec, Theme, Renderer> {
