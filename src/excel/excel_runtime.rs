@@ -451,7 +451,7 @@ pub fn run_program(
 
         if let Some(inv) = &sm_inv {
             progress.send( Progress { 
-                message: format!("Asset length: {}\nInventory length: {}\n", inv.get_assets_length(),  inv.get_total_inventory_length()), 
+                message: format!("Asset length: {}\nInventory length: {}\n", inv.assets_length(),  inv.inventory_length()), 
                 percent: 100.0
             }).await;
         };

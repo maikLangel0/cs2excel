@@ -34,11 +34,11 @@ impl SteamInventory {
     ///Initializes the connection to the steam inventory and stores the inventory JSON in self
     pub async fn init(steamid: u64, gameid: u32, cookie: Option<String>) -> Result<Self, String> {
         let client = reqwest::Client::new();
-        let cockie = cookie.unwrap_or("".to_string());
+        let cookie = cookie.unwrap_or("".to_string());
         
         //                                              https://steamcommunity.com/inventory/76561198389123475/730/2?l=english&count=2000
         let steam_response: Value = client.get(format!("https://steamcommunity.com/inventory/{}/{}/2?l=english&count=2000", steamid, gameid))
-            .header(COOKIE, &cockie )
+            .header(COOKIE, &cookie )
             .send()
             .await.map_err( |e| format!("Failed sending the HTTP request to steam! \n{}", e) )?
             .json()
@@ -52,35 +52,30 @@ impl SteamInventory {
             format!("Parsing the json data from steam into the SteamJson struct did not work! Usual cause is failure to get proper inventory data.\n{}.", e) 
         )?;
 
-        let trade_protected: Option<Value> = if !cockie.is_empty() && GAMES_TRADE_PROTECTED.contains(&gameid) {
-            match client.get(format!("https://steamcommunity.com/inventory/{}/{}/16?l?=english&count=2000", steamid, gameid))
-                .header(COOKIE, &cockie)
+        let trade_protected: Option<SteamJson> = if !cookie.is_empty() && GAMES_TRADE_PROTECTED.contains(&gameid) {
+            match client.get(format!("https://steamcommunity.com/inventory/{}/{}/16?l=english&count=2000", steamid, gameid))
+                .header(COOKIE, &cookie)
                 .send()
                 .await.map_err( |e| format!("Failed sending the trade protect check HTTP request to steam! \n{}", e) ) 
                 {
                     Ok(res) => {
                         // Fails silently and just returns None since user might not have any trade protected items in inv OR its not their inv
-                        res.json::<Value>().await.ok()
+                        res.json::<SteamJson>().await.ok()
                     },
                     Err(e) => { return Err(e) }
                 }
         } else { None };
 
-        if let Some(tp) = trade_protected  
-        && let Some(assets) = tp.get("assets").and_then(|v| v.as_array())
-        && let Some(descriptions) = tp.get("descriptions").and_then(|v| v.as_array() )
-        && let Some(asset_properties) = tp.get("asset_properties").and_then(|v| v.as_array() )
-        && let Some(tic) = tp.get("total_inventory_count").and_then(|v| v.as_u64()) 
-        {
-            if let Some(ref mut ass) = data.asset_properties {
-                ass.append(&mut asset_properties.clone());
-            } else {
-                data.asset_properties = Some( asset_properties.clone() );
+        if let Some(mut tp) = trade_protected {
+            if let Some(ref mut ass) = data.asset_properties && let Some(ref mut more_ass) = tp.asset_properties {
+                ass.append(more_ass);
+            } else if let Some(more_ass) = tp.asset_properties.take() {
+                data.asset_properties = Some(more_ass);
             }
 
-            data.assets.append(&mut assets.clone());
-            data.descriptions.append(&mut descriptions.clone());
-            data.total_inventory_count += tic as u16;
+            data.assets.append(&mut tp.assets);
+            data.descriptions.append(&mut tp.descriptions);
+            data.total_inventory_count += tp.total_inventory_count;
         }
 
         Ok( SteamInventory { data, steamid } )
@@ -174,11 +169,9 @@ impl SteamInventory {
                 .ok_or_else(|| String::from("No assetid in assets WHAT."))?;
             
             let (float, pattern): (Option<f64>, Option<u32>) = 
-                if asset_prop_map.is_empty() { (None, None) } else {
-                    if let Some(property) = asset_prop_map.get(&asset_id) { 
-                        (property.float, property.pattern)
-                    } else { (None, None) }
-                };
+                if !asset_prop_map.is_empty() && let Some(property) = asset_prop_map.get(&asset_id) {
+                    (property.float, property.pattern)
+                } else { (None, None) };
             
             let inspect_link: Option<String> = description.inspect.map(|s| s
                 .replace( "%owner_steamid%", &self.steamid.to_string() )
@@ -254,11 +247,11 @@ impl SteamInventory {
         Ok(inventory)
     }
 
-    pub fn get_assets_length(self: &SteamInventory) -> usize {
+    pub fn assets_length(self: &SteamInventory) -> usize {
         self.data.assets.len()
     }
 
-    pub fn get_total_inventory_length(self: &SteamInventory) -> usize { 
+    pub fn inventory_length(self: &SteamInventory) -> usize { 
         self.data.total_inventory_count as usize
     }
 }
