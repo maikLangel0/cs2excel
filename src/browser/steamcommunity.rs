@@ -40,7 +40,7 @@ impl SteamInventory {
         let steam_response: Value = client.get(format!("https://steamcommunity.com/inventory/{}/{}/2?l=english&count=2000", steamid, gameid))
             .header(COOKIE, &cookie )
             .send()
-            .await.map_err( |e| format!("Failed sending the HTTP request to steam! \n{}", e) )?
+            .await.map_err( |e| format!("Failed sending main HTTPS request to steam. Check internet connection or steam availability. \n{}", e) )?
             .json()
             .await.map_err( |e| format!("Failed to parse steam inventory to a JSON. \n{}", e) )?;
 
@@ -56,7 +56,7 @@ impl SteamInventory {
             match client.get(format!("https://steamcommunity.com/inventory/{}/{}/16?l=english&count=2000", steamid, gameid))
                 .header(COOKIE, &cookie)
                 .send()
-                .await.map_err( |e| format!("Failed sending the trade protect check HTTP request to steam! \n{}", e) ) 
+                .await.map_err( |e| format!("Failed sending trade protect HTTPS request to steam. \n{}", e) ) 
                 {
                     Ok(res) => {
                         // Fails silently and just returns None since user might not have any trade protected items in inv OR its not their inv
@@ -122,16 +122,15 @@ impl SteamInventory {
                    .and_then(|s| s.parse::<u64>().ok())
                    .ok_or_else(|| String::from("Assetid fetch failed asset_properties wat."))?;
 
-               let asset_properties_iter = prop.get("asset_properties")
-                   .ok_or_else(|| String::from("Failed to fetch asset_properties from asset_properties wat."))?
-                   .as_array()
-                   .ok_or_else(|| String::from("Failed to turn into array wat."))?
-                   .iter();
+               let asset_properties = prop.get("asset_properties")
+                   .and_then(|a| a.as_array())
+                   .ok_or_else(|| String::from("Failed to get/use inner asset_properties."))?;
 
                let mut float: Option<f64> = None;
                let mut pattern: Option<u32> = None;
 
-               for property in asset_properties_iter {
+               // Loop here to future-proof the implementation 
+               for property in asset_properties {
                    if let Some(flt) = property.get("float_value")
                        .and_then(|v| v.as_str())
                        .and_then(|s| s.parse::<f64>().ok()) 
@@ -247,11 +246,11 @@ impl SteamInventory {
         Ok(inventory)
     }
 
-    pub fn assets_length(self: &SteamInventory) -> usize {
+    pub fn assets_len(self: &SteamInventory) -> usize {
         self.data.assets.len()
     }
 
-    pub fn inventory_length(self: &SteamInventory) -> usize { 
+    pub fn inventory_len(self: &SteamInventory) -> usize { 
         self.data.total_inventory_count as usize
     }
 }

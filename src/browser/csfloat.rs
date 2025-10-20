@@ -3,7 +3,7 @@ use std::time::Duration;
 use reqwest::Client;
 use serde_json::Value;
 
-use crate::{dprintln, gui::ice::Progress, models::web::CSFLOAT_HEADERS_DEFAULT};
+use crate::{dprintln, excel::helpers::spot, gui::ice::Progress, models::web::CSFLOAT_HEADERS_DEFAULT};
 
 
 pub async fn fetch_iteminfo(
@@ -62,10 +62,7 @@ pub async fn fetch_iteminfo_persistent(
                 let wait_time = 60 + pause_time_millis * 2 * (attempt * 2 - attempt) as u64;
                 
                 dprintln!("Error in single_fetch_request_persistent: {:?}", e);
-                progress.send( Progress { 
-                    message: format!("Error in persistent iteminfo HTTP request: {:?} \nWaiting {}ms", e, wait_time),
-                    percent: 0.0 
-                }).await;
+                spot(progress, format!("Error in persistent iteminfo HTTP request: {:?} \nWaiting {}ms", e, wait_time)).await;
                 
                 tokio::time::sleep( Duration::from_millis(wait_time) ).await;
                 

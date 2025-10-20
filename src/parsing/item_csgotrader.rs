@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use crate::{dprintln, gui::ice::Progress, models::{price::{Doppler, PriceType}, web::{ExtraItemData, Sites}}};
+use crate::{dprintln, excel::helpers::spot, gui::ice::Progress, models::{price::{Doppler, PriceType}, web::Sites}};
 
 pub async fn get_price(item_name: &str, prices: &Value, market: &Sites, want: &PriceType, phase: &Option<Doppler>, progress: &mut sipper::Sender<Progress>) -> Result<Option<f64>, String> {
     if let Some(p_one) = prices.get(item_name) { 
@@ -45,44 +45,32 @@ async fn doppler_price(p: &Value, phase: &Option<Doppler>, item_name: &str, mark
             return phase_price.as_f64();
         }
         else {
-            progress.send( Progress { 
-                message: format!(
-                    "NOTE: Doppler of type {} found but did not have active price for item {} on the site {}", 
-                    doppler_phase.as_str(), 
-                    item_name, market.as_str() 
-                ), 
-                percent: 0.0 
-            }).await;
-
-            dprintln!("NOTE: Doppler of type {} found but did not have active price for item {} on the site {}", 
-                doppler_phase.as_str(), 
-                item_name, market.as_str() 
-            ); 
-        } 
-        
+            dprintln!("NOTE: Doppler of type {} found but did not have active price for item {} on the site {}", doppler_phase.as_str(), item_name, market.as_str() ); 
+            spot(progress, format!("NOTE: Doppler of type {} found but did not have active price for item {} on the site {}", doppler_phase.as_str(), item_name, market.as_str() )).await;
+        }
     }
     None
 }
 
-pub fn parse_iteminfo_min(data: &Value, item_name: Option<&str>) -> Result<ExtraItemData, String> {
-    
-    let name  = match item_name {
-        Some(name) => { name.to_string() },
-        None => {
-            data.get("full_item_name")
-                .and_then(|n| n.as_str() )
-                .map( str::to_owned )
-                .ok_or("full_item_name NOT FOUND")?
-        }
-    };
-
-    let float = {
-        let tmp = data.get("floatvalue")
-            .and_then(|f| f.as_f64() )
-            .ok_or("floatvalue NOT FOUND")?;
-
-        if tmp == 0.0 { None } else { Some(tmp) }
-    };
+// pub fn parse_iteminfo_min(data: &Value, item_name: Option<&str>) -> Result<ExtraItemData, String> {
+    // 
+    // let name  = match item_name {
+        // Some(name) => { name.to_string() },
+        // None => {
+            // data.get("full_item_name")
+                // .and_then(|n| n.as_str() )
+                // .map( str::to_owned )
+                // .ok_or("full_item_name NOT FOUND")?
+        // }
+    // };
+// 
+    // let float = {
+        // let tmp = data.get("floatvalue")
+            // .and_then(|f| f.as_f64() )
+            // .ok_or("floatvalue NOT FOUND")?;
+// 
+        // if tmp == 0.0 { None } else { Some(tmp) }
+    // };
 
     // let max_float = {
         // let tmp = data.get("max")
@@ -100,22 +88,22 @@ pub fn parse_iteminfo_min(data: &Value, item_name: Option<&str>) -> Result<Extra
         // if tmp == 0.0 && float.is_none() { None } else { Some(tmp) }
     // };
 
-    let phase = {
-        let tmp = data.get("paintindex")
-            .and_then(|p| p.as_f64() )
-            .map(|p| p as u16)
-            .ok_or("paintindex NOT FOUND")?;
-
-        if let Some(dplr) = Doppler::is_doppler(tmp) && name.to_lowercase().contains("doppler") { Some(dplr) } else { None }
-    };
-    let paintseed = {
-        let tmp = data.get("paintseed")
-            .and_then(|p| p.as_f64() )
-            .map(|p| p as u32)
-        .ok_or("paintseed NOT FOUND")?;
-    
-        if tmp == 0 { None } else { Some(tmp) }
-    };
-
-    Ok( ExtraItemData { /*name,*/ float, /*max_float, min_float,*/ phase, paintseed } )
-}
+    // let phase = {
+        // let tmp = data.get("paintindex")
+            // .and_then(|p| p.as_f64() )
+            // .map(|p| p as u16)
+            // .ok_or("paintindex NOT FOUND")?;
+// 
+        // if let Some(dplr) = Doppler::is_doppler(tmp) && name.to_lowercase().contains("doppler") { Some(dplr) } else { None }
+    // };
+    // let paintseed = {
+        // let tmp = data.get("paintseed")
+            // .and_then(|p| p.as_f64() )
+            // .map(|p| p as u32)
+        // .ok_or("paintseed NOT FOUND")?;
+    // 
+        // if tmp == 0 { None } else { Some(tmp) }
+    // };
+// 
+    // Ok( ExtraItemData { /*name,*/ float, /*max_float, min_float,*/ phase, paintseed } )
+// }

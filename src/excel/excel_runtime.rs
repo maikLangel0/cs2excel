@@ -9,7 +9,7 @@ use ahash::{HashMap, HashSet};
 use iced::task::{Straw, sipper};
 
 use crate::{
-    browser::{csfloat, csgotrader, steamcommunity::SteamInventory}, dprintln, excel::{excel_ops::{get_exceldata, get_spreadsheet, set_spreadsheet}, helpers::{clear_extra_iteminfo_given_quantity, get_cached_markets_data, get_exchange_rate, get_market_price, get_steamloginsecure, insert_new_exceldata, insert_number_in_sheet, insert_string_in_sheet, update_quantity_exceldata, wrapper_fetch_iteminfo_via_itemprovider_persistent}}, gui::{ice::Progress, templates_n_methods::IsEnglishAlphabetic}, models::{  
+    browser::{csfloat, csgotrader, steamcommunity::SteamInventory}, dprintln, excel::{excel_ops::{get_exceldata, get_spreadsheet, set_spreadsheet}, helpers::{clear_extra_iteminfo_given_quantity, get_cached_markets_data, get_exchange_rate, get_market_price, get_steamloginsecure, insert_new_exceldata, insert_number_in_sheet, insert_string_in_sheet, spot, update_quantity_exceldata, wrapper_fetch_iteminfo_via_itemprovider_persistent}}, gui::{ice::Progress, templates_n_methods::IsEnglishAlphabetic}, models::{  
         excel::ExcelData, price::{Doppler, PricingMode}, 
         user_sheet::{SheetInfo, UserInfo}, 
         web::{ExtraItemData, ItemInfoProvider, Sites, SteamData}
@@ -23,14 +23,12 @@ pub fn run_program(
     
 
     sipper(async move |mut progress| {
+        let progress = &mut progress;
 
         progress.send( Progress { message: "Running main program\n".to_owned(), percent: 0.0 }).await;
 
         if user.fetch_prices && user.iteminfo_provider != ItemInfoProvider::Steam && excel.col_inspect_link.is_some() {
-            progress.send( Progress { 
-                message: String::from("Will Fetch additional iteminfo using 3rd party API. This makes doppler prices accurate.\n"), 
-                percent: 0.0
-            }).await;
+            spot(progress, "Will Fetch additional iteminfo using 3rd party API. This makes doppler prices accurate.\n").await;
         }
         
         // Client for fetch_more_iteminfo
@@ -46,14 +44,23 @@ pub fn run_program(
 
         let steamcookie: Option<String> = if user.fetch_steam { get_steamloginsecure(&user.steamloginsecure) } else { None };
 
+        if steamcookie.is_some() { spot(progress, "Found steamcookie.\n").await }
+        else { spot(progress, "Didn't find steamcookie.\n").await }
+
         let sm_inv: Option<SteamInventory> = {
             if user.fetch_steam { Some( SteamInventory::init(user.steamid, 730, steamcookie).await? ) } 
             else { None }
         };
 
         let cs_inv: Option<Vec<SteamData>> = 
-            if let Some(inv) = &sm_inv { Some( inv.get_steam_items(user.group_simular_items, true)? ) }
-            else { None };
+            if let Some(inv) = &sm_inv { 
+                let res = Some( inv.get_steam_items(user.group_simular_items, true)? ); 
+                spot(progress, "Fetched items in inventory.\n").await;
+                res
+            } else {
+                spot(progress, "Didn't fetch items from inventory.\n").await; 
+                None 
+            };
 
         // -----------------------------------------------------------------------------------------------
 
@@ -62,12 +69,10 @@ pub fn run_program(
             .into_iter().collect::<Vec<Sites>>();
 
         let all_market_prices: HashMap<Sites, Value> = get_cached_markets_data(&markets_to_check, &user.pricing_provider).await?;
+        spot(progress, format!("Fetched prices from {}.\n", markets_to_check.iter().map(|m| m.as_str()).collect::<Vec<&str>>().join(", "))).await;
 
         if cs_inv.is_some() {
-            progress.send( Progress { 
-                message: String::from("Reading data from cs inventory and applying it to spreadsheet...\n"), 
-                percent: 0.0 }
-            ).await;
+            spot(progress, "Reading data from cs inventory and applying it to spreadsheet...\n").await;
         }
         let cs_inv_len = cs_inv.as_ref().map(|i| i.len()).unwrap_or(0);
 
@@ -76,18 +81,14 @@ pub fn run_program(
         // BIG BRAIN; READ THE EXCEL SPREADSHEET FIRST TO GET ALL THE INFO AND THEN GET PRICES WOWOWO
         
         // Getting the Worksheet from either existing book or new book
-        let mut book: Spreadsheet = get_spreadsheet(&mut excel.path_to_sheet, &mut excel.sheet_name, &mut progress).await?;
+        let mut book: Spreadsheet = get_spreadsheet(&mut excel.path_to_sheet, &mut excel.sheet_name, progress).await?;
 
         let sheet: &mut Worksheet = {
             if let Some(sn) = &excel.sheet_name { 
                 if let Some(buk) = book.get_sheet_by_name_mut(sn) { buk } 
                 else {
                     dprintln!("WARNING: Automatically fetched first sheet in spreadsheet because {} was not found.", sn);
-
-                    progress.send(Progress { 
-                        message: format!("WARNING: Automatically fetched first sheet in spreadsheet because {} was not found.\n", sn), 
-                        percent: 0.0 
-                    }).await;
+                    spot(progress, &format!("WARNING: Automatically fetched first sheet in spreadsheet because {} was not found.", sn)).await;
 
                     book.get_sheet_mut(&0).ok_or_else(|| format!(
                         "Failed to get the first sheet in the spreadsheet with path: \n{:?}", excel.path_to_sheet.as_ref())
@@ -103,10 +104,7 @@ pub fn run_program(
         let mut exceldata: Vec<ExcelData> = get_exceldata(sheet, &excel, user.ignore_already_sold).await?;
         let exceldata_initial_length: usize = exceldata.len();
 
-        progress.send( Progress { 
-            message: if exceldata.is_empty() {String::from("Read empty excel spreadsheet.\n")} else {format!("Read spreadsheet. First: {} | Last: {}\n", exceldata[0].name, exceldata[exceldata.len() - 1].name)}, 
-            percent: 0.0 }
-        ).await;
+        spot(progress, if exceldata.is_empty() {"Read empty excel spreadsheet.\n".to_string()} else {format!("Read spreadsheet:\n\tFirst: {}\n\tLast: {}\n\n", &exceldata[0].name, &exceldata[exceldata.len() - 1].name)}).await;
 
         //  exceldata_old_len er her fordi jeg har endret måte å oppdatere prisene i spreadsheet'n på.
         //  Nå, hvis et item fra steam ikke er i spreadsheetn allerede, så oppdateres spreadsheetn med price, quantity,
@@ -122,14 +120,14 @@ pub fn run_program(
             progress.send( Progress { 
                 message: if user.group_simular_items { 
                     format!(
-                        "NAME: {} | QUANTITY: {} | HAS INSPECTLINK?: {}\n", 
+                        "NAME: {}\n\tQUANTITY: {}\n\tHAS INSPECTLINK?: {}\n\n", 
                         steamdata.name, 
                         steamdata.quantity.unwrap_or(0), 
                         if steamdata.inspect_link.is_some() {"YES"} else {"NO"}
                     )
                 } else {
                     format!(
-                        "NAME: {} | HAS INSPECTLINK?: {} | ASSETID: {}\n", 
+                        "NAME: {}\n\tHAS INSPECTLINK?: {}\n\tASSETID: {}\n\n", 
                         steamdata.name, 
                         if steamdata.inspect_link.is_some() {"YES"} else {"NO"}, 
                         steamdata.asset_id
@@ -172,7 +170,7 @@ pub fn run_program(
                                 &excel.col_inspect_link, 
                                 user.pause_time_ms, 
                                 steamdata, 
-                                &mut progress
+                                progress
                             ).await?.ok_or("Iteminfo fetched is None when that shouldnt be possible.".to_string())?;
 
                             let (market, price) = get_market_price(
@@ -182,7 +180,7 @@ pub fn run_program(
                                 rate, 
                                 &steamdata.name, 
                                 &iteminfo.phase, 
-                                &mut progress
+                                progress
                             ).await?;
 
                             if let Some(phase) = &iteminfo.phase { insert_string_in_sheet(sheet, col_phase, row_in_excel, phase.as_str()); }
@@ -199,7 +197,7 @@ pub fn run_program(
                                 data, 
                                 row_in_excel, 
                                 sheet,
-                                &mut progress
+                                progress
                             ).await; 
 
                             // If quantity is more than 1, remove data in float, pattern and inspect_link if its set
@@ -231,7 +229,7 @@ pub fn run_program(
                                     &excel.col_inspect_link, 
                                     user.pause_time_ms, 
                                     steamdata,
-                                    &mut progress
+                                    progress
                                 ).await?
                             } 
                             else { None };
@@ -245,7 +243,7 @@ pub fn run_program(
                                 &all_market_prices, 
                                 rate, row_in_excel, 
                                 sheet,
-                                &mut progress
+                                progress
                             ).await? 
                         );
                         continue; 
@@ -268,7 +266,7 @@ pub fn run_program(
                     &excel.col_inspect_link, 
                     user.pause_time_ms, 
                     steamdata,
-                    &mut progress
+                    progress
                 ).await?.ok_or("group_simular_items' path for dopplers failed WHAT")?;
 
                 let phase: &Option<String> = &extra_itemdata.phase.as_ref()
@@ -284,7 +282,7 @@ pub fn run_program(
                             data, 
                             row_in_excel, 
                             sheet,
-                            &mut progress
+                            progress
                         ).await; 
                     },
                     None => {
@@ -305,7 +303,7 @@ pub fn run_program(
                                 &all_market_prices,
                                 rate, row_in_excel, 
                                 sheet,
-                                &mut progress
+                                progress
                             ).await? 
                         );
                     }
@@ -335,7 +333,7 @@ pub fn run_program(
                                 &excel.col_inspect_link, 
                                 user.pause_time_ms, 
                                 steamdata, 
-                                &mut progress
+                                progress
                             ).await?.ok_or("Iteminfo fetched is None when that shouldnt be possible.".to_string())?;
 
                             let (market, price) = get_market_price(
@@ -345,7 +343,7 @@ pub fn run_program(
                                 rate, 
                                 &steamdata.name, 
                                 &iteminfo.phase, 
-                                &mut progress
+                                progress
                             ).await?;
 
                             if let Some(phase) = &iteminfo.phase { insert_string_in_sheet(sheet, col_phase, row_in_excel, phase.as_str()); }
@@ -362,7 +360,7 @@ pub fn run_program(
                             &excel.col_inspect_link,
                             user.pause_time_ms, 
                             steamdata,
-                            &mut progress
+                            progress
                         ).await?;
 
                         exceldata.push( 
@@ -374,7 +372,7 @@ pub fn run_program(
                                 &all_market_prices,
                                 rate, row_in_excel, 
                                 sheet,
-                                &mut progress
+                                progress
                             ).await? 
                         );
                     }
@@ -411,11 +409,8 @@ pub fn run_program(
                 break 
             }
 
-            let doppler: Option<Doppler> = {
-                if let Some(phase) = &data.phase {
-                    Some(Doppler::from_str(phase)?)
-                } else { None }
-            };
+            let doppler: Option<Doppler> = data.phase.as_ref()
+                .and_then(|p| Doppler::from_str(&p).ok());
 
             let (market, price): (Option<String>, Option<f64>) = get_market_price(
                 &user, 
@@ -424,7 +419,7 @@ pub fn run_program(
                 rate, 
                 &data.name, 
                 &doppler,
-                &mut progress
+                progress
             ).await?;
 
             if let Some(pris) = price { insert_number_in_sheet(sheet, &excel.col_price, row_in_excel, pris); }
@@ -444,14 +439,15 @@ pub fn run_program(
         set_spreadsheet(&excel.path_to_sheet, book).await
             .map_err(|e| format!("Couldnt write to spreadsheet! : {}", e))?;
 
-        progress.send( Progress { 
-            message: format!("End time: {}\n", finishtime), 
-            percent: 100.0
-        }).await;
+        progress.send( Progress { message: format!("End time: {}\n", finishtime), percent: 100.0}).await;
 
         if let Some(inv) = &sm_inv {
             progress.send( Progress { 
-                message: format!("Asset length: {}\nInventory length: {}\n", inv.assets_length(),  inv.inventory_length()), 
+                message: format!(
+                    "Fetched items on tradehold? : {} | (Asset length: {} Inventory length: {})", 
+                    if inv.assets_len() == inv.inventory_len() {"YES"} else {"NO"}, 
+                    inv.assets_len(),  
+                    inv.inventory_len()), 
                 percent: 100.0
             }).await;
         };

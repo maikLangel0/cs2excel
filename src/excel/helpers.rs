@@ -17,9 +17,9 @@ pub fn get_steamloginsecure(sls: &Option<String>) -> Option<String> {
     else if let Ok(db) = FirefoxDb::init() {
         match db.get_cookies(vec!["name", "value"], "steamcommunity.com", vec!["steamLoginSecure"]) {
             Ok(cookie) => Some(cookie),
-            Err(e) => { println!("FRICK.\n{}", e); None }
+            Err(_e) => { dprintln!("FRICK.\n{}", _e); None }
         }      
-    } else { println!("WARNING: Failed to connect to firefox."); None }
+    } else { dprintln!("WARNING: Failed to connect to firefox."); None }
 }
 
 pub async fn get_exchange_rate(
@@ -238,10 +238,7 @@ pub async fn insert_new_exceldata(
          insert_string_in_sheet(sheet, &col_csgoskins_link, row_in_excel, &link);
     }
 
-    progress.send( Progress { 
-        message: format!("INSERTED: {} | ROW {}\n", &steamdata.name, row_in_excel), 
-        percent: 0.0 
-    }).await;
+    spot(progress, format!("INSERTED:\n\tNAME: {}\n\tROW: {}\n\n", &steamdata.name, row_in_excel)).await;
 
     Ok(ExcelData { 
         name: steamdata.name.clone(), 
@@ -270,26 +267,18 @@ pub async fn update_quantity_exceldata(
         data.quantity = Some(steam_quantity);
         insert_number_in_sheet(sheet, &col_quantity, row_in_excel, steam_quantity);
 
-        progress.send( Progress { 
-            message: format!(
-                "UPDATED {} QUANTITY TO {} | ROW {}\n", 
-                &steamdata.name, 
-                &data.quantity.unwrap_or(0), 
-                &row_in_excel
-            ), 
-            percent: 0.0 
-        }).await;
+        spot(progress, format!("UPDATED {}:\n\tQUANTITY => {}\n\tROW => {}\n\n", &steamdata.name, &data.quantity.unwrap_or(0), &row_in_excel)).await;
     }
 }
 
 #[inline]
 pub fn insert_number_in_sheet(sheet: &mut Worksheet, col: &str, row_in_excel: usize, value: impl Into<f64>) {
-    let cell = format!("{}{}", col, row_in_excel);
+    let cell = (col.to_column().unwrap(), row_in_excel as u32);
     sheet.get_cell_value_mut(cell).set_value_number(value);
 }
 #[inline]
 pub fn insert_string_in_sheet(sheet: &mut Worksheet, col: &str, row_in_excel: usize, value: impl Into<String>) {
-    let cell = format!("{}{}", col, row_in_excel);
+    let cell = (col.to_column().unwrap(), row_in_excel as u32);
     sheet.get_cell_value_mut(cell).set_value_string(value);
 }
 
@@ -402,7 +391,7 @@ const ALPHABET: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 pub fn rand_ascii_string(len: usize) -> String {
     let mut rng = rng();
-    let fallback: u8 = b"e"[0];
+    let fallback: u8 = b'e';
     (0..len).map(|_| *ALPHABET.choose(&mut rng).unwrap_or(&fallback) as char).collect()
 }
 
@@ -419,9 +408,45 @@ pub fn generate_fallback_path(path: &mut Option<PathBuf>) {
 
 #[inline]
 pub fn clear_extra_iteminfo_given_quantity(sheet: &mut Worksheet, quantity: Option<u16>, row_in_excel: usize, cols: (Option<&str>, Option<&str>, Option<&str>) ) {
-    if quantity != Some(1) {
+    if quantity != Some(1) && quantity.is_some() {
         if let Some(col) = cols.0 { insert_string_in_sheet(sheet, col, row_in_excel, ""); }
         if let Some(col) = cols.1 { insert_string_in_sheet(sheet, col, row_in_excel, ""); }
         if let Some(col) = cols.2 { insert_string_in_sheet(sheet, col, row_in_excel, ""); }
+    }
+}
+
+/// Send progress only text
+pub async fn spot<T>(sender: &mut sipper::Sender<Progress>, msg: T)
+where T: Into<String>
+{
+    sender.send( Progress { message: msg.into(), percent: 0.0 }).await;
+}
+
+pub trait ToColumn {
+    fn to_column(self) -> Option<u32>;
+}
+
+impl ToColumn for &str {
+    fn to_column(self) -> Option<u32> {
+        if self.chars().any(|c| !c.is_ascii()) { return None };
+
+        let mut res: u32 = 0;
+        let mut base: u8;
+
+        for letter in self.bytes() {
+            if letter >= b'a' && letter <= b'z' { base = b'a' }
+            else if letter >= b'A' && letter <= b'Z' { base = b'A' }
+            else { return None }
+
+            res = res * 26 + (letter - base + 1) as u32;
+        }
+
+        Some(res)
+    }
+}
+
+impl ToColumn for String {
+    fn to_column(self) -> Option<u32> {
+        self.as_str().to_column()
     }
 }

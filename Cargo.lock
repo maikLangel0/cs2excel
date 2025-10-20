@@ -992,7 +992,7 @@ dependencies = [
 
 [[package]]
 name = "cs2excel"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "ahash",
  "chrono",

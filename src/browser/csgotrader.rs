@@ -1,9 +1,9 @@
-use std::{io::Read, time::Duration};
+use std::{io::Read};
 use ahash::{HashMap};
 use reqwest::{header::{self, HeaderMap, HeaderValue}, Client};
 use flate2::read::GzDecoder;
 use serde_json::{self, Value};
-use crate::{dprintln, gui::ice::Progress, models::web::{Sites, FIREFOX_CSGOTRADERAPP_HEADERS_BASE, FIREFOX_CSGOTRADERAPP_HEADERS_DEFAULT, FIREFOX_USER_AGENTS}};
+use crate::{dprintln, models::web::{Sites, FIREFOX_CSGOTRADERAPP_HEADERS_BASE, FIREFOX_CSGOTRADERAPP_HEADERS_DEFAULT, FIREFOX_USER_AGENTS}};
 
 // USD is 1.0
 pub async fn get_exchange_rates() -> Result<HashMap<String, f64>, String> {
@@ -62,89 +62,89 @@ pub async fn get_market_data(market: &Sites) -> Result<Value, String> {
 }
 
 //
-pub async fn get_iteminfo(client: &Client, inspect_link: &str) -> Result<Value, String> {
-    dprintln!("Fetching more iteminfo | Full current inspect link: https://api.csgotrader.app/float?url={}", urlencoding::encode(inspect_link));
-
+// pub async fn get_iteminfo(client: &Client, inspect_link: &str) -> Result<Value, String> {
+    // dprintln!("Fetching more iteminfo | Full current inspect link: https://api.csgotrader.app/float?url={}", urlencoding::encode(inspect_link));
+// 
     // Sending the GET request trying to mimic the one used by the csgotrader.app extension
-    let response = client.get( format!("https://api.csgotrader.app/float?url={}", urlencoding::encode(inspect_link) ))
-        .send()
-        .await.map_err(|e| format!("Error sending GET request to the csgotraderapp price API. {}", e))?;
-
-    if !response.status().is_success() { 
-        dprintln!("\n\nFAILED RESPONSE HEADER: {:?}\n", response.headers()); 
-        return Err( format!("GET Request failed! {} Response text: {:#?}", &response.status(), &response.text().await.map_err(|_| String::from("Should never happen"))? ) ) 
-    }
-
-    let bytes = response.bytes()
-        .await.map_err( |e| format!("Unable to turn http response into bytes. {}", e) )?;
-
-    let mut raw_data = String::new();
-    GzDecoder::new(&bytes[..])
-        .read_to_string(&mut raw_data)
-        .map_err(|e| format!("Error decoding the gzipped bytes from the csgotraderapp float API. {}", e))?;
-
-    let value: Value = serde_json::from_str(&raw_data)         
-        .map_err(|e| format!("Parsing the decoded gzip given the inspect link {:?} response to hashmap failed. {}", inspect_link, e))?;
-
-    let iteminfo = value.get("iteminfo")
-        .ok_or( String::from("Couldn't get iteminfo from csgotraderapp float API"))?
-        .clone();
-
-    Ok(iteminfo)
-}
-
-pub async fn fetch_iteminfo_persistent(
-    client: &mut Client, 
-    progress: &mut sipper::Sender<Progress>,
-    inspect_link: &str, 
-    max_retries: u8, 
-    pause_time_millis: u64
-) -> Result<Option<Value>, String> {
+    // let response = client.get( format!("https://api.csgotrader.app/float?url={}", urlencoding::encode(inspect_link) ))
+        // .send()
+        // .await.map_err(|e| format!("Error sending GET request to the csgotraderapp price API. {}", e))?;
+// 
+    // if !response.status().is_success() { 
+        // dprintln!("\n\nFAILED RESPONSE HEADER: {:?}\n", response.headers()); 
+        // return Err( format!("GET Request failed! {} Response text: {:#?}", &response.status(), &response.text().await.map_err(|_| String::from("Should never happen"))? ) ) 
+    // }
+// 
+    // let bytes = response.bytes()
+        // .await.map_err( |e| format!("Unable to turn http response into bytes. {}", e) )?;
+// 
+    // let mut raw_data = String::new();
+    // GzDecoder::new(&bytes[..])
+        // .read_to_string(&mut raw_data)
+        // .map_err(|e| format!("Error decoding the gzipped bytes from the csgotraderapp float API. {}", e))?;
+// 
+    // let value: Value = serde_json::from_str(&raw_data)         
+        // .map_err(|e| format!("Parsing the decoded gzip given the inspect link {:?} response to hashmap failed. {}", inspect_link, e))?;
+// 
+    // let iteminfo = value.get("iteminfo")
+        // .ok_or( String::from("Couldn't get iteminfo from csgotraderapp float API"))?
+        // .clone();
+// 
+    // Ok(iteminfo)
+// }
+// 
+// pub async fn fetch_iteminfo_persistent(
+    // client: &mut Client, 
+    // progress: &mut sipper::Sender<Progress>,
+    // inspect_link: &str, 
+    // max_retries: u8, 
+    // pause_time_millis: u64
+// ) -> Result<Option<Value>, String> {
     // If excel.col_inspect link is something, fetch new floatdata from the non-batched float API by csgotraderapp
-    let extra_itemdata: Option<Value> = {
-        dprintln!("Fetching more iteminfo | current inspect link: {}", inspect_link);
+    // let extra_itemdata: Option<Value> = {
+        // dprintln!("Fetching more iteminfo | current inspect link: {}", inspect_link);
         // Adds retry logic to the get_iteminfo GET request since it might fail but can still succeed when sending another.
-        let mut attempt: u32 = 1;
-        let iteminfo = { 
-            loop {
-                match get_iteminfo(client, inspect_link).await {
-                    Ok(res) => break Ok(res),
-                    Err(e) => {
-                        if attempt >= max_retries as u32 { break Err( String::from("failed after all the retries!") ) }
-
-                        let base_wait = if e.contains("429") { 10000 } else if e.contains("502") { 60000 } else { 100 };
-                        let jitter    = rand::random_range(1..=50);
-                        let wait_time = (base_wait + jitter) * attempt as u64;
-
-                        progress.send( Progress { 
-                            message: format!("Error in persistent iteminfo HTTP request: {:?} \nWaiting {}ms...", e, wait_time),
-                            percent: 0.0 
-                        }).await;
-
-                        dprintln!("Error sending iteminfo request: {}", e);
-                        dprintln!("Waiting {} milliseconds before retrying...", wait_time);
-
-                        tokio::time::sleep( std::time::Duration::from_millis(wait_time) ).await;
-
-                        *client = new_extra_iteminfo_client();
-                        attempt += 1;
-                    }
-                } 
-            }
-        };
-        let offset1   = rand::random_range(0..(pause_time_millis / 5) );
-        let offset2   = rand::random_range(0..(pause_time_millis / 5) );
-        let wait_time = pause_time_millis + offset1 - offset2;
-
-        dprintln!("Pause time for successfull request: {wait_time}");
-
-        tokio::time::sleep( Duration::from_millis( wait_time ) ).await;
-
-        Some(iteminfo?)
-    };
-
-    Ok(extra_itemdata)
-}
+        // let mut attempt: u32 = 1;
+        // let iteminfo = { 
+            // loop {
+                // match get_iteminfo(client, inspect_link).await {
+                    // Ok(res) => break Ok(res),
+                    // Err(e) => {
+                        // if attempt >= max_retries as u32 { break Err( String::from("failed after all the retries!") ) }
+// 
+                        // let base_wait = if e.contains("429") { 10000 } else if e.contains("502") { 60000 } else { 100 };
+                        // let jitter    = rand::random_range(1..=50);
+                        // let wait_time = (base_wait + jitter) * attempt as u64;
+// 
+                        // progress.send( Progress { 
+                            // message: format!("Error in persistent iteminfo HTTP request: {:?} \nWaiting {}ms...", e, wait_time),
+                            // percent: 0.0 
+                        // }).await;
+// 
+                        // dprintln!("Error sending iteminfo request: {}", e);
+                        // dprintln!("Waiting {} milliseconds before retrying...", wait_time);
+// 
+                        // tokio::time::sleep( std::time::Duration::from_millis(wait_time) ).await;
+// 
+                        // *client = new_extra_iteminfo_client();
+                        // attempt += 1;
+                    // }
+                // } 
+            // }
+        // };
+        // let offset1   = rand::random_range(0..(pause_time_millis / 5) );
+        // let offset2   = rand::random_range(0..(pause_time_millis / 5) );
+        // let wait_time = pause_time_millis + offset1 - offset2;
+// 
+        // dprintln!("Pause time for successfull request: {wait_time}");
+// 
+        // tokio::time::sleep( Duration::from_millis( wait_time ) ).await;
+// 
+        // Some(iteminfo?)
+    // };
+// 
+    // Ok(extra_itemdata)
+// }
 
 pub fn new_extra_iteminfo_client() -> reqwest::Client {
     let mut headers: HeaderMap = HeaderMap::new();
