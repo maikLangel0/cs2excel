@@ -47,10 +47,7 @@ pub async fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo, ignore_sold
     dprintln!("Started reading excel file.");
 
     loop {
-        let name_cell = (
-            excel.col_steam_name.as_str().to_column().unwrap_or(1), 
-            iter
-        );
+        let name_cell = (excel.col_steam_name.as_str().to_column().unwrap_or(1), iter);
         
         let name: String = {
             if let Some(cell) = sheet.get_cell(name_cell) {
@@ -84,10 +81,7 @@ pub async fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo, ignore_sold
 
         let quantity: Option<u16> = {
             if let Some(quant) = &excel.col_quantity {
-                let cell_quantity = (
-                    quant.as_str().to_column().unwrap_or(2), 
-                    iter
-                );
+                let cell_quantity = (quant.as_str().to_column().unwrap_or(2), iter);
 
                 sheet.get_cell(cell_quantity).and_then(|c| c.get_value_number().map(|n| n as u16))
                     
@@ -96,10 +90,7 @@ pub async fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo, ignore_sold
 
         let phase: Option<String> = {
             if let Some(special) = &excel.col_phase {
-                let cell_special = (
-                    special.as_str().to_column().unwrap_or(3), 
-                    iter
-                );
+                let cell_special = (special.as_str().to_column().unwrap_or(3), iter);
 
                 if let Some(cell) = sheet.get_cell(cell_special) {
 
@@ -113,10 +104,7 @@ pub async fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo, ignore_sold
 
         let asset_id: Option<u64> = {
             if let Some(ass_id) = &excel.col_asset_id {
-                let cell_assetid = (
-                    ass_id.as_str().to_column().unwrap_or(4), 
-                    iter
-                );
+                let cell_assetid = (ass_id.as_str().to_column().unwrap_or(4), iter);
                 
                 sheet.get_cell(cell_assetid).and_then(|c| c.get_value_number().map(|n| n as u64))
             } else { None }
@@ -125,12 +113,12 @@ pub async fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo, ignore_sold
         let sold: Option<f64> = {
             if ignore_sold { 
                 if let Some(col_already_sold) = &excel.col_sold {
-                    let cell = (
-                        col_already_sold.as_str().to_column().unwrap_or(5), 
-                        iter
-                    );
+                    let cell = ( col_already_sold.as_str().to_column().unwrap_or(5), iter);
                     
-                    sheet.get_cell(cell).and_then(|c| c.get_value_number()) 
+                    // HAS TO BE THIS WAY because reading just the value might fetch it as the formula expression, not the numeric value >:(
+                    sheet.get_cell(cell)
+                        .map(|c| c.get_cell_value().get_value())
+                        .and_then(|c| c.parse::<f64>().ok())
 
                 } else { None }
             } else { None }

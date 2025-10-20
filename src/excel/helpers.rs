@@ -1,7 +1,6 @@
 use std::{env, path::{Path, PathBuf}};
 use ahash::{HashMap, HashMapExt};
 use chrono::Utc;
-use pad::PadStr;
 use rand::{rng, seq::IndexedRandom};
 use serde_json::Value;
 use tokio::{fs, io::AsyncWriteExt};
@@ -239,7 +238,7 @@ pub async fn insert_new_exceldata(
         insert_string_in_sheet(sheet, &col_csgoskins_link, row_in_excel, &link);
     }
 
-    spot(progress, format!("\t* INSERTING: {} | ROW: {}\n\t{:-^100}\n", &steamdata.name.pad_to_width(75), row_in_excel, "")).await;
+    spot(progress, format!("\t* INSERTING: {:-<75} | ROW: {}\n", &steamdata.name, row_in_excel)).await;
 
     Ok(ExcelData { 
         name: steamdata.name.clone(), 
@@ -266,7 +265,7 @@ pub async fn update_quantity_exceldata(
     && let Some(data_quantity) = data.quantity
     && data_quantity < steam_quantity
     {
-        spot(progress, format!("\t* UPDATING QUANTITY OF {} FROM => {} TO => {} | ROW => {}\n\t{:-^100}\n", &steamdata.name.pad_to_width(75), &data.quantity.unwrap_or(0), steam_quantity, &row_in_excel, "")).await;
+        spot(progress, format!("\t* UPDATING QUANTITY OF {:-<75} FROM => {} TO => {} ROW: {}\n", &steamdata.name, &data.quantity.unwrap_or(0), steam_quantity, &row_in_excel)).await;
         data.quantity = Some(steam_quantity);
         insert_number_in_sheet(sheet, &col_quantity, row_in_excel, steam_quantity);
     }

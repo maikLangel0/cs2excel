@@ -1,5 +1,4 @@
 use std::{str::FromStr, time::Duration};
-use pad::PadStr;
 
 use reqwest::Client;
 use strum::IntoEnumIterator;
@@ -132,25 +131,25 @@ pub fn run_program(
             spot(progress, "Read empty excel spreadsheet.\n\n").await;
         } else {
             let mut exceldata_string = String::with_capacity(256 * exceldata_initial_length);
-            exceldata_string.push_str("\nDATA IN SPREADSHEET:\n");
+            exceldata_string.push_str("\nREAD FROM SPREADSHEET:\n");
 
             for data in &exceldata {
                 if user.group_simular_items {
                     exceldata_string.push_str( 
                         &format!(
-                            "\tNAME: {} | QUANTITY: {:<5} | SOLD: {}\n\t{:-^100}\n", 
-                            data.name.pad_to_width(75), 
+                            "\tNAME: {:-<75} | QUANTITY: {} | SOLD: {}\n", 
+                            data.name, 
                             data.quantity.unwrap_or(0), 
-                            if data.sold.is_some() {"YES"} else {"NO"}, ""
+                            if data.sold.is_some() {"YES"} else {"NO"}
                         )
                     );
                 } else {
                     exceldata_string.push_str( 
                         &format!(
-                            "\tNAME: {} | ASSETID: {} | SOLD: {}\n\t{:-^100}\n", 
-                            data.name.pad_to_width(75), 
+                            "\tNAME: {} | ASSETID: {} | SOLD: {}\n", 
+                            data.name, 
                             data.asset_id.unwrap_or(0), 
-                            if data.sold.is_some() {"YES"} else {"NO"}, ""
+                            if data.sold.is_some() {"YES"} else {"NO"}
                         )
                     );
                 }
@@ -165,7 +164,7 @@ pub fn run_program(
         //  til og derfor også oppdatert allerede.
 
         // -----------------------------------------------------------------------------------------------
-        spot(progress, "\nDATA FROM STEAM: \n").await;
+        spot(progress, "\nDATA FROM STEAM + UPDATES TO SPREADSHEET: \n").await;
 
         // Inserting and/or updating quantity + adding prices for newly inserted items | .flatten() only runs the loop if it is Some()
         
@@ -175,19 +174,17 @@ pub fn run_program(
             progress.send( Progress { 
                 message: if user.group_simular_items { 
                     format!(
-                        "\tSTEAM-NAME: {} | QUANTITY: {:<5} | LINK: {}\n\t{:-^100}\n", 
-                        steamdata.name.pad_to_width(75), 
+                        "\tS-NAME: {:-<75} QUANTITY: {} LINK: {}\n",
+                        steamdata.name, 
                         steamdata.quantity.unwrap_or(0), 
-                        if steamdata.inspect_link.is_some() {"YES"} else {"NO"},
-                        ""
+                        if steamdata.inspect_link.is_some() {"YES"} else {"NO"}
                     )
                 } else {
                     format!(
-                        "\tSTEAM-NAME: {} | ASSETID: {} | LINK: {}\n\t{:-^100}\n", 
-                        steamdata.name.pad_to_width(75), 
+                        "\tS-NAME: {:-<75} ASSETID: {} LINK: {}\n", 
+                        steamdata.name, 
                         steamdata.asset_id, 
-                        if steamdata.inspect_link.is_some() {"YES"} else {"NO"},
-                        ""
+                        if steamdata.inspect_link.is_some() {"YES"} else {"NO"}
                     )
                 }, 
                 percent: (i as f32 / cs_inv_len as f32 * 99.0) 
