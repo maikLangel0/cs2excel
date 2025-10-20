@@ -1,4 +1,3 @@
-
 use ahash::{HashMap, HashMapExt};
 use reqwest::header::COOKIE;
 use serde_json::{from_value, Value};
@@ -26,15 +25,15 @@ struct IntermediateSteamData<'a> {
 }
 
 #[derive(Debug)]
-pub struct SteamInventory { 
+pub struct SteamInventory {
     data: SteamJson,
     steamid: u64,
 }
 impl SteamInventory {
     ///Initializes the connection to the steam inventory and stores the inventory JSON in self
-    pub async fn init(steamid: u64, gameid: u32, cookie: Option<String>) -> Result<Self, String> {
+    pub async fn init(steamid: u64, gameid: u32, cookie: Option<&str>) -> Result<Self, String> {
         let client = reqwest::Client::new();
-        let cookie = cookie.unwrap_or("".to_string());
+        let cookie = cookie.unwrap_or("").to_string();
         
         //                                              https://steamcommunity.com/inventory/76561198389123475/730/2?l=english&count=2000
         let steam_response: Value = client.get(format!("https://steamcommunity.com/inventory/{}/{}/2?l=english&count=2000", steamid, gameid))

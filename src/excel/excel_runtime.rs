@@ -1,4 +1,5 @@
-use std::str::FromStr;
+use std::{str::FromStr, time::Duration};
+use pad::PadStr;
 
 use reqwest::Client;
 use strum::IntoEnumIterator;
@@ -9,7 +10,7 @@ use ahash::{HashMap, HashSet};
 use iced::task::{Straw, sipper};
 
 use crate::{
-    browser::{csfloat, csgotrader, steamcommunity::SteamInventory}, dprintln, excel::{excel_ops::{get_exceldata, get_spreadsheet, set_spreadsheet}, helpers::{clear_extra_iteminfo_given_quantity, get_cached_markets_data, get_exchange_rate, get_market_price, get_steamloginsecure, insert_new_exceldata, insert_number_in_sheet, insert_string_in_sheet, spot, update_quantity_exceldata, wrapper_fetch_iteminfo_via_itemprovider_persistent}}, gui::{ice::Progress, templates_n_methods::IsEnglishAlphabetic}, models::{  
+    browser::{csfloat, csgotrader, steamcommunity::SteamInventory}, dprintln, excel::{excel_ops::{get_exceldata, get_spreadsheet, set_spreadsheet}, helpers::{clear_extra_iteminfo_given_quantity, get_cached_markets_data, get_exchange_rate, get_market_price, get_steamloginsecure, insert_new_exceldata, insert_number_in_sheet, insert_string_in_sheet, spot, update_quantity_exceldata, wrapper_fetch_iteminfo_via_itemprovider_persistent, LastInX}}, gui::{ice::Progress, templates_n_methods::IsEnglishAlphabetic}, models::{  
         excel::ExcelData, price::{Doppler, PricingMode}, 
         user_sheet::{SheetInfo, UserInfo}, 
         web::{ExtraItemData, ItemInfoProvider, Sites, SteamData}
@@ -42,23 +43,46 @@ pub fn run_program(
 
         // -----------------------------------------------------------------------------------------------
 
-        let steamcookie: Option<String> = if user.fetch_steam { get_steamloginsecure(&user.steamloginsecure) } else { None };
+        let steamcookie: Option<Vec<String>> = if user.fetch_steam { get_steamloginsecure(&user.steamloginsecure) } else { None };
 
-        if steamcookie.is_some() { spot(progress, "Found steamcookie.\n").await }
-        else { spot(progress, "Didn't find steamcookie.\n").await }
+        if steamcookie.is_some() { spot(progress, "Found steamcookie(s).\n").await }
+        else { spot(progress, "Didn't find steamcookie(s).\n").await }
 
+        // If multiple cookies found, iterate through them with a delay and hopefully 
+        // find the cookie that gives all of the inventory.
         let sm_inv: Option<SteamInventory> = {
-            if user.fetch_steam { Some( SteamInventory::init(user.steamid, 730, steamcookie).await? ) } 
+            if user.fetch_steam { 
+                if let Some(cookies) = &steamcookie && !cookies.is_empty() {
+                    let mut inv: Option<SteamInventory> = None;
+
+                    for (i, cookie) in cookies.iter().enumerate() {
+                        spot(progress, &format!("Attempting to fetch inventory with cookie ending in ...{}\n", cookie.as_str().take_last_x(7))).await;
+
+                        inv = Some( SteamInventory::init(user.steamid, 730, Some(&cookie)).await? );
+
+                        if let Some(ref v) = inv && v.assets_len() == v.inventory_len() { 
+                            spot(progress, "Found full inventory.\n").await;
+                            break 
+                        }
+
+                        if i != cookies.len() && cookies.len() != 1 {
+                            tokio::time::sleep(Duration::from_millis(500)).await;
+                        }
+                    }
+                    inv
+
+                } else { Some( SteamInventory::init(user.steamid, 730, None).await? ) }
+                
+            } 
             else { None }
         };
 
         let cs_inv: Option<Vec<SteamData>> = 
             if let Some(inv) = &sm_inv { 
                 let res = Some( inv.get_steam_items(user.group_simular_items, true)? ); 
-                spot(progress, "Fetched items in inventory.\n").await;
                 res
             } else {
-                spot(progress, "Didn't fetch items from inventory.\n").await; 
+                spot(progress, "Didn't fetch items from cs2 inventory.\n").await; 
                 None 
             };
 
@@ -104,7 +128,35 @@ pub fn run_program(
         let mut exceldata: Vec<ExcelData> = get_exceldata(sheet, &excel, user.ignore_already_sold).await?;
         let exceldata_initial_length: usize = exceldata.len();
 
-        spot(progress, if exceldata.is_empty() {"Read empty excel spreadsheet.\n".to_string()} else {format!("Read spreadsheet:\n\tFirst: {}\n\tLast: {}\n\n", &exceldata[0].name, &exceldata[exceldata.len() - 1].name)}).await;
+        if exceldata.is_empty() {
+            spot(progress, "Read empty excel spreadsheet.\n\n").await;
+        } else {
+            let mut exceldata_string = String::with_capacity(256 * exceldata_initial_length);
+            exceldata_string.push_str("\nDATA IN SPREADSHEET:\n");
+
+            for data in &exceldata {
+                if user.group_simular_items {
+                    exceldata_string.push_str( 
+                        &format!(
+                            "\tNAME: {} | QUANTITY: {:<5} | SOLD: {}\n\t{:-^100}\n", 
+                            data.name.pad_to_width(75), 
+                            data.quantity.unwrap_or(0), 
+                            if data.sold.is_some() {"YES"} else {"NO"}, ""
+                        )
+                    );
+                } else {
+                    exceldata_string.push_str( 
+                        &format!(
+                            "\tNAME: {} | ASSETID: {} | SOLD: {}\n\t{:-^100}\n", 
+                            data.name.pad_to_width(75), 
+                            data.asset_id.unwrap_or(0), 
+                            if data.sold.is_some() {"YES"} else {"NO"}, ""
+                        )
+                    );
+                }
+            }
+            spot(progress, exceldata_string).await;
+        }        
 
         //  exceldata_old_len er her fordi jeg har endret måte å oppdatere prisene i spreadsheet'n på.
         //  Nå, hvis et item fra steam ikke er i spreadsheetn allerede, så oppdateres spreadsheetn med price, quantity,
@@ -113,24 +165,29 @@ pub fn run_program(
         //  til og derfor også oppdatert allerede.
 
         // -----------------------------------------------------------------------------------------------
-        
+        spot(progress, "\nDATA FROM STEAM: \n").await;
+
         // Inserting and/or updating quantity + adding prices for newly inserted items | .flatten() only runs the loop if it is Some()
+        
+        
         for (i, steamdata) in cs_inv.iter().flatten().enumerate() { 
             
             progress.send( Progress { 
                 message: if user.group_simular_items { 
                     format!(
-                        "NAME: {}\n\tQUANTITY: {}\n\tHAS INSPECTLINK?: {}\n\n", 
-                        steamdata.name, 
+                        "\tSTEAM-NAME: {} | QUANTITY: {:<5} | LINK: {}\n\t{:-^100}\n", 
+                        steamdata.name.pad_to_width(75), 
                         steamdata.quantity.unwrap_or(0), 
-                        if steamdata.inspect_link.is_some() {"YES"} else {"NO"}
+                        if steamdata.inspect_link.is_some() {"YES"} else {"NO"},
+                        ""
                     )
                 } else {
                     format!(
-                        "NAME: {}\n\tHAS INSPECTLINK?: {}\n\tASSETID: {}\n\n", 
-                        steamdata.name, 
-                        if steamdata.inspect_link.is_some() {"YES"} else {"NO"}, 
-                        steamdata.asset_id
+                        "\tSTEAM-NAME: {} | ASSETID: {} | LINK: {}\n\t{:-^100}\n", 
+                        steamdata.name.pad_to_width(75), 
+                        steamdata.asset_id, 
+                        if steamdata.inspect_link.is_some() {"YES"} else {"NO"},
+                        ""
                     )
                 }, 
                 percent: (i as f32 / cs_inv_len as f32 * 99.0) 
@@ -141,8 +198,7 @@ pub fn run_program(
                     Some((index, data)) => {
 
                         // Skip item if item is in ignore market names
-                        if let Some(ignore) = &user.ingore_steam_names 
-                        && ignore.iter().any(|n| data.name == *n.trim()) { continue; }
+                        if let Some(ignore) = &user.ingore_steam_names && ignore.iter().any(|n| data.name == *n.trim()) { continue; }
                         
                         let row_in_excel: usize = index + excel.row_start_write_in_table as usize;
 
@@ -183,10 +239,11 @@ pub fn run_program(
                                 progress
                             ).await?;
 
-                            if let Some(phase) = &iteminfo.phase { insert_string_in_sheet(sheet, col_phase, row_in_excel, phase.as_str()); }
-                            if let Some(price) = price { insert_number_in_sheet(sheet, &excel.col_price, row_in_excel, price); }
-                            if let Some(market) = market && let Some(col_market) = &excel.col_market { insert_string_in_sheet(sheet, col_market, row_in_excel, market); }
-
+                            if data.sold.is_none() {
+                                if let Some(phase) = &iteminfo.phase { insert_string_in_sheet(sheet, col_phase, row_in_excel, phase.as_str()); }
+                                if let Some(price) = price { insert_number_in_sheet(sheet, &excel.col_price, row_in_excel, price); }
+                                if let Some(market) = market && let Some(col_market) = &excel.col_market { insert_string_in_sheet(sheet, col_market, row_in_excel, market); }
+                            }
                             continue;
                         }
                         // "Base case" after hyper-spesific clauses above
@@ -394,6 +451,8 @@ pub fn run_program(
             if !user.fetch_prices { break }
             if i == exceldata_initial_length { break }
 
+            dprintln!("{:#?}", data);
+
             if data.sold.is_some() && user.ignore_already_sold { continue; }
             
             if let Some(ignore) = &user.ingore_steam_names {
@@ -444,8 +503,10 @@ pub fn run_program(
         if let Some(inv) = &sm_inv {
             progress.send( Progress { 
                 message: format!(
-                    "Fetched items on tradehold? : {} | (Asset length: {} Inventory length: {})", 
-                    if inv.assets_len() == inv.inventory_len() {"YES"} else {"NO"}, 
+                    "Fetched items on tradehold? : {}\nAsset length: {} | Inventory length: {}", 
+                    if inv.assets_len() == inv.inventory_len() {"YES!"} 
+                    else if steamcookie.is_some() {"NO. Either cookie it out of date or wrong, or you're not fetching your own inventory."}
+                    else {"NO"}, 
                     inv.assets_len(),  
                     inv.inventory_len()), 
                 percent: 100.0
@@ -454,7 +515,6 @@ pub fn run_program(
         Ok(())
     })
 
-    
 }
 
 // -------------------------------------------------------------------------------------------

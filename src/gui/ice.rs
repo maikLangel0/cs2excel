@@ -4,7 +4,7 @@ use ahash::HashSet;
 use iced::widget::image::Handle;
 use iced::widget::text_editor::Content;
 use iced::alignment::Horizontal;
-use iced::widget::{checkbox, column, container, horizontal_rule, image, row, text_editor, Column, Row};
+use iced::widget::{checkbox, column, container, horizontal_rule, image, row, text_editor, Button, Column, Row};
 use iced::window::{Settings, icon};
 use iced::{window, Element, Length, Pixels, Size, Subscription, Task};
 
@@ -58,6 +58,7 @@ pub enum Exec {
     SumQuantityPrices,
     FetchPrices,
     FetchSteam,
+    OnlyShowRuntimeResult,
     IgnoreSteamNames(text_editor::Action),
 
     // Rows
@@ -120,6 +121,7 @@ pub struct App {
     pick_list_iteminfo_provider: [ItemInfoProvider; 3],
     is_file_dialog_open: bool,
     is_excel_running: bool,
+    only_show_runtime_result: bool,    
     window_size: Size,
     runtime_progress: f32,
     ohnepixel: Handle
@@ -181,6 +183,7 @@ impl Default for App {
             saved_data: Ok(None),
             is_file_dialog_open: false,
             is_excel_running: false,
+            only_show_runtime_result: false,
             editor_ignore_steam_names: text_editor::Content::new(),
             editor_prefer_markets: text_editor::Content::new(),
             editor_runtime_result: Content::with_text( ADDITIONAL_INFO ),
@@ -217,16 +220,17 @@ impl App {
 
         match exec {
             //Exec::Exit => window::get_latest().and_then(|id| window::close(id)),
-            Exec::WindowResized(size)   => { state.window_size = size; Task::none() },
-            Exec::IgnoreAlreadySold     => { user.ignore_already_sold = !user.ignore_already_sold; Task::none() },
-            Exec::GroupSimularItems     => { user.group_simular_items = !user.group_simular_items; Task::none() },
+            Exec::WindowResized(size)   => { state.window_size = size; Task::none() }
+            Exec::IgnoreAlreadySold     => { user.ignore_already_sold = !user.ignore_already_sold; Task::none() }
+            Exec::GroupSimularItems     => { user.group_simular_items = !user.group_simular_items; Task::none() }
             Exec::SumQuantityPrices     => { user.sum_quantity_prices = !user.sum_quantity_prices; Task::none() }
             Exec::FetchPrices           => { user.fetch_prices = !user.fetch_prices; Task::none() }
-            Exec::FetchSteam            => { user.fetch_steam = !user.fetch_steam; Task::none() },
-            Exec::UsdToX(c)             => { user.usd_to_x = c; Task::none() },
-            Exec::PricingProvider(pp)   => { user.pricing_provider = pp; Task::none() },
-            Exec::PricingMode(pm)       => { user.pricing_mode = pm; Task::none() },
-            Exec::IteminfoProvider(ip)  => { user.iteminfo_provider = ip; Task::none() },
+            Exec::FetchSteam            => { user.fetch_steam = !user.fetch_steam; Task::none() }
+            Exec::OnlyShowRuntimeResult => { state.only_show_runtime_result = !state.only_show_runtime_result; Task::none() }
+            Exec::UsdToX(c)             => { user.usd_to_x = c; Task::none() }
+            Exec::PricingProvider(pp)   => { user.pricing_provider = pp; Task::none() }
+            Exec::PricingMode(pm)       => { user.pricing_mode = pm; Task::none() }
+            Exec::IteminfoProvider(ip)  => { user.iteminfo_provider = ip; Task::none() }
             Exec::IgnoreSteamNames(act) => {
                 state.editor_ignore_steam_names.perform( act.clone() );
 
@@ -373,7 +377,7 @@ impl App {
                 Task::perform(
                     async {
                         let save_file = AsyncFileDialog::new()
-                            .set_directory( std::env::current_dir().unwrap_or(std::env::home_dir().expect("what")) )
+                            .set_directory( dirs::desktop_dir().unwrap_or(std::env::home_dir().expect("what")) )
                             .add_filter("JSON Files", &["json"])
                             .set_title("Save JSON file")
                             .save_file()
@@ -405,7 +409,7 @@ impl App {
                 Task::perform( 
                     async {
                         let pick_file = AsyncFileDialog::new()
-                            .set_directory( std::env::current_dir().unwrap_or(std::env::home_dir().expect("what")) )
+                            .set_directory( dirs::desktop_dir().unwrap_or(std::env::home_dir().expect("what")) )
                             .add_filter("JSON Files", &["json"])
                             .set_title("Load JSON file")
                             .pick_file()
@@ -527,6 +531,28 @@ impl App {
         let mut content: Column<Exec> = column![];
         let user = &state.usersheet.user;
         let sheet = &state.usersheet.sheet;
+
+        let terminal: Column<Exec> = text_editor_template(
+            ADDITIONAL_INFO, 
+            "-#- Program Output -#-", "", 
+            &state.editor_runtime_result, 
+            Length::Fill, Length::Fill, 
+            (1000.0, 300.0), 
+            Exec::RuntimeResult
+        );
+
+        let show_only_result: Button<Exec> = btn_base(
+            "Only Show Result", 
+            Some(13), 
+            Some(Length::Fixed(125.0)), 
+            None::<Length>, 
+            Exec::OnlyShowRuntimeResult
+        );
+
+        if state.only_show_runtime_result {
+            content = content.push(column![ terminal, show_only_result].align_x( Horizontal::Center ) );
+            return content.into();
+        }
         
         // All checkboxes
         let radio_buttons: Row<Exec> = row![
@@ -633,8 +659,8 @@ impl App {
         let steamloginsecure = if !user.fetch_steam { column![] } 
         else {
             text_input_template(
-                "Your SteamLoginSecure token. You can get this by inspecting the developer console in your browser as you do any authenitcated action on steamcommunity.com (it will be under the 'cookie' field). If you use Firefox and is on Windows, you can log in and the program will fetch this token for you. \nPS: THIS DOES NOT HAVE TO BE SET TO SOMETHING, ONLY IF YOU WANT THE MOST UP-TO-DATE INFO OF THE INVENTORY.",
-                (900.0, 100.0), 
+                "Your SteamLoginSecure token. You can get this by inspecting the developer console in your browser as you do any authenitcated action on steamcommunity.com (it will be under the 'cookie' field). If you use Firefox and is on Windows, you can log in and the program will fetch this token for you. If you're logged in, or have logged in previously, to multiple different accounts, it's recommended you pass this cookie explicitly as the program will iterate through all available cookies. \nPS: THIS DOES NOT HAVE TO BE SET TO SOMETHING, ONLY IF YOU WANT THE MOST UP-TO-DATE INFO OF THE INVENTORY.",
+                (900.0, 150.0), 
                 "SteamLoginSecure?", 
                 "Ex: 76561198389123475%7C%7CeyAidHlwIjogIkpXVCIsICJhbGciOiAiRWREU0EiIH0...", 
                 user.steamloginsecure.as_ref(), 
@@ -1003,7 +1029,9 @@ impl App {
 
             row![ text_editor_template(ADDITIONAL_INFO, "-#- Program Output -#-", "", &state.editor_runtime_result, Length::Fill, Length::Fill, (1000.0, 300.0), Exec::RuntimeResult)],
 
-            row![cs2traderapp, cs2traderapp_repo, cs2excel_repo].padding(4).spacing(150)
+            row![cs2traderapp, cs2traderapp_repo, cs2excel_repo].padding(4).spacing(150),
+            
+            show_only_result
 
             //btn_base("Exit", Some(100), Some(50), Exec::Exit),
         ].align_x( Horizontal::Center));

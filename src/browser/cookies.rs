@@ -44,7 +44,7 @@ impl FirefoxDb {
     /// 
     /// Query:
     /// SELECT {select} FROM moz_cookies WHERE host LIKE '%{host}%' AND name IN ({names})
-    pub fn get_cookies(self: &FirefoxDb, select: Vec<&str>, host: &str, names: Vec<&str>) -> Result<String> {
+    pub fn get_cookies(self: &FirefoxDb, select: Vec<&str>, host: &str, names: Vec<&str>) -> Result<Vec<String>> {
         // Turns select into a string suitable for the query
         let select = select.iter()
             .map( |s| s.to_string() )
@@ -53,7 +53,7 @@ impl FirefoxDb {
         
         // Turns names into a string suitable for the query
         let names = names.iter()
-            .map( |s| format!( "'{}'", s ) )
+            .map( |s| format!( "'{}'", *s ) )
             .collect::<Vec<String>>()
             .join(", ");
 
@@ -65,7 +65,7 @@ impl FirefoxDb {
         )?;
 
         // Gets all the cookies and maps them to a Vec<Cookies>
-        let mut cookies_data = stmt.query_map([], |elem| {
+        let cookies_data = stmt.query_map([], |elem| {
             Ok(
                 Cookies {
                     name: elem.get(0)?,
@@ -76,15 +76,14 @@ impl FirefoxDb {
         .collect::<Result<Vec<Cookies>>>()?;
 
         // Removes extra steamLoginSecure cuz for some reason theres two and one is outdated
-        if cookies_data.iter().filter(|cookie| cookie.name == "steamLoginSecure").count() > 1 {
-            cookies_data.pop();
-        }
+        // if cookies_data.iter().filter(|cookie| cookie.name == "steamLoginSecure").count() > 1 {
+            // cookies_data.pop();
+        // }
 
         // Turns cookies_data into a string suitable for http requests
         let cookies = cookies_data.iter()
             .map( |c| format!("{}={};", c.name, c.value))
-            .collect::<Vec<String>>()
-            .join(" ");
+            .collect::<Vec<String>>();
 
         Ok(cookies)
     }

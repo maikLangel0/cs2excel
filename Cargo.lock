@@ -992,7 +992,7 @@ dependencies = [
 
 [[package]]
 name = "cs2excel"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "ahash",
  "chrono",
@@ -1001,6 +1001,7 @@ dependencies = [
  "iced",
  "num-traits",
  "open",
+ "pad",
  "rand 0.9.2",
  "regex",
  "reqwest",
@@ -1083,7 +1084,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.1",
 ]
 
 [[package]]
@@ -3322,6 +3323,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "22ec719bbf3b2a81c109a4e20b1f129b5566b7dce654bc3872f6a05abf82b2c4"
 dependencies = [
  "ttf-parser 0.25.1",
+]
+
+[[package]]
+name = "pad"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2ad9b889f1b12e0b9ee24db044b5129150d5eada288edc800f789928dc8c0e3"
+dependencies = [
+ "unicode-width",
 ]
 
 [[package]]

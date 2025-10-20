@@ -46,7 +46,7 @@ async fn doppler_price(p: &Value, phase: &Option<Doppler>, item_name: &str, mark
         }
         else {
             dprintln!("NOTE: Doppler of type {} found but did not have active price for item {} on the site {}", doppler_phase.as_str(), item_name, market.as_str() ); 
-            spot(progress, format!("NOTE: Doppler of type {} found but did not have active price for item {} on the site {}", doppler_phase.as_str(), item_name, market.as_str() )).await;
+            spot(progress, format!("\tNOTE: Doppler of type {} found but did not have active price for item {} on the site {}.\n", doppler_phase.as_str(), item_name, market.as_str() )).await;
         }
     }
     None

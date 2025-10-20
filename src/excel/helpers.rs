@@ -1,6 +1,7 @@
 use std::{env, path::{Path, PathBuf}};
 use ahash::{HashMap, HashMapExt};
 use chrono::Utc;
+use pad::PadStr;
 use rand::{rng, seq::IndexedRandom};
 use serde_json::Value;
 use tokio::{fs, io::AsyncWriteExt};
@@ -12,8 +13,8 @@ use crate::{
     browser::{cookies::FirefoxDb, csfloat, csgotrader}, dprintln, gui::ice::Progress, models::{excel::ExcelData, price::{Currencies, Doppler, PriceType, PricingMode, PricingProvider}, user_sheet::{SheetInfo, UserInfo}, web::{CachedMarket, ExtraItemData, ItemInfoProvider, Sites, SteamData}}, parsing::{self, csgoskins_url, item_csgotrader, market_name_parse}, CACHE_TIME
 };
 
-pub fn get_steamloginsecure(sls: &Option<String>) -> Option<String> {
-    if let Some(sls) = sls { Some(sls.to_string()) } 
+pub fn get_steamloginsecure(sls: &Option<String>) -> Option<Vec<String>> {
+    if let Some(sls) = sls { Some( Vec::from([sls.to_string()]) ) } 
     else if let Ok(db) = FirefoxDb::init() {
         match db.get_cookies(vec!["name", "value"], "steamcommunity.com", vec!["steamLoginSecure"]) {
             Ok(cookie) => Some(cookie),
@@ -235,10 +236,10 @@ pub async fn insert_new_exceldata(
     if let Some(col_csgoskins_link) = &excel.col_csgoskins_link {
         let csgoskins_url = csgoskins_url::create_csgoskins_urls(&steamdata.name);
         let link = format!("https://csgoskins.gg/items/{}", csgoskins_url);
-         insert_string_in_sheet(sheet, &col_csgoskins_link, row_in_excel, &link);
+        insert_string_in_sheet(sheet, &col_csgoskins_link, row_in_excel, &link);
     }
 
-    spot(progress, format!("INSERTED:\n\tNAME: {}\n\tROW: {}\n\n", &steamdata.name, row_in_excel)).await;
+    spot(progress, format!("\t* INSERTING: {} | ROW: {}\n\t{:-^100}\n", &steamdata.name.pad_to_width(75), row_in_excel, "")).await;
 
     Ok(ExcelData { 
         name: steamdata.name.clone(), 
@@ -259,15 +260,15 @@ pub async fn update_quantity_exceldata(
     sheet: &mut Worksheet, 
     progress: &mut sipper::Sender<Progress>
 ) {
-    if let Some(col_quantity) = col_quantity 
+    if data.sold.is_none()
+    && let Some(col_quantity) = col_quantity 
     && let Some(steam_quantity) = steamdata.quantity 
-    && let Some(data_quantity) = data.quantity 
+    && let Some(data_quantity) = data.quantity
     && data_quantity < steam_quantity
     {
+        spot(progress, format!("\t* UPDATING QUANTITY OF {} FROM => {} TO => {} | ROW => {}\n\t{:-^100}\n", &steamdata.name.pad_to_width(75), &data.quantity.unwrap_or(0), steam_quantity, &row_in_excel, "")).await;
         data.quantity = Some(steam_quantity);
         insert_number_in_sheet(sheet, &col_quantity, row_in_excel, steam_quantity);
-
-        spot(progress, format!("UPDATED {}:\n\tQUANTITY => {}\n\tROW => {}\n\n", &steamdata.name, &data.quantity.unwrap_or(0), &row_in_excel)).await;
     }
 }
 
@@ -448,5 +449,27 @@ impl ToColumn for &str {
 impl ToColumn for String {
     fn to_column(self) -> Option<u32> {
         self.as_str().to_column()
+    }
+}
+
+pub trait LastInX {
+    fn take_last_x(self, x: usize) -> String;
+}
+
+impl LastInX for &str {
+    fn take_last_x(self, x: usize) -> String {
+        self.chars()
+            .rev()
+            .take(x)
+            .collect::<String>()
+            .chars()
+            .rev()
+            .collect()
+    }
+}
+
+impl LastInX for String {
+    fn take_last_x(self, x: usize) -> String {
+        self.as_str().take_last_x(x)
     }
 }
