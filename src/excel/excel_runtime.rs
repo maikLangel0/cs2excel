@@ -174,14 +174,14 @@ pub fn run_program(
             progress.send( Progress { 
                 message: if user.group_simular_items { 
                     format!(
-                        "\tS-NAME: {:-<75} QUANTITY: {} LINK: {}\n",
+                        "\tNAME: {:-<75} QUANTITY: {} LINK: {}\n",
                         steamdata.name, 
                         steamdata.quantity.unwrap_or(0), 
                         if steamdata.inspect_link.is_some() {"YES"} else {"NO"}
                     )
                 } else {
                     format!(
-                        "\tS-NAME: {:-<75} ASSETID: {} LINK: {}\n", 
+                        "\tNAME: {:-<75} ASSETID: {} LINK: {}\n", 
                         steamdata.name, 
                         steamdata.asset_id, 
                         if steamdata.inspect_link.is_some() {"YES"} else {"NO"}

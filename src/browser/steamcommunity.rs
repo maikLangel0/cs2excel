@@ -17,7 +17,7 @@ struct Properties {
 }
 
 struct IntermediateSteamData<'a> {
-    inspect_link: Option<String>,
+    inspect_link: Option<&'a str>,
     name_on_market: &'a str,
     asset_id: u64,
     float: Option<f64>,
@@ -95,10 +95,10 @@ impl SteamInventory {
             let classid = desc.get("classid")
                 .and_then(|v| v.as_str())
                 .and_then(|s| s.parse::<u64>().ok())
-                .ok_or_else(|| String::from("Classid fetch failed desc wat."))?;
+                .ok_or_else(|| "Classid fetch failed desc wat.")?;
 
             let name_on_market: &str = desc.get("market_name").and_then( |v| v.as_str() )
-                .ok_or_else(|| String::from("Market name from desc failed wat."))?; 
+                .ok_or_else(|| "Market name from desc failed wat.")?; 
 
             let is_tradable = desc.get("tradable").and_then(|v| v.as_i64()).unwrap_or(0) != 0;
 
@@ -119,11 +119,11 @@ impl SteamInventory {
                let asset_id = prop.get("assetid")
                    .and_then(|v| v.as_str())
                    .and_then(|s| s.parse::<u64>().ok())
-                   .ok_or_else(|| String::from("Assetid fetch failed asset_properties wat."))?;
+                   .ok_or_else(|| "Assetid fetch failed asset_properties wat.")?;
 
                let asset_properties = prop.get("asset_properties")
                    .and_then(|a| a.as_array())
-                   .ok_or_else(|| String::from("Failed to get/use inner asset_properties."))?;
+                   .ok_or_else(|| "Failed to get/use inner asset_properties.")?;
 
                let mut float: Option<f64> = None;
                let mut pattern: Option<u32> = None;
@@ -155,30 +155,25 @@ impl SteamInventory {
             let class_id = asset.get("classid")
                 .and_then(|v| v.as_str())
                 .and_then(|v| v.parse::<u64>().ok())
-                .ok_or_else(|| String::from("No classid in assets WHAT."))?;
+                .ok_or_else(|| "No classid in assets WHAT.")?;
 
-            let description = desc_map.get(&class_id).ok_or_else(|| String::from("Description not found from hashmap WHAT."))?;
+            let description = desc_map.get(&class_id).ok_or_else(|| "Description not found from hashmap WHAT.")?;
             
             if marketable && !description.is_tradable && !description.has_owner_descriptions { continue }
 
             let asset_id: u64 = asset.get("assetid")
                 .and_then(|v| v.as_str())
                 .and_then(|v| v.parse::<u64>().ok())
-                .ok_or_else(|| String::from("No assetid in assets WHAT."))?;
+                .ok_or_else(|| "No assetid in assets WHAT.")?;
             
             let (float, pattern): (Option<f64>, Option<u32>) = 
                 if !asset_prop_map.is_empty() && let Some(property) = asset_prop_map.get(&asset_id) {
                     (property.float, property.pattern)
                 } else { (None, None) };
-            
-            let inspect_link: Option<String> = description.inspect.map(|s| s
-                .replace( "%owner_steamid%", &self.steamid.to_string() )
-                .replace( "%assetid%", &asset_id.to_string() ) 
-            );
                 
             intermediate.push( 
                 IntermediateSteamData { 
-                    inspect_link, 
+                    inspect_link: description.inspect, 
                     name_on_market: description.name_on_market, 
                     asset_id, 
                     float, 
@@ -190,8 +185,8 @@ impl SteamInventory {
         let mut inventory: Vec<SteamData> = Vec::new();
 
         if group_simular_items {
-            struct NamedValues { 
-                inspect_link: Option<String>,
+            struct NamedValues<'a> { 
+                inspect_link: Option<&'a str>,
                 float: Option<f64>,
                 asset_id: u64,
                 pattern: Option<u32>,
@@ -219,7 +214,10 @@ impl SteamInventory {
                     SteamData { 
                         name: name.to_string(), 
                         quantity: Some(data.quantity), 
-                        inspect_link: data.inspect_link, 
+                        inspect_link: data.inspect_link.map(|s| s
+                            .replace( "%owner_steamid%", &self.steamid.to_string() ) // Done here to not have to clone the inspect when initializing each new intermediate struct
+                            .replace( "%assetid%", &data.asset_id.to_string() ) 
+                        ), 
                         float: data.float, 
                         pattern: data.pattern, 
                         asset_id: data.asset_id 
@@ -233,7 +231,10 @@ impl SteamInventory {
                     SteamData { 
                         name: data.name_on_market.to_string(), 
                         quantity: None, 
-                        inspect_link: data.inspect_link, 
+                        inspect_link: data.inspect_link.map(|s| s
+                            .replace( "%owner_steamid%", &self.steamid.to_string() ) // what the comment above says aga
+                            .replace( "%assetid%", &data.asset_id.to_string() ) 
+                        ), 
                         float: data.float, 
                         pattern: data.pattern, 
                         asset_id: data.asset_id 
