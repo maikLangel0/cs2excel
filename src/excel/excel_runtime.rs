@@ -137,7 +137,7 @@ pub fn run_program(
                 if user.group_simular_items {
                     exceldata_string.push_str( 
                         &format!(
-                            "\tNAME: {:-<75} | QUANTITY: {} | SOLD: {}\n", 
+                            "\tNAME: {:-<75} QUANTITY: {} SOLD: {}\n", 
                             data.name, 
                             data.quantity.unwrap_or(0), 
                             if data.sold.is_some() {"YES"} else {"NO"}
@@ -146,7 +146,7 @@ pub fn run_program(
                 } else {
                     exceldata_string.push_str( 
                         &format!(
-                            "\tNAME: {} | ASSETID: {} | SOLD: {}\n", 
+                            "\tNAME: {} ASSETID: {} SOLD: {}\n", 
                             data.name, 
                             data.asset_id.unwrap_or(0), 
                             if data.sold.is_some() {"YES"} else {"NO"}
@@ -437,7 +437,7 @@ pub fn run_program(
 
         if user.fetch_prices {
             progress.send( Progress { 
-                message: String::from("Updating prices of old items in spreadsheet...\n"), 
+                message: String::from("\nUpdating prices of old items in spreadsheet...\n"), 
                 percent: 99.0
             }).await;
         }
@@ -487,7 +487,7 @@ pub fn run_program(
             .to_string();
 
         if let Some(cell_date) = &excel.rowcol_date {
-            sheet.get_cell_value_mut( cell_date.as_ref() )
+            sheet.get_cell_value_mut( cell_date.as_str() )
                 .set_value_string( &finishtime );
         }
 
@@ -495,20 +495,20 @@ pub fn run_program(
         set_spreadsheet(&excel.path_to_sheet, book).await
             .map_err(|e| format!("Couldnt write to spreadsheet! : {}", e))?;
 
-        progress.send( Progress { message: format!("End time: {}\n", finishtime), percent: 100.0}).await;
-
         if let Some(inv) = &sm_inv {
             progress.send( Progress { 
                 message: format!(
-                    "Fetched items on tradehold? : {}\nAsset length: {} | Inventory length: {}", 
-                    if inv.assets_len() == inv.inventory_len() {"YES!"} 
+                    "Fetched items on tradehold: {}\n", 
+                    if inv.assets_len() == inv.inventory_len() {"YES"} 
                     else if steamcookie.is_some() {"NO. Either cookie it out of date or wrong, or you're not fetching your own inventory."}
-                    else {"NO"}, 
-                    inv.assets_len(),  
-                    inv.inventory_len()), 
+                    else {"NO"}
+                ),
                 percent: 100.0
             }).await;
         };
+
+        progress.send( Progress { message: format!("\nEnd time: {}\n", finishtime), percent: 100.0}).await;
+
         Ok(())
     })
 
