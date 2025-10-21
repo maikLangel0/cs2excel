@@ -182,8 +182,8 @@ pub async fn insert_new_exceldata(
     excel: &SheetInfo, 
     steamdata: &SteamData, 
     extra_itemdata: &Option<ExtraItemData>,
-    markets_to_check: &Vec<Sites>, 
-    all_market_prices: &HashMap<Sites, Value>, 
+    markets_to_check: &Option<Vec<Sites>>, 
+    all_market_prices: &Option<HashMap<Sites, Value>>, 
     rate: f64, 
     row_in_excel: usize,
     sheet: &mut Worksheet,
@@ -192,16 +192,18 @@ pub async fn insert_new_exceldata(
 
     let doppler: Option<Doppler> = extra_itemdata.as_ref()
         .and_then(|ei| ei.phase.clone());
-    
-    let (market, price): (Option<String>, Option<f64>) = get_market_price(
-        user, 
-        markets_to_check, 
-        all_market_prices, 
-        rate, 
-        &steamdata.name, 
-        &doppler,
-        progress
-    ).await?;
+
+    let (market, price): (Option<String>, Option<f64>) = if let Some(m_t_c) = markets_to_check && let Some(a_m_p) = all_market_prices {
+        get_market_price(
+            user, 
+            m_t_c, 
+            a_m_p, 
+            rate, 
+            &steamdata.name, 
+            &doppler,
+            progress
+        ).await?
+    } else { (None, None) };
 
     // Inserting into the spreadsheet
     insert_string_in_sheet(sheet, &excel.col_steam_name, row_in_excel, &steamdata.name);

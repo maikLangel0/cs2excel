@@ -550,7 +550,14 @@ impl App {
         );
 
         if state.only_show_runtime_result {
-            content = content.push(column![ terminal, show_only_result].align_x( Horizontal::Center ) );
+            content = content.push(
+                column![ 
+                    row![terminal], 
+                    horizontal_rule(5),
+                    row![show_only_result].padding(4)
+                ].align_x( Horizontal::Center ) 
+            );
+
             return content.into();
         }
         
@@ -1029,9 +1036,10 @@ impl App {
 
             row![ text_editor_template(ADDITIONAL_INFO, "-#- Program Output -#-", "", &state.editor_runtime_result, Length::Fill, Length::Fill, (1000.0, 300.0), Exec::RuntimeResult)],
 
-            row![cs2traderapp, cs2traderapp_repo, cs2excel_repo].padding(4).spacing(150),
+            row![cs2traderapp, cs2excel_repo, cs2traderapp_repo].padding(4).spacing(150),
+            horizontal_rule(5),
             
-            show_only_result
+            row![show_only_result].padding(4)
 
             //btn_base("Exit", Some(100), Some(50), Exec::Exit),
         ].align_x( Horizontal::Center));

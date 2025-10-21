@@ -45,7 +45,7 @@ pub fn run_program(
         let steamcookie: Option<Vec<String>> = if user.fetch_steam { get_steamloginsecure(&user.steamloginsecure) } else { None };
 
         if steamcookie.is_some() { spot(progress, "Found steamcookie(s).\n").await }
-        else { spot(progress, "Didn't find steamcookie(s).\n").await }
+        else if user.fetch_steam { spot(progress, "Didn't find steamcookie(s).\n").await }
 
         // If multiple cookies found, iterate through them with a delay and hopefully 
         // find the cookie that gives all of the inventory.
@@ -71,28 +71,35 @@ pub fn run_program(
                     inv
 
                 } else { Some( SteamInventory::init(user.steamid, 730, None).await? ) }
-                
             } 
             else { None }
         };
 
-        let cs_inv: Option<Vec<SteamData>> = 
-            if let Some(inv) = &sm_inv { 
-                let res = Some( inv.get_steam_items(user.group_simular_items, true)? ); 
-                res
-            } else {
-                spot(progress, "Didn't fetch items from cs2 inventory.\n").await; 
-                None 
-            };
+        let cs_inv: Option<Vec<SteamData>> = if let Some(inv) = &sm_inv { 
+            Some( inv.get_steam_items(user.group_simular_items, true)? )
+        } else {
+            spot(progress, "Didn't fetch items from cs2 inventory.\n").await; 
+            None
+        };
 
         // -----------------------------------------------------------------------------------------------
 
-        let markets_to_check: Vec<Sites> = user.prefer_markets.take()
-            .unwrap_or_else(|| Sites::iter().collect::<HashSet<Sites>>() )
-            .into_iter().collect::<Vec<Sites>>();
+        let markets_to_check: Option<Vec<Sites>> = if user.fetch_prices { 
+            Some(
+                user.prefer_markets.take()
+                    .unwrap_or_else(|| Sites::iter().collect::<HashSet<Sites>>() )
+                    .into_iter()
+                    .collect::<Vec<Sites>>()
+            )
+        } else { None };
 
-        let all_market_prices: HashMap<Sites, Value> = get_cached_markets_data(&markets_to_check, &user.pricing_provider).await?;
-        spot(progress, format!("Fetched prices from {}.\n", markets_to_check.iter().map(|m| m.as_str()).collect::<Vec<&str>>().join(", "))).await;
+        let all_market_prices: Option<HashMap<Sites, Value>> = if let Some(m_t_c) = &markets_to_check { 
+            Some( get_cached_markets_data(m_t_c, &user.pricing_provider).await? ) 
+        } else { None };
+
+        if let Some(m_t_p) = &markets_to_check {
+            spot(progress, format!("Fetched prices from {}.\n", m_t_p.iter().map(|m| m.as_str()).collect::<Vec<&str>>().join(", "))).await;
+        }
 
         if cs_inv.is_some() {
             spot(progress, "Reading data from cs inventory and applying it to spreadsheet...\n").await;
@@ -164,12 +171,11 @@ pub fn run_program(
         //  til og derfor også oppdatert allerede.
 
         // -----------------------------------------------------------------------------------------------
-        spot(progress, "\nDATA FROM STEAM + UPDATES TO SPREADSHEET: \n").await;
+        if cs_inv.is_some() { spot(progress, "\nDATA FROM STEAM + UPDATES TO SPREADSHEET: \n").await }
 
         // Inserting and/or updating quantity + adding prices for newly inserted items | .flatten() only runs the loop if it is Some()
-        
-        
-        for (i, steamdata) in cs_inv.iter().flatten().enumerate() { 
+
+        for (i, steamdata) in cs_inv.iter().flatten().enumerate() {
             
             progress.send( Progress { 
                 message: if user.group_simular_items { 
@@ -215,6 +221,8 @@ pub fn run_program(
                         && steamdata.inspect_link.is_some() 
                         && data.quantity == Some(1)
                         && let Some(col_phase) = &excel.col_phase
+                        && let Some(a_m_p) = &all_market_prices
+                        && let Some(m_t_c) = &markets_to_check
                         && data.name.to_lowercase().contains(" doppler") 
                         {
                             let iteminfo: ExtraItemData = wrapper_fetch_iteminfo_via_itemprovider_persistent(
@@ -228,8 +236,8 @@ pub fn run_program(
 
                             let (market, price) = get_market_price(
                                 &user, 
-                                &markets_to_check, 
-                                &all_market_prices,
+                                m_t_c, 
+                                a_m_p,
                                 rate, 
                                 &steamdata.name, 
                                 &iteminfo.phase, 
@@ -377,6 +385,8 @@ pub fn run_program(
                         && user.iteminfo_provider != ItemInfoProvider::Steam
                         && steamdata.inspect_link.is_some()
                         && let Some(col_phase) = &excel.col_phase
+                        && let Some(m_t_c) = &markets_to_check
+                        && let Some(a_m_p) = &all_market_prices
                         && data.name.to_lowercase().contains(" doppler")
                         {
                             let row_in_excel: usize = index + excel.row_start_write_in_table as usize;
@@ -392,8 +402,8 @@ pub fn run_program(
 
                             let (market, price) = get_market_price(
                                 &user, 
-                                &markets_to_check, 
-                                &all_market_prices,
+                                &m_t_c, 
+                                &a_m_p,
                                 rate, 
                                 &steamdata.name, 
                                 &iteminfo.phase, 
@@ -468,15 +478,17 @@ pub fn run_program(
             let doppler: Option<Doppler> = data.phase.as_ref()
                 .and_then(|p| Doppler::from_str(&p).ok());
 
-            let (market, price): (Option<String>, Option<f64>) = get_market_price(
-                &user, 
-                &markets_to_check, 
-                &all_market_prices, 
-                rate, 
-                &data.name, 
-                &doppler,
-                progress
-            ).await?;
+            let (market, price): (Option<String>, Option<f64>) = if let Some(amp) = &all_market_prices && let Some(mtc) = &markets_to_check { 
+                get_market_price(
+                    &user, 
+                    mtc, 
+                    amp, 
+                    rate, 
+                    &data.name, 
+                    &doppler,
+                    progress
+                ).await? 
+            } else { (None, None) };
 
             if let Some(pris) = price { insert_number_in_sheet(sheet, &excel.col_price, row_in_excel, pris); }
             if let Some(marked) = market && let Some(col_market) = &excel.col_market { insert_string_in_sheet(sheet, col_market, row_in_excel, &marked); }
