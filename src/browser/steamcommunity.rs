@@ -1,6 +1,5 @@
 use ahash::{HashMap, HashMapExt};
 use reqwest::header::COOKIE;
-use serde_json::{from_value, Value};
 
 use crate::models::web::{SteamData, SteamJson, GAMES_TRADE_PROTECTED};
 
@@ -36,20 +35,20 @@ impl SteamInventory {
         let cookie = cookie.unwrap_or("").to_string();
         
         //                                              https://steamcommunity.com/inventory/76561198389123475/730/2?l=english&count=2000
-        let steam_response: Value = client.get(format!("https://steamcommunity.com/inventory/{}/{}/2?l=english&count=2000", steamid, gameid))
+        let mut data: SteamJson = client.get(format!("https://steamcommunity.com/inventory/{}/{}/2?l=english&count=2000", steamid, gameid))
             .header(COOKIE, &cookie )
             .send()
             .await.map_err( |e| format!("Failed sending main HTTPS request to steam. Check internet connection or steam availability. \n{}", e) )?
-            .json()
-            .await.map_err( |e| format!("Failed to parse steam inventory to a JSON. \n{}", e) )?;
+            .json::<SteamJson>()
+            .await.map_err( |e| format!("Failed to parse steam inventory as JSON. This is either because the request is invalid (check that the steamID given is correct), or steam is being silly; try again in like 10sec if so lol.\n{}", e) )?;
 
-        if steam_response.is_null() {
-            return Err( "Oopsie JSON data is null! steamID and/or gameID might be wrong double check pls thank you!".into() );
-        }
-        
-        let mut data = from_value::<SteamJson>(steam_response).map_err( |e| 
-            format!("Parsing the json data from steam into the SteamJson struct did not work! Usual cause is failure to get proper inventory data.\n{}.", e) 
-        )?;
+        // if steam_response.is_null() {
+            // return Err( "Oopsie JSON data is null! steamID and/or gameID might be wrong double check pls thank you!".into() );
+        // }
+        // 
+        // let mut data = from_value::<SteamJson>(steam_response).map_err( |e| 
+            // format!("Parsing the json data from steam into the SteamJson struct did not work! Usual cause is failure to get proper inventory data.\n{}.", e) 
+        // )?;
 
         let trade_protected: Option<SteamJson> = if !cookie.is_empty() && GAMES_TRADE_PROTECTED.contains(&gameid) {
             match client.get(format!("https://steamcommunity.com/inventory/{}/{}/16?l=english&count=2000", steamid, gameid))

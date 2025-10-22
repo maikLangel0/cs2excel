@@ -666,7 +666,7 @@ impl App {
         let steamloginsecure = if !user.fetch_steam { column![] } 
         else {
             text_input_template(
-                "Your SteamLoginSecure token. You can get this by inspecting the developer console in your browser as you do any authenitcated action on steamcommunity.com (it will be under the 'cookie' field). If you use Firefox and is on Windows, you can log in and the program will fetch this token for you. If you're logged in, or have logged in previously, to multiple different accounts, it's recommended you pass this cookie explicitly as the program will iterate through all available cookies. \nPS: THIS DOES NOT HAVE TO BE SET TO SOMETHING, ONLY IF YOU WANT THE MOST UP-TO-DATE INFO OF THE INVENTORY.",
+                "Your SteamLoginSecure token. You can get this by inspecting the developer console in your browser as you do any authenitcated action on steamcommunity.com (it will be under the 'cookie' field). If you use Firefox and is on Windows, you can log in and the program will fetch this token for you. If you're logged in, or have logged in previously to multiple different accounts, it's recommended you pass this cookie explicitly as the program will iterate through all available cookies. \nPS: THIS DOES NOT HAVE TO BE SET TO SOMETHING, ONLY IF YOU WANT THE MOST UP-TO-DATE INFO OF THE INVENTORY.",
                 (900.0, 150.0), 
                 "SteamLoginSecure?", 
                 "Ex: 76561198389123475%7C%7CeyAidHlwIjogIkpXVCIsICJhbGciOiAiRWREU0EiIH0...", 

@@ -55,11 +55,14 @@ pub fn run_program(
                     let mut inv: Option<SteamInventory> = None;
 
                     for (i, cookie) in cookies.iter().enumerate() {
-                        spot(progress, &format!("Attempting to fetch inventory with cookie ending in ...{}\n", cookie.as_str().take_last_x(7))).await;
+                        let mut cookie_display = cookie.as_str().take_last_x(7);
+                        cookie_display.pop();
+                        
+                        spot(progress, &format!("Attempting to fetch inventory with cookie ending in ...{}\n", cookie_display)).await;
 
                         inv = Some( SteamInventory::init(user.steamid, 730, Some(&cookie)).await? );
 
-                        if let Some(ref v) = inv && v.assets_len() == v.inventory_len() { 
+                        if let Some(v) = &inv && v.assets_len() == v.inventory_len() { 
                             spot(progress, "Found full inventory.\n").await;
                             break 
                         }
