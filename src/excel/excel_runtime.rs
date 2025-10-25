@@ -9,7 +9,27 @@ use ahash::{HashMap, HashSet};
 use iced::task::{Straw, sipper};
 
 use crate::{
-    browser::{csfloat, csgotrader, steamcommunity::SteamInventory}, dprintln, excel::{excel_ops::{get_exceldata, get_spreadsheet, set_spreadsheet}, helpers::{clear_extra_iteminfo_given_quantity, get_cached_markets_data, get_exchange_rate, get_market_price, get_steamloginsecure, insert_new_exceldata, insert_number_in_sheet, insert_string_in_sheet, spot, update_quantity_exceldata, wrapper_fetch_iteminfo_via_itemprovider_persistent, LastInX}}, gui::{ice::Progress, templates_n_methods::IsEnglishAlphabetic}, models::{  
+    browser::{csfloat, csgotrader, steamcommunity::SteamInventory}, 
+    dprintln, 
+    excel::{
+        excel_ops::{get_exceldata, get_spreadsheet, set_spreadsheet}, 
+        helpers::{
+            clear_extra_iteminfo_given_quantity, 
+            get_cached_markets_data, 
+            get_exchange_rate, 
+            get_market_price, 
+            get_steamloginsecure, 
+            insert_new_exceldata, 
+            insert_number_in_sheet, 
+            insert_string_in_sheet, 
+            spot, 
+            update_quantity_exceldata, 
+            wrapper_fetch_iteminfo_via_itemprovider_persistent, 
+            LastInX
+        }
+    }, 
+    gui::{ice::Progress, templates_n_methods::IsEnglishAlphabetic}, 
+    models::{  
         excel::ExcelData, price::{Doppler, PricingMode}, 
         user_sheet::{SheetInfo, UserInfo}, 
         web::{ExtraItemData, ItemInfoProvider, Sites, SteamData}
@@ -25,7 +45,7 @@ pub fn run_program(
     sipper(async move |mut progress| {
         let progress = &mut progress;
 
-        progress.send( Progress { message: "Running main program\n".to_owned(), percent: 0.0 }).await;
+        spot(progress, "Running main program:\n\n").await;
 
         if user.fetch_prices && user.iteminfo_provider != ItemInfoProvider::Steam && excel.col_inspect_link.is_some() {
             spot(progress, "Will Fetch additional iteminfo using 3rd party API. This makes doppler prices accurate.\n").await;
@@ -200,7 +220,7 @@ pub fn run_program(
             } ).await;
         
             if user.group_simular_items {
-                match exceldata.iter_mut().enumerate().find( |(_, e)| e.name == steamdata.name ) { 
+                match exceldata.iter_mut().enumerate().find( |(_, e)| e.name == steamdata.name ) {
                     Some((index, data)) => {
 
                         // Skip item if item is in ignore market names
@@ -212,7 +232,7 @@ pub fn run_program(
                         // don't update quantity and jump to next iteration of cs inv. Instead execute the logic underneath match statement
                         if data.phase.is_some() // data.phase being Some means excel.col_phase has to be Some aswell
                         && user.iteminfo_provider != ItemInfoProvider::Steam 
-                        && steamdata.inspect_link.is_some() {   
+                        && steamdata.inspect_link.is_some() {
                             // Only path that does not end in a 'continue; keyword. Executes the match statement below this match. 
                             // This is needed because you can have two of the same knife, but it can have different phases.
                             // Doing the check here would not cover that possibility so it has to be its´ own loop.

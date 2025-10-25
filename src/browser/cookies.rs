@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 use rusqlite::{Result, Connection};
-use crate::models::web::Cookies;
 use whoami;
 
 ///Used to access the firefox browser cookies
@@ -64,16 +63,11 @@ impl FirefoxDb {
             )
         )?;
 
-        // Gets all the cookies and maps them to a Vec<Cookies>
+        // Gets all the cookies and maps them to a Vec<( (name, value) )>
         let cookies_data = stmt.query_map([], |elem| {
-            Ok(
-                Cookies {
-                    name: elem.get(0)?,
-                    value: elem.get(1)?
-                }
-            )
+            Ok( (elem.get(0)?, elem.get(1)?) )
         })?
-        .collect::<Result<Vec<Cookies>>>()?;
+        .collect::<Result<Vec<(String, String)>>>()?;
 
         // Removes extra steamLoginSecure cuz for some reason theres two and one is outdated
         // if cookies_data.iter().filter(|cookie| cookie.name == "steamLoginSecure").count() > 1 {
@@ -82,7 +76,7 @@ impl FirefoxDb {
 
         // Turns cookies_data into a string suitable for http requests
         let cookies = cookies_data.iter()
-            .map( |c| format!("{}={};", c.name, c.value))
+            .map( |c| format!("{}={};", c.0, c.1))
             .collect::<Vec<String>>();
 
         Ok(cookies)

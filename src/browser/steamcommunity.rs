@@ -42,14 +42,6 @@ impl SteamInventory {
             .json::<SteamJson>()
             .await.map_err( |e| format!("Failed to parse steam inventory as JSON. This is either because the request is invalid (check that the steamID given is correct), or steam is being silly; try again in like 10sec if so lol.\n{}", e) )?;
 
-        // if steam_response.is_null() {
-            // return Err( "Oopsie JSON data is null! steamID and/or gameID might be wrong double check pls thank you!".into() );
-        // }
-        // 
-        // let mut data = from_value::<SteamJson>(steam_response).map_err( |e| 
-            // format!("Parsing the json data from steam into the SteamJson struct did not work! Usual cause is failure to get proper inventory data.\n{}.", e) 
-        // )?;
-
         let trade_protected: Option<SteamJson> = if !cookie.is_empty() && GAMES_TRADE_PROTECTED.contains(&gameid) {
             match client.get(format!("https://steamcommunity.com/inventory/{}/{}/16?l=english&count=2000", steamid, gameid))
                 .header(COOKIE, &cookie)
@@ -113,7 +105,7 @@ impl SteamInventory {
         }
         
         // Construct hashmap for Properties
-        if let Some(ass_prop) = &self.data.asset_properties {    
+        if let Some(ass_prop) = &self.data.asset_properties {
             for prop in ass_prop {
                let asset_id = prop.get("assetid")
                    .and_then(|v| v.as_str())
@@ -131,14 +123,14 @@ impl SteamInventory {
                for property in asset_properties {
                    if let Some(flt) = property.get("float_value")
                        .and_then(|v| v.as_str())
-                       .and_then(|s| s.parse::<f64>().ok()) 
+                       .and_then(|s| s.parse::<f64>().ok())
                    {
                            float = Some(flt);
                    }
 
                    if let Some(ptrn) = property.get("int_value")
                        .and_then(|v| v.as_str())
-                       .and_then(|s| s.parse::<u32>().ok()) 
+                       .and_then(|s| s.parse::<u32>().ok())
                    {
                            pattern = Some(ptrn);
                    }
@@ -154,16 +146,16 @@ impl SteamInventory {
             let class_id = asset.get("classid")
                 .and_then(|v| v.as_str())
                 .and_then(|v| v.parse::<u64>().ok())
-                .ok_or_else(|| "No classid in assets WHAT.")?;
+                .ok_or("No classid in assets WHAT.")?;
 
-            let description = desc_map.get(&class_id).ok_or_else(|| "Description not found from hashmap WHAT.")?;
+            let description = desc_map.get(&class_id).ok_or("Description not found from hashmap WHAT.")?;
             
             if marketable && !description.is_tradable && !description.has_owner_descriptions { continue }
 
             let asset_id: u64 = asset.get("assetid")
                 .and_then(|v| v.as_str())
                 .and_then(|v| v.parse::<u64>().ok())
-                .ok_or_else(|| "No assetid in assets WHAT.")?;
+                .ok_or("No assetid in assets WHAT.")?;
             
             let (float, pattern): (Option<f64>, Option<u32>) = 
                 if !asset_prop_map.is_empty() && let Some(property) = asset_prop_map.get(&asset_id) {

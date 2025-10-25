@@ -235,7 +235,7 @@ pub async fn insert_new_exceldata(
     }
 
     if let Some(col_csgoskins_link) = &excel.col_csgoskins_link {
-        let csgoskins_url = csgoskins_url::create_csgoskins_urls(&steamdata.name);
+        let csgoskins_url = csgoskins_url::create_csgoskins_urls(steamdata.name.as_str());
         let link = format!("https://csgoskins.gg/items/{}", csgoskins_url);
         insert_string_in_sheet(sheet, &col_csgoskins_link, row_in_excel, &link);
     }

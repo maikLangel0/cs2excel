@@ -83,7 +83,9 @@ pub async fn get_exceldata(sheet: &mut Worksheet, excel: &SheetInfo, ignore_sold
             if let Some(quant) = &excel.col_quantity {
                 let cell_quantity = (quant.as_str().to_column().unwrap_or(2), iter);
 
-                sheet.get_cell(cell_quantity).and_then(|c| c.get_value_number().map(|n| n as u16))
+                sheet.get_cell(cell_quantity)
+                    .map(|c| c.get_cell_value().get_value())
+                    .and_then(|c| c.parse::<u16>().ok())
                     
             } else { None }
         };

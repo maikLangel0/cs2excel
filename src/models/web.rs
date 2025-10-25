@@ -11,14 +11,6 @@ use super::price::Doppler;
 
 // ------------------------------------------------------------
 
-#[derive(Serialize, Deserialize)]
-pub struct Cookies {
-    pub name: String,
-    pub value: String
-}
-
-// ------------------------------------------------------------
-
 #[derive(Hash, Eq, PartialEq, Debug, Serialize, Deserialize, EnumIter, Clone)]
 pub enum Sites {
     CSFLOAT,

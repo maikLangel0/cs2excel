@@ -21,7 +21,7 @@ pub async fn get_exchange_rates() -> Result<HashMap<String, f64>, String> {
     let bytes = response.bytes()
         .await.map_err( |e| format!("Unable to turn http response into bytes. \n{}", e) )?;
 
-    let mut raw_data = String::new();
+    let mut raw_data = String::with_capacity( (bytes.len() as f64 / 4.0) as usize );
     GzDecoder::new(&bytes[..])
         .read_to_string(&mut raw_data)
         .map_err(|e| format!("Error decoding the gzipped bytes from the csgotraderapp exchange API. \n{}", e))?;
@@ -55,7 +55,7 @@ pub async fn get_market_data(market: &Sites) -> Result<Value, String> {
         .read_to_string(&mut raw_data)
         .map_err(|e| format!("Error decoding the gzipped bytes from the csgotraderapp price API. {}", e))?;
 
-    let prices: Value = serde_json::from_str(&raw_data)         
+    let prices: Value = serde_json::from_str(&raw_data)
         .map_err(|e| format!("Parsing the decoded gzip given the market {:?} response to hashmap failed. {}", market, e))?;
 
     Ok(prices)
