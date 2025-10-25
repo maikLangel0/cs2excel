@@ -13,40 +13,40 @@ use crate::{
 };
 
 pub fn get_steamloginsecure(sls: &Option<String>) -> Option<Vec<String>> {
-    if let Some(sls) = sls { Some( Vec::from([sls.to_string()]) ) } 
+    if let Some(sls) = sls { Some( Vec::from([sls.to_string()]) ) }
     else if let Ok(db) = FirefoxDb::init() {
         match db.get_cookies(vec!["name", "value"], "steamcommunity.com", vec!["steamLoginSecure"]) {
             Ok(cookie) => Some(cookie),
             Err(_e) => { dprintln!("FRICK.\n{}", _e); None }
-        }      
+        }
     } else { dprintln!("WARNING: Failed to connect to firefox."); None }
 }
 
 pub async fn get_exchange_rate(
-    usd_to_x: &Currencies, 
-    rowcol_usd_to_x: &Option<String>, 
+    usd_to_x: &Currencies,
+    rowcol_usd_to_x: &Option<String>,
     sheet: &mut Worksheet
 ) -> Result<f64, String> {
 
     if usd_to_x != &Currencies::None {
         if usd_to_x == &Currencies::USD { return Ok(1.0); }
-        
+
         let rates: HashMap<String, f64> = csgotrader::get_exchange_rates().await?;
         Ok( *rates.get( usd_to_x.as_str() ).unwrap_or( &1.0 ) )
 
     } else if let Some(cell) = rowcol_usd_to_x {
-        
+
         let res = sheet.get_cell_value( cell.as_ref() )
             .get_raw_value()
             .to_string()
             .trim()
             .to_string();
-        
+
         if res.is_empty() { Err( String::from("usd_to_x cell is empty!") ) }
         else {
             Ok(
                 res.parse::<f64>()
-                    .map_err(|_| String::from("usd_to_x cell was not able to be converted to a number!") 
+                    .map_err(|_| String::from("usd_to_x cell was not able to be converted to a number!")
                 )?
             )
         }
@@ -62,51 +62,51 @@ pub async fn get_market_price(
     doppler: &Option<Doppler>,
     progress: &mut sipper::Sender<Progress>
 ) -> Result<(Option<String>, Option<f64>), String> {
-    if !user.fetch_prices { Ok((None, None)) } 
+    if !user.fetch_prices { Ok((None, None)) }
     else {
         #[derive(Clone, Copy)]
         struct MarketPrice { market: &'static str, price: f64 }
-        
+
         let mut prices: Vec<MarketPrice> = Vec::new();
-        
+
         // Finds the prices for each market
         for market in markets_to_check {
             // If site does not have doppler pricings AND doppler is something, SKIP
             if doppler.is_some() && !market.has_doppler() { continue; }
-            
-            if let Some(market_prices) = all_market_prices.get(market) 
+
+            if let Some(market_prices) = all_market_prices.get(market)
             && let Some(price) = item_csgotrader::get_price(
-                item_name, 
-                market_prices, 
-                market, 
-                &PriceType::StartingAt, 
+                item_name,
+                market_prices,
+                market,
+                &PriceType::StartingAt,
                 doppler,
                 progress
-            ).await? { prices.push( MarketPrice { market: market.as_str(), price: price * rate } ) }    
-            
+            ).await? { prices.push( MarketPrice { market: market.as_str(), price: price * rate } ) }
+
         }
-        if prices.is_empty() { Ok((Some("No Market(s) Found".to_string()), None)) } 
+        if prices.is_empty() { Ok((Some("No Market(s) Found".to_string()), None)) }
         else {
             match user.pricing_mode {
-                PricingMode::Cheapest => { 
+                PricingMode::Cheapest => {
                     prices.sort_by(|a,b| a.price.partial_cmp(&b.price).unwrap());
                     Ok((Some(prices[0].market.to_string()), Some(prices[0].price)))
                 },
-                PricingMode::MostExpensive => { 
+                PricingMode::MostExpensive => {
                     prices.sort_by(|a,b| b.price.partial_cmp(&a.price).unwrap());
                     Ok((Some(prices[0].market.to_string()), Some(prices[0].price)))
-                },                          
+                },
                 PricingMode::Random => {
                     let wiener = prices.get( rand::random_range(0..prices.len()) )
                         .ok_or("PricingMode::Random failed what.")
                         .copied()?;
                     Ok((Some(wiener.market.to_string()), Some(wiener.price)))
                 },
-                PricingMode::Hierarchical => { 
+                PricingMode::Hierarchical => {
                     prices.sort_by(|a,b| a.price.partial_cmp(&b.price).unwrap());
                     let mut curr = MarketPrice { market: prices[0].market, price: prices[0].price };
                     for mp in prices.iter().skip(1) {
-                        if curr.price > mp.price * user.percent_threshold as f64 
+                        if curr.price > mp.price * user.percent_threshold as f64
                         { curr = *mp } else { break }
                     }
                     Ok((Some(curr.market.to_string()), Some(curr.price)) )
@@ -124,7 +124,7 @@ pub async fn fetch_iteminfo_via_itemprovider_persistent(
     pause_time_ms: u16,
     progress: &mut sipper::Sender<Progress>
 ) -> Result<Option<Value>, String> {
-    
+
     if col_inspect_link.is_some() {
         if let Some(inspect) = inspect_link {
             match iteminfo_provider {
@@ -139,7 +139,7 @@ pub async fn fetch_iteminfo_via_itemprovider_persistent(
                 }
                 ItemInfoProvider::Steam => { Ok(None) }
             }
-            
+
         } else { Ok(None) }
     } else { Ok(None) }
 }
@@ -152,23 +152,23 @@ pub async fn wrapper_fetch_iteminfo_via_itemprovider_persistent(
     steamdata: &SteamData,
     progress: &mut sipper::Sender<Progress>
 ) -> Result<Option<ExtraItemData>, String> {
-    
+
     let json_response = fetch_iteminfo_via_itemprovider_persistent(
-        client, 
-        col_inspect_link, 
+        client,
+        col_inspect_link,
         iteminfo_provider,
-        &steamdata.inspect_link, 
+        &steamdata.inspect_link,
         pause_time_ms,
         progress
     ).await?;
-        
+
     if let Some(json_body) = json_response {
         match iteminfo_provider {
-            ItemInfoProvider::Csfloat => { 
+            ItemInfoProvider::Csfloat => {
                 let res = parsing::item_csfloat::parse_iteminfo_min(&json_body, Some(&steamdata.name) )?;
-                Ok(Some(res)) 
+                Ok(Some(res))
             },
-            ItemInfoProvider::Csgotrader => { 
+            ItemInfoProvider::Csgotrader => {
                 let res = parsing::item_csfloat::parse_iteminfo_min(&json_body, Some(&steamdata.name) )?;
                 Ok(Some(res))
             }
@@ -178,13 +178,13 @@ pub async fn wrapper_fetch_iteminfo_via_itemprovider_persistent(
 }
 
 pub async fn insert_new_exceldata(
-    user: &UserInfo, 
-    excel: &SheetInfo, 
-    steamdata: &SteamData, 
+    user: &UserInfo,
+    excel: &SheetInfo,
+    steamdata: &SteamData,
     extra_itemdata: &Option<ExtraItemData>,
-    markets_to_check: &Option<Vec<Sites>>, 
-    all_market_prices: &Option<HashMap<Sites, Value>>, 
-    rate: f64, 
+    markets_to_check: &Option<Vec<Sites>>,
+    all_market_prices: &Option<HashMap<Sites, Value>>,
+    rate: f64,
     row_in_excel: usize,
     sheet: &mut Worksheet,
     progress: &mut sipper::Sender<Progress>
@@ -195,11 +195,11 @@ pub async fn insert_new_exceldata(
 
     let (market, price): (Option<String>, Option<f64>) = if let Some(m_t_c) = markets_to_check && let Some(a_m_p) = all_market_prices {
         get_market_price(
-            user, 
-            m_t_c, 
-            a_m_p, 
-            rate, 
-            &steamdata.name, 
+            user,
+            m_t_c,
+            a_m_p,
+            rate,
+            &steamdata.name,
             &doppler,
             progress
         ).await?
@@ -228,7 +228,7 @@ pub async fn insert_new_exceldata(
             if let Some(col_pattern) = &excel.col_pattern && let Some(pattern) = itemdata.paintseed { insert_number_in_sheet(sheet, &col_pattern, row_in_excel, pattern); }
             if let Some(col_phase)   = &excel.col_phase && let Some(faze) = &itemdata.phase         { insert_string_in_sheet(sheet, &col_phase, row_in_excel, faze.as_str()); }
         } // Use data from steam if extra_itemdata is None
-        else { 
+        else {
             if let Some(col_float)   = &excel.col_float && let Some(float) = steamdata.float       { insert_number_in_sheet(sheet, &col_float, row_in_excel, float); }
             if let Some(col_pattern) = &excel.col_pattern && let Some(pattern) = steamdata.pattern { insert_number_in_sheet(sheet, &col_pattern, row_in_excel, pattern); }
         }
@@ -242,11 +242,11 @@ pub async fn insert_new_exceldata(
 
     spot(progress, format!("\t* INSERTING: {:-<75} | ROW: {}\n", &steamdata.name, row_in_excel)).await;
 
-    Ok(ExcelData { 
-        name: steamdata.name.clone(), 
-        quantity: steamdata.quantity, 
-        phase: doppler.as_ref().map(|d| d.as_str().to_string()), 
-        // price: price.map_or_else(|| 0.0, |p| p), 
+    Ok(ExcelData {
+        name: steamdata.name.clone(),
+        quantity: steamdata.quantity,
+        phase: doppler.as_ref().map(|d| d.as_str().to_string()),
+        // price: price.map_or_else(|| 0.0, |p| p),
         // inspect_link: steamdata.inspect_link.clone(),
         asset_id: if !user.group_simular_items { Some(steamdata.asset_id) } else { None },
         sold: None
@@ -254,16 +254,16 @@ pub async fn insert_new_exceldata(
 }
 
 pub async fn update_quantity_exceldata(
-    steamdata: &SteamData, 
+    steamdata: &SteamData,
     col_quantity: &Option<String>,
-    data: &mut ExcelData, 
-    row_in_excel: usize, 
-    sheet: &mut Worksheet, 
+    data: &mut ExcelData,
+    row_in_excel: usize,
+    sheet: &mut Worksheet,
     progress: &mut sipper::Sender<Progress>
 ) {
     if data.sold.is_none()
-    && let Some(col_quantity) = col_quantity 
-    && let Some(steam_quantity) = steamdata.quantity 
+    && let Some(col_quantity) = col_quantity
+    && let Some(steam_quantity) = steamdata.quantity
     && let Some(data_quantity) = data.quantity
     && data_quantity < steam_quantity
     {
@@ -286,16 +286,16 @@ pub fn insert_string_in_sheet(sheet: &mut Worksheet, col: &str, row_in_excel: us
 
 pub async fn get_cached_markets_data(markets_to_check: &Vec<Sites>, pricing_provider: &PricingProvider) -> Result<HashMap<Sites, serde_json::Value>, String> {
     let mut amp: HashMap<Sites, Value> = HashMap::new();
-    
+
     let cache_dir = dirs::cache_dir()
         .unwrap_or(std::env::temp_dir())
         .join("cs2excel\\cache");
 
-    for market in markets_to_check { 
+    for market in markets_to_check {
         let market_prices = match pricing_provider {
             PricingProvider::Csgoskins => { // IF I IMPLEMENT CSGOSKINS IN THE FUTURE
                 get_cached_market_data(cache_dir.as_path(), &PricingProvider::Csgotrader, market, csgotrader::get_market_data).await?
-            }, 
+            },
             PricingProvider::Csgotrader => {
                 get_cached_market_data(cache_dir.as_path(), pricing_provider, market, csgotrader::get_market_data).await?
             },
@@ -341,7 +341,7 @@ async fn save_cache(cache_path: &Path, marketjson: &Value) -> Result<(), String>
         .open(cache_path).await {
             Ok(f) => {f},
             Err(e) =>  {
-                dprintln!("Error building OpenOptions | {}", e); 
+                dprintln!("Error building OpenOptions | {}", e);
                 return Err( format!("Error building OpenOptions | {}", e) );
             },
         };
@@ -360,7 +360,7 @@ async fn save_cache(cache_path: &Path, marketjson: &Value) -> Result<(), String>
 }
 
 async fn get_cached_market_data<'a, F, Fut>(cache_dir: &Path, iteminfo_provider: &PricingProvider, market: &'a Sites, fetch: F) -> Result<serde_json::Value, String>
-where 
+where
     F: Fn(&'a Sites) -> Fut,
     Fut: Future<Output = Result<serde_json::Value, String>>
 {
@@ -379,7 +379,7 @@ where
                 }
             },
             Err(e) => {
-                return Err( format!("Couldn't load cached market from {} \n{}", cache_path.to_string_lossy(), e) ) 
+                return Err( format!("Couldn't load cached market from {} \n{}", cache_path.to_string_lossy(), e) )
             },
         }
     } else {

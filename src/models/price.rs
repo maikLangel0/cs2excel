@@ -98,7 +98,7 @@ impl PriceType {
 
 //--------------------
 
-#[derive(PartialEq, EnumIter, Serialize, Deserialize, Debug, Clone, Copy)]
+#[derive(PartialEq, EnumIter, Serialize, Deserialize, Debug, Clone, Copy, Hash, Eq)]
 pub enum Currencies {
     COP, SAR, PLN, ARS, SGD, GBP, USD, 
     PHP, DKK, KRW, INR, ZAR, BRL, BGN, 
