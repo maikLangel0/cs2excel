@@ -1,5 +1,6 @@
 <h1> CS2EXCEL </h1>
 <h2>GUI Utility to create, update and manage your CS2 inventory</h2>
+<h3>How quick it is to update your portfolio:</h3>
 <img src=".\assets\images\cs2excel_showcase.gif"/>
 <h2>Showcase & How To Use</h2>
 
