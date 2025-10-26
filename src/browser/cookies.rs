@@ -26,11 +26,14 @@ impl FirefoxDb {
             ).next()
             .ok_or(String::from("No valid Firefox profile found."))?;
         
-        let db = Connection::open(
-            PathBuf::from(
-                format!("{}/cookies.sqlite", &user_profiles)
-            )
-        ).map_err(|_| String::from("Unable to open a DB Connection for firefox."))?;
+        let db_path = PathBuf::from( format!("{}/cookies.sqlite", &user_profiles) );
+        
+        if !db_path.exists() { 
+            return Err("No cookies.sqlite found.".to_string())
+        }
+
+        let db = Connection::open( db_path )
+            .map_err(|_| String::from("Unable to open a DB Connection for firefox."))?;
 
         Ok( FirefoxDb{ db } )
     }
