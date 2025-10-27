@@ -20,7 +20,7 @@ serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { version = "1.0.145" }
 reqwest = { version = "0.12.24", features = ["json", "brotli"] }
 whoami = { version = "1.6.1" }
-rusqlite = { version = "0.37.0" } # use features = ["bundled"] if you're having problems with linking sqlite or you just dont have it installed.
+rusqlite = { version = "0.37.0", features = ["bundled"]} # use features = ["bundled"] if you're having problems with linking sqlite or you just dont have it installed.
 tokio = { version = "1.48.0", features = ["fs"] }
 flate2 = { version = "1.1.4" }
 umya-spreadsheet = { version = "2.3.3" }
