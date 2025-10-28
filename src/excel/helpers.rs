@@ -409,11 +409,11 @@ pub fn generate_fallback_path(path: &mut Option<PathBuf>) {
 }
 
 #[inline]
-pub fn clear_extra_iteminfo_given_quantity(sheet: &mut Worksheet, quantity: Option<u16>, row_in_excel: usize, cols: (Option<&str>, Option<&str>, Option<&str>) ) {
+pub fn clear_extra_iteminfo_given_quantity(sheet: &mut Worksheet, quantity: Option<u16>, row_in_excel: usize, cols: [Option<&str>; 3] ) {
     if quantity != Some(1) && quantity.is_some() {
-        if let Some(col) = cols.0 { insert_string_in_sheet(sheet, col, row_in_excel, ""); }
-        if let Some(col) = cols.1 { insert_string_in_sheet(sheet, col, row_in_excel, ""); }
-        if let Some(col) = cols.2 { insert_string_in_sheet(sheet, col, row_in_excel, ""); }
+        for col in cols.iter().flatten() {
+            insert_string_in_sheet(sheet, *col, row_in_excel, "");
+        }
     }
 }
 

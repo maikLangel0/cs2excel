@@ -24,7 +24,7 @@ macro_rules! dprintln {
 fn main() -> Result<(), iced::Error> {
     gui::ice::init_gui()
 }
-// 
+//
 // #[tokio::main]
 // async fn main() -> Result<(), String> {
     // let app = gui::ice::App::default();
