@@ -570,7 +570,7 @@ impl App {
                 Exec::IgnoreAlreadySold
             ),
             checkbox_default(
-                "Group simular items?",
+                "Group similar items?",
                 "If you have multiple of the same item, lets say Fracture Cases, it will group them together under one row and fill the quantity column set for your spreadsheet.",
                 user.group_simular_items,
                 (300.0, 100.0),
