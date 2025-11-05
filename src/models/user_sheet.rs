@@ -20,7 +20,6 @@ pub struct UserInfo {
     pub percent_threshold: u8, 
     pub ignore_already_sold: bool,
     pub group_simular_items: bool,
-    pub sum_quantity_prices: bool,
     pub fetch_prices: bool, 
     pub fetch_steam: bool
 }

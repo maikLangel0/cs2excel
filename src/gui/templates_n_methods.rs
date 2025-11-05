@@ -11,7 +11,7 @@ use iced::{Background, Pixels, Size, Task};
 use iced::{widget::{button, container, pick_list, slider, text::{IntoFragment, Wrapping}, text_input, tooltip, Button, Container, Tooltip, column, row}, Border, Color, Length, Renderer, Shadow, Theme};
 use num_traits::FromPrimitive;
 
-use crate::gui::ice::Exec;
+use crate::gui::ice::{Exec};
 
 const BG_MAIN: Color = Color::from_rgba8(181, 100, 255, 1.0);
 const BG_SEC: Color = Color::from_rgba8(161, 105, 222, 1.0);
@@ -79,8 +79,8 @@ where
                     text_color: Some( TEXT_WHITE )
                 }
             ),
-        tooltip_default(tooltip_content, tt_size.width , tt_size.height)
-    ].width( Length::FillPortion(5) ).spacing(5)
+        tooltip_default(tooltip_content, tt_size.width , tt_size.height),
+    ].spacing(5) //.width( Length::Fill ).spacing(5)
 }
 
 pub fn tooltip_default<'a, Exec> (
@@ -90,12 +90,12 @@ pub fn tooltip_default<'a, Exec> (
 ) -> Tooltip<'a, Exec, Theme, Renderer> where Exec: 'a {
     tooltip(
         container( iced::widget::text( "?" ) )
-            .center(20)
+            .center(22)
             .style( |_|
                 container::Style {
                     text_color: Some( Color::WHITE ),
-                    background: Some( Background::Color( BG_SEC ) ),
-                    border: Border { color: BG_MAIN, width: 1.0, radius: RAD_SEC },
+                    background: Some( Background::Color( Color::BLACK ) ),
+                    border: Border { color: BG_SEC, width: 1.0, radius: RAD_SEC },
                     shadow: Shadow::default(),
                     snap: true,
                 }

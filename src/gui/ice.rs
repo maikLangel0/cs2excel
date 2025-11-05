@@ -3,10 +3,10 @@ use std::{fs::File, io::BufReader, path::PathBuf, str::FromStr};
 use ahash::HashSet;
 use iced::widget::image::Handle;
 use iced::widget::text_editor::Content;
-use iced::alignment::Horizontal;
-use iced::widget::{column, container, rule, image, row, text_editor, Button, Column, Row};
+use iced::alignment::{Horizontal};
+use iced::widget::{Button, Column, Container, column, container, image, row, rule, text_editor};
 use iced::window::{Settings, icon};
-use iced::{window, Element, Length, Pixels, Size, Subscription, Task};
+use iced::{Element, Length, Pixels, Size, Subscription, Task, window};
 
 use crate::dprintln;
 use crate::excel::excel_runtime::{self, is_user_input_valid};
@@ -29,6 +29,8 @@ const ADDITIONAL_INFO: &str = "IMPORTANT INFO: (scroll down) \
 const CS2TRADER: &str = "https://csgotrader.app/";
 const CS2TRADER_REPO: &str = "https://github.com/gergelyszabo94/csgo-trader-extension";
 const CS2EXCEL_REPO: &str = "https://github.com/maikLangel0/cs2excel";
+
+const GUISIZE: Size = Size { width: 1280.0, height: 960.0 };
 
 #[derive(Debug, Clone)]
 pub struct Progress {
@@ -55,7 +57,6 @@ pub enum Exec {
 
     IgnoreAlreadySold(bool),
     GroupSimularItems(bool),
-    SumQuantityPrices(bool),
     FetchPrices(bool),
     FetchSteam(bool),
     OnlyShowRuntimeResult,
@@ -147,7 +148,6 @@ impl Default for App {
 
                     ignore_already_sold:        false,
                     group_simular_items:        false,
-                    sum_quantity_prices:        false,
                     fetch_prices:               true,
                     fetch_steam:                true,
 
@@ -222,7 +222,6 @@ impl App {
             Exec::WindowResized(size)   => { state.window_size = size; Task::none() }
             Exec::IgnoreAlreadySold(b)  => { user.ignore_already_sold = b; Task::none() }
             Exec::GroupSimularItems(b)  => { user.group_simular_items = b; Task::none() }
-            Exec::SumQuantityPrices(b)  => { user.sum_quantity_prices = b; Task::none() }
             Exec::FetchPrices(b)        => { user.fetch_prices = b; Task::none() }
             Exec::FetchSteam(b)         => { user.fetch_steam = b; Task::none() }
             Exec::OnlyShowRuntimeResult => { state.only_show_runtime_result = !state.only_show_runtime_result; Task::none() }
@@ -561,43 +560,38 @@ impl App {
         }
 
         // All checkboxes
-        let radio_buttons: Row<Exec> = row![
-            checkbox_default(
-                "Ignore already sold?",
-                "Ignore items that are already sold, given you have a column defined for that in your spreadsheet.",
-                user.ignore_already_sold,
-                (300.0, 100.0),
-                Exec::IgnoreAlreadySold
-            ),
-            checkbox_default(
-                "Group similar items?",
-                "If you have multiple of the same item, lets say Fracture Cases, it will group them together under one row and fill the quantity column set for your spreadsheet.",
-                user.group_simular_items,
-                (300.0, 100.0),
-                Exec::GroupSimularItems
-            ),
-            checkbox_default(
-                "Multiply quantity and price?",
-                "If you want the program to automatically calculate the price of items given the quantity of them * price.",
-                user.sum_quantity_prices,
-                (300.0, 100.0),
-                Exec::SumQuantityPrices
-            ),
-            checkbox_default(
-                "Fetch prices?",
-                "Fetch prices and update the prices in your spreadsheet.",
-                user.fetch_prices,
-                (300.0, 100.0),
-                Exec::FetchPrices
-            ),
-            checkbox_default(
-                "Fetch from Steam?",
-                "Fetch your inventory from steam to fill new data in your spreadsheet.",
-                user.fetch_steam,
-                (300.0, 100.0),
-                Exec::FetchSteam
-            )
-        ].padding(2).spacing(5);
+        let radio_buttons: Container<Exec> = container(
+             row![
+                checkbox_default(
+                    "Ignore already sold?",
+                    "Ignore items that are already sold, given you have a column defined for that in your spreadsheet.",
+                    user.ignore_already_sold,
+                    (300.0, 100.0),
+                    Exec::IgnoreAlreadySold
+                ),
+                checkbox_default(
+                    "Group similar items?",
+                    "If you have multiple of the same item, lets say Fracture Cases, it will group them together under one row and fill the quantity column set for your spreadsheet.",
+                    user.group_simular_items,
+                    (300.0, 100.0),
+                    Exec::GroupSimularItems
+                ),
+                checkbox_default(
+                    "Fetch prices?",
+                    "Fetch prices and update the prices in your spreadsheet.",
+                    user.fetch_prices,
+                    (300.0, 100.0),
+                    Exec::FetchPrices
+                ),
+                checkbox_default(
+                    "Fetch from Steam?",
+                    "Fetch your inventory from steam to fill new data in your spreadsheet.",
+                    user.fetch_steam,
+                    (300.0, 100.0),
+                    Exec::FetchSteam
+                )
+            ].spacing( state.window_size.width / 4.0 - 180.0 )
+        ).center_x( Length::Fill ).width( Length::Fill );
 
         content = content.push( radio_buttons );
         content = content.push( rule::horizontal(2) );
@@ -1068,8 +1062,8 @@ pub fn init_gui() -> Result<(), iced::Error> {
         .subscription(|_| App::sub_window_resize() )
         .window(
             Settings {
-                size: Size {width: 1280.0, height: 960.0},
-                min_size: Some(Size { width: 1280.0, height: 960.0 }),
+                size: GUISIZE,
+                min_size: Some( GUISIZE ),
                 max_size: None,
                 resizable: true,
                 decorations: true,
@@ -1081,3 +1075,5 @@ pub fn init_gui() -> Result<(), iced::Error> {
 
     app.run()
 }
+
+
