@@ -62,25 +62,29 @@ where
     row![
         checkbox(checkbox_content, checkbox_state)
             .on_toggle(exec)
+            .size(17)
             .style(|_, status|
                 Style {
-                    background: Background::Color( match status {
-                        Status::Active {is_checked} => { if is_checked { BG_SEC } else { Color::TRANSPARENT }},
+                    background: Background::Color(match status {
+                        Status::Active {is_checked} => { if is_checked { BG_SEC } else { Color::TRANSPARENT } },
                         Status::Hovered {is_checked} => { if is_checked { BG_MAIN } else { TEXT_GRAY }},
                         Status::Disabled {is_checked} => { if is_checked { TEXT_GRAY } else { Color::BLACK } },
-                    } ),
+                    }),
                     icon_color: Color::WHITE,
-                    border: Border { color: match status {
-                        Status::Active {is_checked} => { if is_checked { BG_SEC } else { TEXT_GRAY }},
-                        Status::Hovered {is_checked} => { if is_checked { BG_MAIN } else { TEXT_GRAY }},
-                        Status::Disabled {is_checked} => { if is_checked { TEXT_GRAY } else { Color::TRANSPARENT } },
+                    border: Border { 
+                        color: match status {
+                            Status::Active {is_checked} => { if is_checked { BG_SEC } else { TEXT_GRAY } },
+                            Status::Hovered {is_checked} => { if is_checked { BG_MAIN } else { TEXT_GRAY } },
+                            Status::Disabled {is_checked} => { if is_checked { TEXT_GRAY } else { Color::TRANSPARENT } },
+                        },
+                        width: 1.0, 
+                        radius: RAD_MAIN 
                     },
-                    width: 1.0, radius: RAD_MAIN },
                     text_color: Some( TEXT_WHITE )
                 }
             ),
         tooltip_default(tooltip_content, tt_size.width , tt_size.height),
-    ].spacing(5) //.width( Length::Fill ).spacing(5)
+    ].spacing(5).align_y( Vertical::Center ) //.width( Length::Fill ).spacing(5)
 }
 
 pub fn tooltip_default<'a, Exec> (
@@ -89,8 +93,8 @@ pub fn tooltip_default<'a, Exec> (
     y: impl Into<Length>
 ) -> Tooltip<'a, Exec, Theme, Renderer> where Exec: 'a {
     tooltip(
-        container( iced::widget::text( "?" ) )
-            .center(22)
+        container( iced::widget::text("?").size(14.0))
+            .center(17)
             .style( |_|
                 container::Style {
                     text_color: Some( Color::WHITE ),

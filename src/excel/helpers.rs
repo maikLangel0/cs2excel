@@ -32,7 +32,7 @@ pub async fn get_exchange_rate(
         if usd_to_x == &Currencies::USD { return Ok(1.0); }
 
         let rates: HashMap<String, f64> = csgotrader::get_exchange_rates().await?;
-        Ok( *rates.get( usd_to_x.as_str() ).unwrap_or( &1.0 ) )
+        rates.get( usd_to_x.as_str() ).map(|v| *v).ok_or( String::from("Chosen currency not found :(") )
 
     } else if let Some(cell) = rowcol_usd_to_x {
 
@@ -43,13 +43,11 @@ pub async fn get_exchange_rate(
             .to_string();
 
         if res.is_empty() { Err( String::from("usd_to_x cell is empty!") ) }
-        else {
-            Ok(
-                res.parse::<f64>()
-                    .map_err(|_| String::from("usd_to_x cell was not able to be converted to a number!")
-                )?
-            )
-        }
+        else { Ok( 
+            res.parse::<f64>()
+                .map_err(|_| String::from("usd_to_x cell was not able to be converted to a number!")
+            )?
+        ) }
     } else { Ok(1.0) }
 }
 
