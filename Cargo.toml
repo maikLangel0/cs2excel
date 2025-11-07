@@ -22,7 +22,7 @@ reqwest = { version = "0.12.24", features = ["json", "brotli"] }
 whoami = { version = "1.6.1" }
 rusqlite = { version = "0.37.0", features = ["bundled"]} # use features = ["bundled"] if you're having problems with linking sqlite or you just dont have it installed.
 tokio = { version = "1.48.0", features = ["fs"] }
-flate2 = { version = "1.1.4" }
+flate2 = { version = "1.1.5" }
 umya-spreadsheet = { version = "2.3.3" }
 urlencoding = { version = "2.1.3" }
 strum = { version = "0.27.2", features = ["derive"] }
@@ -41,5 +41,5 @@ ahash = "0.8.12"
 # indexmap = { version = "2.10.0" }
 
 [build-dependencies]
-winresource = "0.1.23"
+winresource = "0.1.27"
  
