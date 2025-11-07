@@ -30,15 +30,14 @@ rand = { version = "0.9.2" }
 regex = { version = "1.12.2" }
 chrono = { version = "0.4.42", features = ["serde"] }
 iced = { git = "https://github.com/iced-rs/iced.git", branch = "master", features = ["tokio", "sipper", "image"]}
-num-traits = "0.2.19"
+indexmap = { version = "2.12.0", features = ["serde"] }
 rfd = { version = "0.15.4", features = ["file-handle-inner"] }
 
 sipper = "0.1.0"
 dirs = "6.0.0"
 open = "5.3.2"
 ahash = "0.8.12"
-
-# indexmap = { version = "2.10.0" }
+num-traits = "0.2.19"
 
 [build-dependencies]
 winresource = "0.1.27"

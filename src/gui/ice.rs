@@ -1,6 +1,6 @@
 use std::{fs::File, io::BufReader, path::PathBuf, str::FromStr};
 
-use ahash::HashSet;
+use indexmap::IndexSet;
 use iced::widget::image::Handle;
 use iced::widget::text_editor::Content;
 use iced::alignment::{Horizontal};
@@ -239,7 +239,7 @@ impl App {
                                 .split(",")
                                 .filter(|s| !s.is_empty() )
                                 .map(|s| s.trim().to_owned())
-                                .collect::<HashSet<String>>()
+                                .collect::<IndexSet<String>>()
                             )
                     } else { None };
                 }
@@ -254,7 +254,7 @@ impl App {
                                 .map(|s| s.trim().to_owned())
                                 .collect::<Vec<String>>();
 
-                            sites_string.iter().filter_map( |s| Sites::from_str(s).ok() ).collect::<HashSet<Sites>>()
+                            sites_string.iter().filter_map( |s| Sites::from_str(s).ok() ).collect::<IndexSet<Sites>>()
                         } )
                     } else { None };
                 };
@@ -462,17 +462,34 @@ impl App {
                         state.editor_runtime_result = text_editor::Content::new();
                         dprintln!("Attempt to run.");
 
+                        // ----- BEGIN LAST SECOND CHECKS ----- //
+                        
+                        // This is far from the best way to do this, but it works aga
+                        let preferred_markets_check = state.editor_prefer_markets.text()
+                            .split(",")
+                            .map(|s| s.trim().to_owned())
+                            .collect::<Vec<String>>();
+
+                        for market in &preferred_markets_check {
+                            if let Err(e) = Sites::from_str(market.as_str()) {
+                                state.editor_runtime_result.perform( editor_paste( &format!{"\nError!\n{e}.\n"} ) ); 
+                                state.is_excel_running = false;
+                                return Task::none()
+                            }
+                        }
+                        
                         if user.iteminfo_provider == ItemInfoProvider::Steam {
                             state.editor_runtime_result.perform( editor_paste("WARNING: Pricing for doppler phases will not be accurate when Iteminfo Provider is Steam.\n") );
                         }
                         if sheet.col_inspect_link.is_none() {
                             state.editor_runtime_result.perform( editor_paste("WARNING: col inspect link is not defined so you will not be able to fetch more iteminfo (float, doppler phase, pattern, correct price of dopplers).\n") );
                         }
+
                         if user.usd_to_x != Currencies::None && sheet.rowcol_usd_to_x.is_some() { user.usd_to_x = Currencies::None; }
                         if sheet.col_asset_id.is_some() && user.group_simular_items { sheet.col_asset_id = None; }
                         if sheet.col_quantity.is_some() && !user.group_simular_items { sheet.col_quantity = None; }
+                        // ----- END LAST SECOND CHECKS ----- //
 
-                        // ---------------------
                         let user = user.clone();
                         let sheet = sheet.clone();
 

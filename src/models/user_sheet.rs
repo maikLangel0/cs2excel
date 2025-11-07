@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use ahash::HashSet;
+use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 
 use super::{price::{Currencies, PricingMode, PricingProvider}, web::{ItemInfoProvider, Sites}};
@@ -8,8 +8,8 @@ use super::{price::{Currencies, PricingMode, PricingProvider}, web::{ItemInfoPro
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct UserInfo {
-    pub prefer_markets: Option< HashSet<Sites> >, 
-    pub ingore_steam_names: Option< HashSet<String> >,  
+    pub prefer_markets: Option< IndexSet<Sites> >, 
+    pub ingore_steam_names: Option< IndexSet<String> >,  
     pub steamid: u64, 
     pub pricing_mode: PricingMode,
     pub pricing_provider: PricingProvider,
