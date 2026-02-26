@@ -691,7 +691,7 @@ pub fn sanitize_and_check_user_input<'a>(
     if let Some(x) = &excel.col_wear { all_excel.push(x) }
     all_excel.sort();
 
-    if let Some(w) = all_excel.windows(2).find(|w| w[0] == w[1] && w[0].is_empty()) {
+    if let Some(w) = all_excel.windows(2).find( |w| w[0] == w[1] && !w[0].is_empty() ) {
         err_str.push_str( format!("The same column is referenced two or more times: '{}'\n",w[0]).as_str() );
     }
 
