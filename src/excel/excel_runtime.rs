@@ -70,7 +70,7 @@ pub fn run_program(
 
                         spot(progress, &format!("Attempting to fetch inventory with cookie ending in ...{}\n", cookie_display)).await;
 
-                        inv = Some( SteamInventory::init(user.steamid, 730, Some(&cookie)).await? );
+                        inv = Some( SteamInventory::init(user.steamid, 730, Some(cookie)).await? );
 
                         if let Some(v) = &inv && v.assets_len() == v.inventory_len() {
                             spot(progress, "Found full inventory.\n").await;
@@ -408,8 +408,8 @@ pub fn run_program(
 
                             let (market, price) = get_market_price(
                                 &user,
-                                &m_t_c,
-                                &a_m_p,
+                                m_t_c,
+                                a_m_p,
                                 rate,
                                 &steamdata.name,
                                 &iteminfo.phase,
@@ -477,7 +477,7 @@ pub fn run_program(
             }
 
             let doppler: Option<Doppler> = data.phase.as_ref()
-                .and_then(|p| Doppler::from_str(&p).ok());
+                .and_then(|p| Doppler::from_str(p).ok());
 
             let (market, price): (Option<String>, Option<f64>) = if let Some(amp) = &all_market_prices && let Some(mtc) = &markets_to_check {
                 get_market_price(
@@ -662,7 +662,7 @@ pub fn sanitize_and_check_user_input<'a>(
     if user.fetch_prices {
         let mut pass: bool = false;
 
-        if preferred_markets_check.len() == 1 && preferred_markets_check[0] == "" {
+        if preferred_markets_check.len() == 1 && preferred_markets_check[0].is_empty() {
             err_str.push_str("Preferred markets can't be empty when fetching prices.\n");
             pass = true;
         }
@@ -691,7 +691,7 @@ pub fn sanitize_and_check_user_input<'a>(
     if let Some(x) = &excel.col_wear { all_excel.push(x) }
     all_excel.sort();
 
-    if let Some(w) = all_excel.windows(2).find(|w| w[0] == w[1] && w[0] != "") {
+    if let Some(w) = all_excel.windows(2).find(|w| w[0] == w[1] && w[0].is_empty()) {
         err_str.push_str( format!("The same column is referenced two or more times: '{}'\n",w[0]).as_str() );
     }
 
@@ -704,7 +704,7 @@ pub fn sanitize_and_check_user_input<'a>(
     }
 }
 
-const VALID_SIGNATURES: [&'static str; 4] = ["an", "$an", "$a$n", "a$n"];
+const VALID_SIGNATURES: [&str; 4] = ["an", "$an", "$a$n", "a$n"];
 
 fn valid_cell_check(s: &str) -> bool {
     let mut signature: Vec<char> = Vec::with_capacity( s.len() );

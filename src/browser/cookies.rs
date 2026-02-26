@@ -10,7 +10,7 @@ pub struct FirefoxDb {
 impl FirefoxDb {
     ///Initializes the connection to cookies.sqlite
     pub fn init() -> Result<Self, String> {
-        let curr_user = whoami::username();
+        let curr_user = whoami::username().unwrap();
         let profiles_path: &str = &format!("C:/Users/{}/AppData/Roaming/Mozilla/Firefox/Profiles/", curr_user);
 
         // Traverses the dir with path "profiles_path" and returns the "profiles_path/xxxxxx.stable-release" (or panics)

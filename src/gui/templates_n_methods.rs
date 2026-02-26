@@ -267,8 +267,9 @@ where
 pub fn pick_list_template<'a, T, L, V, F, Exec>(
     tooltip_content: impl Into<String>,
     field_name: impl Into<String>,
-    options: &L,
     selected: Option<V>,
+    options: &L,
+    to_string: impl Fn(&T) -> String + 'a,
     on_selected: F,
     tooltip_size: impl Into<Size>,
     width: impl Into<Length>,
@@ -291,15 +292,17 @@ where
             padding_inner(30)
         ].spacing(5),
         pick_list(
-            options.clone(),
             selected,
-            on_selected
+            options.clone(),
+            to_string
         ).width( Length::Fill )
+        .on_select(on_selected)
         .style( |_, status| Style {
             text_color: match status {
                 Status::Active => { TEXT_WHITE },
                 Status::Hovered => { TEXT_WHITE },
                 Status::Opened{is_hovered} => { if is_hovered { TEXT_WHITE } else { TEXT_GRAY } },
+                Status::Disabled => { Color::BLACK }
             },
             placeholder_color: TEXT_GRAY,
             handle_color: BG_TRI,
@@ -308,7 +311,8 @@ where
                 color: match status {
                     Status::Active => { BORDER_ACTIVE },
                     Status::Hovered => { BORDER_HOVERED },
-                    Status::Opened { is_hovered } => { if is_hovered { BG_MAIN } else { BORDER_ACTIVE } }
+                    Status::Opened { is_hovered } => { if is_hovered { BG_MAIN } else { BORDER_ACTIVE } },
+                    Status::Disabled => { Color::BLACK }
                 },
                 width: 1.0,
                 radius: RAD_MAIN
@@ -354,7 +358,7 @@ where
             iced::widget::text( field_name.into() ).width(Length::Fill).center(),
             padding_inner(30),
         ].spacing(5),
-        text_input_default(&field_placeholder.into(), field_value, on_input)
+        text_input_default(field_placeholder.into(), field_value, on_input)
     ].width( width )
     .padding(5)
     .spacing(5)

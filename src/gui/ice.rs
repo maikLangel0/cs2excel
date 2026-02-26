@@ -217,7 +217,7 @@ impl Default for App {
 }
 
 impl App {
-    fn update<'a>(state: &'a mut Self, exec: Exec) -> Task<Exec> {
+    fn update(state: &mut Self, exec: Exec) -> Task<Exec> {
         if state.is_file_dialog_open && !matches!( exec, Exec::FinishLoadData(_) | Exec::FinishSaveData(_) /*| Exec::Exit */| Exec::FinishPathToSheet(_)) { return Task::none() }
         if state.is_excel_running && !matches!(exec, Exec::UpdateRun(_) | Exec::FinishRun(_) | Exec::BeginOpenUrl(_)) { return Task::none() }
 
@@ -438,7 +438,7 @@ impl App {
                                 *sheet = load.sheet;
 
                                 let isn_input: String = if let Some(isn) = &user.ingore_steam_names {
-                                    isn.iter().map(|s| s.clone()).collect::<Vec<String>>().join(", ")
+                                    isn.iter().cloned().collect::<Vec<String>>().join(", ")
                                 } else { String::new() };
 
                                 let pm_input: String = if let Some(pm) = &user.prefer_markets {
@@ -453,7 +453,7 @@ impl App {
                                 state.text_percent_threshold = user.percent_threshold.to_string();
                                 state.text_input_steamid = user.steamid.to_string();
                                 state.text_input_row_start_write_in_table = sheet.row_start_write_in_table.to_string();
-                                state.text_input_row_stop_write_in_table = sheet.row_stop_write_in_table.map(|s| s.to_string()).unwrap_or(String::new());
+                                state.text_input_row_stop_write_in_table = sheet.row_stop_write_in_table.map(|s| s.to_string()).unwrap_or_default();
 
                                 dprintln!("STATE: {:#?}", state);
                             },
@@ -485,11 +485,11 @@ impl App {
                         dprintln!("Attempt to run.");
                         dprintln!("User: {:?}", user);
 
-                        let (task, _handle) = Task::sip(
+                        let task = Task::sip(
                             excel_runtime::run_program(user, sheet),
                             Exec::UpdateRun,
                             Exec::FinishRun
-                        ).abortable();
+                        );
 
                         task
                     },
@@ -534,7 +534,7 @@ impl App {
     }
 
     // VIEW LOGIC ----------state.is_excel_running = false;--------------------------------
-    fn view<'a>(state: &'_ Self) -> Element<'_, Exec> {
+    fn view(state: &'_ Self) -> Element<'_, Exec> {
         let mut content: Column<Exec> = column![];
         let user = &state.usersheet.user;
         let sheet = &state.usersheet.sheet;
@@ -607,7 +607,7 @@ impl App {
 
         if !user.fetch_prices && !user.fetch_steam {
             content = content.push( container("").height( state.window_size.height / 2.0 - 75.0 ));
-            content = content.push( image( &Handle::from_bytes(state.ohnepixel) ).width( Length::Fill ) );
+            content = content.push( image( Handle::from_bytes(state.ohnepixel) ).width( Length::Fill ) );
             return content.align_x(Horizontal::Center).into();
         }
 
@@ -617,8 +617,9 @@ impl App {
             pick_list_template(
                 "Pick your primary currency, choose USD if you want to keep USD pricing, or choose NONE to prioritize Cell USD to X.",
                 "Convert USD to X",
-                &state.pick_list_usd_to_x,
                 Some( user.usd_to_x ),
+                &state.pick_list_usd_to_x,
+                Currencies::to_string,
                 Exec::UsdToX,
                 (400.0, 100.0),
                 FILL
@@ -630,8 +631,9 @@ impl App {
             pick_list_template(
                 "Which site/API that fetches the prices. \nPS: Only CsgoTrader implemented.",
                 "Pricing provider",
-                &state.pick_list_pricing_provider,
                 Some( user.pricing_provider ),
+                &state.pick_list_pricing_provider,
+                PricingProvider::to_string,
                 Exec::PricingProvider,
                 (300.0, 75.0),
                 FILL
@@ -643,8 +645,9 @@ impl App {
             pick_list_template(
                 "Chooses how the price of your items are calculated if you have chosen multiple preferred markets.",
                 "Pricing mode",
-                &state.pick_list_pricing_mode,
                 Some( user.pricing_mode ),
+                &state.pick_list_pricing_mode,
+                PricingMode::to_string,
                 Exec::PricingMode,
                 (400.0, 75.0),
                 FILL
@@ -654,8 +657,9 @@ impl App {
         let iteminfo_provider = pick_list_template(
             "Which site/API fetches the additional info about your items like float, pattern etc... \nOnly CSFloat and Steam implemented. Use Steam 99% of the time, but if you have a doppler knife/gun in your inventory, use csfloat to get accurate pricing.",
             "Iteminfo provider",
-            &state.pick_list_iteminfo_provider,
             Some( user.iteminfo_provider ),
+            &state.pick_list_iteminfo_provider,
+            ItemInfoProvider::to_string,
             Exec::IteminfoProvider,
             (500.0, 125.0),
             FILL
