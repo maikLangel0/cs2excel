@@ -2,7 +2,7 @@ use serde_json::Value;
 
 use crate::{dprintln, excel::helpers::spot, gui::ice::Progress, models::{price::{Doppler, PriceType}, web::Sites}};
 
-pub async fn get_price(item_name: &str, prices: &Value, market: &Sites, want: &PriceType, phase: &Option<Doppler>, progress: &mut sipper::Sender<Progress>) -> Result<Option<f64>, String> {
+pub async fn get_price(item_name: &str, prices: &Value, market: &Sites, want: PriceType, phase: &Option<Doppler>, progress: &mut sipper::Sender<Progress>) -> Result<Option<f64>, String> {
     if let Some(p_one) = prices.get(item_name) { 
         // If the json is key value pair (youpin) | doesnt have doppler prices
         if p_one.is_f64() { return Ok(p_one.as_f64()) }  

@@ -1,7 +1,6 @@
 use std::{env, path::{Path, PathBuf}};
 use ahash::{HashMap, HashMapExt};
 use chrono::Utc;
-use rand::{rng, seq::IndexedRandom};
 use serde_json::Value;
 use tokio::{fs, io::AsyncWriteExt};
 
@@ -43,7 +42,7 @@ pub async fn get_exchange_rate(
             .to_string();
 
         if res.is_empty() { Err( String::from("usd_to_x cell is empty!") ) }
-        else { Ok( 
+        else { Ok(
             res.parse::<f64>()
                 .map_err(|_| String::from("usd_to_x cell was not able to be converted to a number!")
             )?
@@ -77,7 +76,7 @@ pub async fn get_market_price(
                 item_name,
                 market_prices,
                 market,
-                &PriceType::StartingAt,
+                PriceType::StartingAt,
                 doppler,
                 progress
             ).await? { prices.push( MarketPrice { market: market.as_str(), price: price * rate } ) }
@@ -113,6 +112,8 @@ pub async fn get_market_price(
         }
     }
 }
+
+
 
 pub async fn fetch_iteminfo_via_itemprovider_persistent(
     client: &mut Client,
@@ -282,7 +283,7 @@ pub fn insert_string_in_sheet(sheet: &mut Worksheet, col: &str, row_in_excel: us
     sheet.get_cell_value_mut(cell).set_value_string(value);
 }
 
-pub async fn get_cached_markets_data(markets_to_check: &Vec<Sites>, pricing_provider: &PricingProvider) -> Result<HashMap<Sites, serde_json::Value>, String> {
+pub async fn get_cached_markets_data(markets_to_check: &Vec<Sites>, pricing_provider: PricingProvider) -> Result<HashMap<Sites, serde_json::Value>, String> {
     let mut amp: HashMap<Sites, Value> = HashMap::new();
 
     let cache_dir = dirs::cache_dir()
@@ -292,7 +293,7 @@ pub async fn get_cached_markets_data(markets_to_check: &Vec<Sites>, pricing_prov
     for market in markets_to_check {
         let market_prices = match pricing_provider {
             PricingProvider::Csgoskins => { // IF I IMPLEMENT CSGOSKINS IN THE FUTURE
-                get_cached_market_data(cache_dir.as_path(), &PricingProvider::Csgotrader, market, csgotrader::get_market_data).await?
+                get_cached_market_data(cache_dir.as_path(), PricingProvider::Csgotrader, market, csgotrader::get_market_data).await?
             },
             PricingProvider::Csgotrader => {
                 get_cached_market_data(cache_dir.as_path(), pricing_provider, market, csgotrader::get_market_data).await?
@@ -357,7 +358,7 @@ async fn save_cache(cache_path: &Path, marketjson: &Value) -> Result<(), String>
 
 }
 
-async fn get_cached_market_data<'a, F, Fut>(cache_dir: &Path, iteminfo_provider: &PricingProvider, market: &'a Sites, fetch: F) -> Result<serde_json::Value, String>
+async fn get_cached_market_data<'a, F, Fut>(cache_dir: &Path, iteminfo_provider: PricingProvider, market: &'a Sites, fetch: F) -> Result<serde_json::Value, String>
 where
     F: Fn(&'a Sites) -> Fut,
     Fut: Future<Output = Result<serde_json::Value, String>>
@@ -387,21 +388,13 @@ where
     }
 }
 
-const ALPHABET: &[u8] = b"abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-
-pub fn rand_ascii_string(len: usize) -> String {
-    let mut rng = rng();
-    let fallback: u8 = b'e';
-    (0..len).map(|_| *ALPHABET.choose(&mut rng).unwrap_or(&fallback) as char).collect()
-}
-
-pub fn generate_fallback_path(path: &mut Option<PathBuf>) {
+pub fn generate_fallback_path(path: &mut Option<PathBuf>, steamid: u64) {
     let mut p = dirs::desktop_dir()
         .or(dirs::home_dir())
         .or(env::current_dir().ok())
         .unwrap_or_else(|| PathBuf::from( format!("C\\Users\\{}", whoami::username()) ));
 
-    p.push(format!("cs2_invest_sheet_{}.xlsx", rand_ascii_string(16)));
+    p.push(format!("cs2_invest_sheet_{}.xlsx", steamid.to_string()));
 
     *path = Some(p);
 }

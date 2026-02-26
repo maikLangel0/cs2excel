@@ -1,3 +1,5 @@
 /target
 /.vscode
 /cache/*
+dhat-heap.json
+flamegraph.svg

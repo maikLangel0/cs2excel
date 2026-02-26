@@ -60,7 +60,8 @@ where
     let tt_size: Size = tooltip_size.into();
 
     row![
-        checkbox(checkbox_content, checkbox_state)
+        checkbox(checkbox_state)
+            .label(checkbox_content.into())
             .on_toggle(exec)
             .size(17)
             .style(|_, status|
@@ -71,14 +72,14 @@ where
                         Status::Disabled {is_checked} => { if is_checked { TEXT_GRAY } else { Color::BLACK } },
                     }),
                     icon_color: Color::WHITE,
-                    border: Border { 
+                    border: Border {
                         color: match status {
                             Status::Active {is_checked} => { if is_checked { BG_SEC } else { TEXT_GRAY } },
                             Status::Hovered {is_checked} => { if is_checked { BG_MAIN } else { TEXT_GRAY } },
                             Status::Disabled {is_checked} => { if is_checked { TEXT_GRAY } else { Color::TRANSPARENT } },
                         },
-                        width: 1.0, 
-                        radius: RAD_MAIN 
+                        width: 1.0,
+                        radius: RAD_MAIN
                     },
                     text_color: Some( TEXT_WHITE )
                 }
@@ -322,7 +323,8 @@ where
             },
             text_color: TEXT_WHITE,
             selected_text_color: TEXT_WHITE,
-            selected_background: Background::Color(BG_MAIN)
+            selected_background: Background::Color(BG_MAIN),
+            shadow: Shadow::default()
         } )
         ,
     ].width( width )

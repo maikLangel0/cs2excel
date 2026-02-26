@@ -33,10 +33,10 @@ impl SteamInventory {
     pub async fn init(steamid: u64, gameid: u32, cookie: Option<&str>) -> Result<Self, String> {
         let client = reqwest::Client::new();
         let cookie = cookie.unwrap_or("").to_string();
-        
+
         //                                              https://steamcommunity.com/inventory/76561198389123475/730/2?l=english&count=2000
         let mut data: SteamJson = client.get(format!("https://steamcommunity.com/inventory/{}/{}/2?l=english&count=2000", steamid, gameid))
-            .header(COOKIE, &cookie )
+            .header(COOKIE, &cookie)
             .send()
             .await.map_err( |e| format!("Failed sending main HTTPS request to steam. Check internet connection or steam availability. \n{}", e) )?
             .json::<SteamJson>()
@@ -46,12 +46,9 @@ impl SteamInventory {
             match client.get(format!("https://steamcommunity.com/inventory/{}/{}/16?l=english&count=2000", steamid, gameid))
                 .header(COOKIE, &cookie)
                 .send()
-                .await.map_err( |e| format!("Failed sending trade protect HTTPS request to steam. \n{}", e) ) 
-                {
-                    Ok(res) => {
-                        // Fails silently and just returns None since user might not have any trade protected items in inv OR its not their inv
-                        res.json::<SteamJson>().await.ok()
-                    },
+                .await.map_err( |e| format!("Failed sending trade protect HTTPS request to steam. \n{}", e) ) {
+                    // Fails silently and just returns None since user might not have any trade protected items in inv OR its not their inv
+                    Ok(res) => { res.json::<SteamJson>().await.ok() },
                     Err(e) => { return Err(e) }
                 }
         } else { None };
@@ -86,10 +83,11 @@ impl SteamInventory {
             let classid = desc.get("classid")
                 .and_then(|v| v.as_str())
                 .and_then(|s| s.parse::<u64>().ok())
-                .ok_or_else(|| "Classid fetch failed desc wat.")?;
+                .ok_or("Classid fetch failed desc wat.")?;
 
-            let name_on_market: &str = desc.get("market_name").and_then( |v| v.as_str() )
-                .ok_or_else(|| "Market name from desc failed wat.")?; 
+            let name_on_market: &str = desc.get("market_name")
+                .and_then( |v| v.as_str() )
+                .ok_or("Market name from desc failed wat.")?; 
 
             let is_tradable = desc.get("tradable").and_then(|v| v.as_i64()).unwrap_or(0) != 0;
 
@@ -110,11 +108,11 @@ impl SteamInventory {
                let asset_id = prop.get("assetid")
                    .and_then(|v| v.as_str())
                    .and_then(|s| s.parse::<u64>().ok())
-                   .ok_or_else(|| "Assetid fetch failed asset_properties wat.")?;
+                   .ok_or("Assetid fetch failed asset_properties wat.")?;
 
                let asset_properties = prop.get("asset_properties")
                    .and_then(|a| a.as_array())
-                   .ok_or_else(|| "Failed to get/use inner asset_properties.")?;
+                   .ok_or("Failed to get/use inner asset_properties.")?;
 
                let mut float: Option<f64> = None;
                let mut pattern: Option<u32> = None;

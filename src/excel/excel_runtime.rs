@@ -7,7 +7,7 @@ use serde_json::Value;
 use ahash::{HashMap};
 use indexmap::IndexSet;
 
-use iced::task::{Straw, sipper};
+use iced::{task::{Straw, sipper}, widget::text_editor::Content};
 
 use crate::{
     browser::{csfloat, csgotrader, steamcommunity::SteamInventory},
@@ -15,18 +15,7 @@ use crate::{
     excel::{
         excel_ops::{get_exceldata, get_spreadsheet, set_spreadsheet},
         helpers::{
-            clear_extra_iteminfo_given_quantity,
-            get_cached_markets_data,
-            get_exchange_rate,
-            get_market_price,
-            get_steamloginsecure,
-            insert_new_exceldata,
-            insert_number_in_sheet,
-            insert_string_in_sheet,
-            spot,
-            update_quantity_exceldata,
-            wrapper_fetch_iteminfo_via_itemprovider_persistent,
-            LastInX
+            LastInX, clear_extra_iteminfo_given_quantity, get_cached_markets_data, get_exchange_rate, get_market_price, get_steamloginsecure, insert_new_exceldata, insert_number_in_sheet, insert_string_in_sheet, spot, update_quantity_exceldata, wrapper_fetch_iteminfo_via_itemprovider_persistent
         }
     },
     gui::{ice::Progress, templates_n_methods::IsEnglishAlphabetic},
@@ -118,7 +107,7 @@ pub fn run_program(
         } else { None };
 
         let all_market_prices: Option<HashMap<Sites, Value>> = if let Some(m_t_c) = &markets_to_check {
-            Some( get_cached_markets_data(m_t_c, &user.pricing_provider).await? )
+            Some( get_cached_markets_data(m_t_c, user.pricing_provider).await? )
         } else { None };
 
         if let Some(m_t_p) = &markets_to_check {
@@ -135,13 +124,13 @@ pub fn run_program(
         // BIG BRAIN; READ THE EXCEL SPREADSHEET FIRST TO GET ALL THE INFO AND THEN GET PRICES WOWOWO
 
         // Getting the Worksheet from either existing book or new book
-        let mut book: Spreadsheet = get_spreadsheet(&mut excel.path_to_sheet, &mut excel.sheet_name, progress).await?;
+        let mut book: Spreadsheet = get_spreadsheet(&mut excel.path_to_sheet, &mut excel.sheet_name, progress, user.steamid).await?;
 
         let sheet: &mut Worksheet = {
             if let Some(sn) = &excel.sheet_name {
                 if let Some(buk) = book.get_sheet_by_name_mut(sn) { buk }
                 else {
-                    dprintln!("WARNING: Automatically fetched first sheet in spreadsheet because {} was not found.", sn);
+                    dprintln!("WARNING: Automatically fetched first sheet in spreadsheet because {} was not found.\n", sn);
                     spot(progress, &format!("WARNING: Automatically fetched first sheet in spreadsheet because {} was not found.", sn)).await;
 
                     book.get_sheet_mut(&0).ok_or_else(|| format!(
@@ -516,7 +505,7 @@ pub fn run_program(
         }
 
         // Writes the modified data to the spreadsheet
-        set_spreadsheet(&excel.path_to_sheet, book).await
+        set_spreadsheet(&excel.path_to_sheet, user.steamid, book).await
             .map_err(|e| format!("Couldnt write to spreadsheet! : {}", e))?;
 
         if let Some(inv) = &sm_inv {
@@ -539,106 +528,186 @@ pub fn run_program(
 }
 
 // -------------------------------------------------------------------------------------------
+//                                                                Result<MAYBE WARNING , ERROR >
+pub fn sanitize_and_check_user_input<'a>(
+    user: &mut UserInfo,
+    excel: &mut SheetInfo,
+    prefer_markets: &mut Content
+) -> Result<Option<String>, String> {
 
-pub fn is_user_input_valid(user: &UserInfo, excel: &SheetInfo) -> Result<(), String> {
-    if user.iteminfo_provider == ItemInfoProvider::Steam {
-        dprintln!("WARNING: Pricing for doppler phases will not be accurate with Steam as ItemInfoProvider.")
+    let mut err_str = String::new();
+    let mut warn_str = String::new();
+
+    if user.group_simular_items {
+        excel.col_asset_id = None;
+    } else {
+        excel.col_quantity = None;
     }
 
-    if user.iteminfo_provider == ItemInfoProvider::Steam && excel.col_inspect_link.is_some() {
-        dprintln!("WARNING: col_inspect_link is not defined so you will not be able to fetch_more_iteminfo (float, doppler phase, pattern, price of doppler).")
+    if !user.fetch_prices {
+        excel.col_price = "".to_string();
+        excel.col_market = None;
+        excel.col_float = None;
+        user.pricing_mode = PricingMode::Cheapest;
+        user.percent_threshold = 0;
+        user.iteminfo_provider = ItemInfoProvider::Steam;
+
+        if excel.col_inspect_link.is_none() {
+            excel.col_phase = None;
+        }
+    }
+
+    if user.fetch_prices {
+        if user.iteminfo_provider == ItemInfoProvider::Steam {
+            warn_str.push_str("WARNING: Pricing for doppler phases will not be accurate with Steam as ItemInfoProvider.\n");
+        }
+
+        if user.iteminfo_provider == ItemInfoProvider::Steam && excel.col_inspect_link.is_some() {
+            warn_str.push_str("WARNING: Inspect Link Column is not defined so you will not be able to fetch_more_iteminfo (float, doppler phase, pattern, price of doppler).\n");
+        }
+
+        if user.iteminfo_provider != ItemInfoProvider::Steam && excel.col_inspect_link.is_some() && excel.col_phase.is_none() {
+            warn_str.push_str("WARNING: Phase of doppler knives will not be pricechecked correctly when reading over the spreadsheet in the future becuase column for phase is not set.\n" );
+        }
     }
 
     // --------------------
 
     if excel.path_to_sheet.is_some() && excel.sheet_name.is_none() {
-        return Err( String::from( "Sheet name can't be nothing if path to sheet is given." ) )
+        err_str.push_str( "Sheet name can't be nothing if path to sheet is given.\n" );
     }
 
-    if excel.col_inspect_link.is_none() {
-        if excel.col_quantity.is_none(){ return Err( String::from( "Quantity can't be empty when no inspect link column is given." ) ) }
-        if excel.col_float.is_some()   { return Err( String::from( "Column for float given but no column for inspect link."   ) ) }
-        if excel.col_phase.is_some()   { return Err( String::from( "Column for phase given but no column for inspect link."   ) ) }
-        if excel.col_pattern.is_some() { return Err( String::from( "Column for pattern given but no column for inspect link." ) ) }
+    if (excel.path_to_sheet.is_none() || excel.sheet_name.is_none()) && !user.fetch_steam {
+        err_str.push_str("Path to sheet and/or sheet name is not given.\n");
     }
 
-    if user.iteminfo_provider != ItemInfoProvider::Steam && excel.col_inspect_link.is_some() && excel.col_phase.is_none() {
-        return Err( String::from( "Phase of doppler knives will not be pricechecked correctly when reading over the spreadsheet in the future becuase col_phase is not set!" ))
+    if !user.fetch_steam && user.fetch_prices && excel.sheet_name.is_none() {
+        err_str.push_str("Sheet name can't be None when fetching prices without fetching Steam.\n");
     }
 
     if user.pause_time_ms < 1000 || user.pause_time_ms > 2500 {
-        return Err( String::from("pause_time_ms is only allowed to be in range of 1000 (1 second) - 2500 (2.5 seconds).") )
+        err_str.push_str("Pause Time is only allowed to be in range of 1000 (1 second) - 2500 (2.5 seconds).\n");
     }
 
     if excel.col_quantity.is_none() && user.group_simular_items {
-        return Err( String::from("col_quantity can't be None if you want to group simular items!") )
+        err_str.push_str("Quantity column can't be None if you want to group similar items.\n");
     }
 
     if excel.col_asset_id.is_none() && !user.group_simular_items {
-        return Err( String::from("col_asset_id can't be None if you don't want to group simular items!") )
+        err_str.push_str("AssetID column can't be None if you don't want to group similar items.\n");
     }
+
+    // if excel.col_inspect_link.is_none() {
+        // if excel.col_quantity.is_none() { err_str.push_str( "Column for quantity can't be empty when no inspect link column is given.\n" ); }
+        // if excel.col_float.is_some()    { err_str.push_str( "Column for float given but no column for inspect link.\n"   ); }
+        // if excel.col_phase.is_some()    { err_str.push_str( "Column for phase given but no column for inspect link.\n"   ); }
+        // if excel.col_pattern.is_some()  { err_str.push_str( "Column for pattern given but no column for inspect link.\n" ); }
+    // }
 
     // Checked in the update logic of the Iced application
     // if excel.rowcol_usd_to_x.is_some() && user.usd_to_x != Currencies::None {
-        // return Err( String::from("rowcol_usd_to_x can't be something if usd_to_x is set as a currency!") )
+        // err_str.push_str("rowcol_usd_to_x can't be something if usd_to_x is set as a currency.\n") )
     // }
 
     if user.pricing_mode == PricingMode::Hierarchical && user.percent_threshold == 0 {
-        return Err( String::from("pricing_mode can't be Hierarchical if percent_threshold is None!") )
+        err_str.push_str("Pricing mode can't be Hierarchical if the Percent threshold is None.\n");
     }
 
-    match user.steamid.checked_ilog10() {
-        Some(check) => { if check > 17 { return Err(String::from("steamid64 is invalid!")); } }
-        None => { return Err(String::from("steamid64 is invalid!")); }
+    if excel.col_steam_name.is_empty() {
+        err_str.push_str("Column for full names of the item(s) can't be empty.\n");
+    }
+
+    if !user.fetch_prices {
+        if !user.group_simular_items && excel.col_asset_id.is_none() {
+            err_str.push_str("AssetID can't be None if you dont group similar items.\n");
+        }
+    }
+
+    if user.fetch_steam {
+        match user.steamid.checked_ilog10() {
+            Some(check) => { if check > 17 { err_str.push_str("SteamID is invalid.\n"); } }
+            None => { err_str.push_str("SteamID is invalid.\n"); }
+        }
     }
 
     if excel.row_start_write_in_table == 0 {
-        return Err(String::from("row_start_write_in_table is invalid!"))
+        err_str.push_str("Row to start writing in the spreadsheet is invalid.\n");
     }
 
     if excel.col_price.is_empty() && user.fetch_prices {
-        return Err(String::from("col_price has to be given if you want to fetch prices!"))
+        err_str.push_str("Price column has to be given if you want to fetch prices.\n");
+    }
+
+    if user.ignore_already_sold && excel.col_sold.is_none() {
+        err_str.push_str("Column for sold can't be empty if you want to ingore already sold.\n");
     }
 
     if let Some(date) = &excel.rowcol_date && !valid_cell_check(date) {
-        return Err( String::from("format of cell date is not valid!") )
+        err_str.push_str("format of cell date is not valid.\n");
     }
 
     if let Some(utx) = &excel.rowcol_usd_to_x && !valid_cell_check(utx) {
-        return Err( String::from("format of cell usd_to_x is not valid!") )
+        err_str.push_str("format of cell containing USD to X currency is not valid.\n");
     }
 
     if let Some(stop) = excel.row_stop_write_in_table && excel.row_start_write_in_table < stop {
-        return Err( String::from("Start write can't be less than stop write!"))
+        err_str.push_str("Start write can't be less than stop write.\n");
     }
 
-    let mut all_excel: Vec<String> = Vec::from([excel.col_price.to_string(), excel.col_steam_name.to_string()]);
-    if let Some(x) = &excel.col_asset_id { all_excel.push( x.to_string() ); }
-    if let Some(x) = &excel.col_csgoskins_link { all_excel.push( x.to_string() ); }
-    if let Some(x) = &excel.col_float { all_excel.push( x.to_string() ); }
-    if let Some(x) = &excel.col_gun_sticker_case { all_excel.push( x.to_string() ); }
-    if let Some(x) = &excel.col_inspect_link { all_excel.push( x.to_string() ); }
-    if let Some(x) = &excel.col_market { all_excel.push( x.to_string() ); }
-    if let Some(x) = &excel.col_pattern { all_excel.push( x.to_string() ); }
-    if let Some(x) = &excel.col_phase { all_excel.push( x.to_string() ); }
-    if let Some(x) = &excel.col_quantity { all_excel.push( x.to_string() ); }
-    if let Some(x) = &excel.col_skin_name { all_excel.push( x.to_string() ); }
-    if let Some(x) = &excel.col_sold { all_excel.push( x.to_string() ); }
-    if let Some(x) = &excel.col_wear { all_excel.push( x.to_string() ); }
+    let preferred_markets_check = prefer_markets.text()
+        .split(",")
+        .map(|s| s.trim().to_owned())
+        .collect::<Vec<String>>();
+
+    if user.fetch_prices {
+        let mut pass: bool = false;
+
+        if preferred_markets_check.len() == 1 && preferred_markets_check[0] == "" {
+            err_str.push_str("Preferred markets can't be empty when fetching prices.\n");
+            pass = true;
+        }
+
+        if !pass {
+            for market in &preferred_markets_check {
+                if let Err(e) = Sites::from_str(market.as_str()) {
+                    err_str.push_str( &format!("{}.\n", e) );
+                }
+            }
+        }
+    };
+
+    let mut all_excel: Vec<&String> = Vec::from([&excel.col_price, &excel.col_steam_name]);
+    if let Some(x) = &excel.col_asset_id { all_excel.push(x) }
+    if let Some(x) = &excel.col_csgoskins_link { all_excel.push(x) }
+    if let Some(x) = &excel.col_float { all_excel.push(x) }
+    if let Some(x) = &excel.col_gun_sticker_case { all_excel.push(x) }
+    if let Some(x) = &excel.col_inspect_link { all_excel.push(x) }
+    if let Some(x) = &excel.col_market { all_excel.push(x) }
+    if let Some(x) = &excel.col_pattern { all_excel.push(x) }
+    if let Some(x) = &excel.col_phase { all_excel.push(x) }
+    if let Some(x) = &excel.col_quantity { all_excel.push(x) }
+    if let Some(x) = &excel.col_skin_name { all_excel.push(x) }
+    if let Some(x) = &excel.col_sold { all_excel.push(x) }
+    if let Some(x) = &excel.col_wear { all_excel.push(x) }
     all_excel.sort();
 
-    if let Some(w) = all_excel.windows(2).find(|w| w[0] == w[1]) {
-        return Err(
-            format!("The same column is referenced two or more times: '{}'",w[0])
-    );
+    if let Some(w) = all_excel.windows(2).find(|w| w[0] == w[1] && w[0] != "") {
+        err_str.push_str( format!("The same column is referenced two or more times: '{}'\n",w[0]).as_str() );
+    }
+
+    if !err_str.is_empty() {
+        Err(err_str)
+    } else if !warn_str.is_empty() {
+        Ok(Some(warn_str))
+    } else {
+        Ok(None)
+    }
 }
 
-    Ok(())
-}
+const VALID_SIGNATURES: [&'static str; 4] = ["an", "$an", "$a$n", "a$n"];
 
 fn valid_cell_check(s: &str) -> bool {
     let mut signature: Vec<char> = Vec::with_capacity( s.len() );
-    let valid_signatures: Vec<&str> = Vec::from(["an", "$an", "$a$n", "a$n"]);
 
     for c in s.chars() {
         if c == '$' { signature.push(c); continue; }
@@ -646,7 +715,7 @@ fn valid_cell_check(s: &str) -> bool {
         let letter: char = {
             if c.is_english_alphabetic() {'a'}
             else if c.is_ascii_digit() {'n'}
-            else {'x'}
+            else { return false }
         };
 
         if !signature.is_empty() && signature[signature.len() - 1] != letter { signature.push(letter) }
@@ -656,5 +725,5 @@ fn valid_cell_check(s: &str) -> bool {
 
     dprintln!("Sign: {}", final_signature);
 
-    valid_signatures.contains(&final_signature.as_str())
+    VALID_SIGNATURES.contains(&final_signature.as_str())
 }

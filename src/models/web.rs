@@ -74,12 +74,13 @@ impl Sites {
 
 #[derive(Debug)]
 pub struct SteamData {
-    pub name: String,
     pub quantity: Option<u16>,
-    pub inspect_link: Option<String>,
-    pub float: Option<f64>,
     pub pattern: Option<u32>,
-    pub asset_id: u64, // IF MODE IS !GROUP_SIMULAR_ITEMS, THIS IS UNIQUE IDENTIFIER
+    pub asset_id: u64,
+    pub float: Option<f64>,
+    pub name: String,
+    pub inspect_link: Option<String>,
+     // IF MODE IS !GROUP_SIMULAR_ITEMS, THIS IS UNIQUE IDENTIFIER
     // pub instance_id: u64, // Used POTENTIALLY for batched float getting
 }
 
@@ -106,12 +107,12 @@ pub struct CachedMarket {
 // ------------------------------------------------------------
 
 pub struct ExtraItemData {
-    // pub name: String,
+    pub phase: Option<Doppler>, // PAINTINDEX: dopplers,
+    pub paintseed: Option<u32>,  // Paintseed
     pub float: Option<f64>,
+    // pub name: String,
     // pub max_float: Option<f64>,
     // pub min_float: Option<f64>,
-    pub phase: Option<Doppler>, // PAINTINDEX: dopplers, 
-    pub paintseed: Option<u32>  // Paintseed 
 }
 
 // ---------------------------------------------------------------------------
@@ -129,7 +130,7 @@ impl ItemInfoProvider {
             ItemInfoProvider::Csfloat => "CsFloat",
             ItemInfoProvider::Steam => "Steam",
         }
-    } 
+    }
 }
 impl FromStr for ItemInfoProvider {
     type Err = String;
@@ -161,7 +162,7 @@ pub const GAMES_TRADE_PROTECTED: [u32; 1] = [730];
     // pub bulk_key: String,
     // pub links: Vec<InspectLink>
 // }
-// 
+//
 // #[derive(Serialize, Deserialize)]
 // pub struct InspectLink {
     // pub link: String
@@ -195,7 +196,7 @@ pub static CSFLOAT_HEADERS_DEFAULT: LazyLock<HeaderMap<HeaderValue>> = LazyLock:
 
 pub static FIREFOX_CSGOTRADERAPP_HEADERS_BASE: LazyLock<HeaderMap> = LazyLock::new( || {
     let mut headers = HeaderMap::new();
-                
+
     headers.insert( header::ACCEPT, HeaderValue::from_static("*/*") );
     headers.insert( header::ACCEPT_LANGUAGE, HeaderValue::from_static("en-GB,en;q=0.5") );
     headers.insert( header::CONNECTION, HeaderValue::from_static("keep-alive") );
@@ -305,7 +306,7 @@ pub static FIREFOX_USER_AGENTS: LazyLock<[&'static str; 66]> = LazyLock::new(|| 
 // ------------------------------------------------------------
 
 /*
-pub static BUFFIDS: LazyLock<HashMap<&'static str, u32>> = LazyLock::new( || 
+pub static BUFFIDS: LazyLock<HashMap<&'static str, u32>> = LazyLock::new( ||
     HashMap::from(
     [
         ("Sticker | Mahjong Zhong", 33685),

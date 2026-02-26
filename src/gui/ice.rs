@@ -1,20 +1,27 @@
 use std::{fs::File, io::BufReader, path::PathBuf, str::FromStr};
 
 use indexmap::IndexSet;
+use strum::IntoEnumIterator;
+use rfd::AsyncFileDialog;
+
 use iced::widget::image::Handle;
 use iced::widget::text_editor::Content;
-use iced::alignment::{Horizontal};
+use iced::alignment::Horizontal;
 use iced::widget::{Button, Column, Container, column, container, image, row, rule, text_editor};
 use iced::window::{Settings, icon};
 use iced::{Element, Length, Pixels, Size, Subscription, Task, window};
 
 use crate::dprintln;
-use crate::excel::excel_runtime::{self, is_user_input_valid};
-use crate::gui::templates_n_methods::{btn_base, checkbox_default, editor_paste, path_to_file_name, pick_list_template, slider_template, task_cell_if_english_alphabetic, task_col_if_english_alphabetic, text_editor_template, text_input_template, ToNumeric, ToOption};
-use crate::models::{price::{Currencies, PricingMode, PricingProvider}, user_sheet::{SheetInfo, UserInfo, UserSheet}, web::{ItemInfoProvider, Sites}};
-
-use strum::IntoEnumIterator;
-use rfd::AsyncFileDialog;
+use crate::excel::excel_runtime;
+use crate::gui::templates_n_methods::{
+    btn_base, checkbox_default, editor_paste, path_to_file_name, pick_list_template, slider_template, task_cell_if_english_alphabetic, task_col_if_english_alphabetic, text_editor_template, text_input_template,
+    ToNumeric, ToOption
+};
+use crate::models::{
+    price::{Currencies, PricingMode, PricingProvider},
+    user_sheet::{SheetInfo, UserInfo, UserSheet},
+    web::{ItemInfoProvider, Sites}
+};
 
 const FILL: Length = Length::Fill;
 const NAUR_BYTES: &[u8] = include_bytes!("../../assets/images/peak_naur.png");
@@ -125,7 +132,7 @@ pub struct App {
     only_show_runtime_result: bool,
     window_size: Size,
     runtime_progress: f32,
-    ohnepixel: Handle
+    ohnepixel: &'static [u8]
 }
 
 impl Default for App {
@@ -160,8 +167,8 @@ impl Default for App {
                     row_start_write_in_table:   1,
                     row_stop_write_in_table:    None,
 
-                    col_steam_name:                   String::from(""),
-                    col_price:                        String::from(""),
+                    col_steam_name:             String::from(""),
+                    col_price:                  String::from(""),
 
                     col_gun_sticker_case:       None,
                     col_skin_name:              None,
@@ -204,7 +211,7 @@ impl Default for App {
                 curr
             },
             runtime_progress: 0.0,
-            ohnepixel: Handle::from_bytes(NAUR_BYTES)
+            ohnepixel: NAUR_BYTES
         }
     }
 }
@@ -214,8 +221,9 @@ impl App {
         if state.is_file_dialog_open && !matches!( exec, Exec::FinishLoadData(_) | Exec::FinishSaveData(_) /*| Exec::Exit */| Exec::FinishPathToSheet(_)) { return Task::none() }
         if state.is_excel_running && !matches!(exec, Exec::UpdateRun(_) | Exec::FinishRun(_) | Exec::BeginOpenUrl(_)) { return Task::none() }
 
-        let user = &mut state.usersheet.user;
-        let sheet = &mut state.usersheet.sheet;
+        let user =           &mut state.usersheet.user;
+        let sheet =          &mut state.usersheet.sheet;
+        let prefer_markets = &mut state.editor_prefer_markets; // Legit only for sanitizing user input :skull_emoticon:
 
         match exec {
             //Exec::Exit => window::get_latest().and_then(|id| window::close(id)),
@@ -314,7 +322,7 @@ impl App {
             // Row, Col, RowCol and rest of sheet STUFF
             Exec::RowStartWrite(row) => {
                 if row.chars().any(|c| !c.is_ascii_digit()) { return Task::none() } // Filter only numbers
-                sheet.row_start_write_in_table = if let Ok(num) = row.to_numeric() { if num < 1 { 1 } else { num } } else { 1 };
+                sheet.row_start_write_in_table = if let Ok(num) = row.to_numeric() { if num < 1 { 0 } else { num } } else { 0 };
                 state.text_input_row_start_write_in_table = row;
                 Task::none()
             }
@@ -456,42 +464,26 @@ impl App {
                 Task::none()
             }
             Exec::BeginRun => {
-                match is_user_input_valid(user, sheet) {
-                    Ok(_) => {
+                match excel_runtime::sanitize_and_check_user_input(user, sheet, prefer_markets) {
+                    Ok(warning) => {
                         state.is_excel_running = true;
                         state.editor_runtime_result = text_editor::Content::new();
-                        dprintln!("Attempt to run.");
-
-                        // ----- BEGIN LAST SECOND CHECKS ----- //
-                        
-                        // This is far from the best way to do this, but it works aga
-                        let preferred_markets_check = state.editor_prefer_markets.text()
-                            .split(",")
-                            .map(|s| s.trim().to_owned())
-                            .collect::<Vec<String>>();
-
-                        for market in &preferred_markets_check {
-                            if let Err(e) = Sites::from_str(market.as_str()) {
-                                state.editor_runtime_result.perform( editor_paste( &format!{"\nError!\n{e}.\n"} ) ); 
-                                state.is_excel_running = false;
-                                return Task::none()
-                            }
-                        }
-                        
-                        if user.iteminfo_provider == ItemInfoProvider::Steam {
-                            state.editor_runtime_result.perform( editor_paste("WARNING: Pricing for doppler phases will not be accurate when Iteminfo Provider is Steam.\n") );
-                        }
-                        if sheet.col_inspect_link.is_none() {
-                            state.editor_runtime_result.perform( editor_paste("WARNING: col inspect link is not defined so you will not be able to fetch more iteminfo (float, doppler phase, pattern, correct price of dopplers).\n") );
-                        }
+                        state.saved_data  = Ok(None);
+                        state.loaded_data = Ok(None);
 
                         if user.usd_to_x != Currencies::None && sheet.rowcol_usd_to_x.is_some() { user.usd_to_x = Currencies::None; }
                         if sheet.col_asset_id.is_some() && user.group_simular_items { sheet.col_asset_id = None; }
                         if sheet.col_quantity.is_some() && !user.group_simular_items { sheet.col_quantity = None; }
-                        // ----- END LAST SECOND CHECKS ----- //
+
+                        if let Some(warning) = warning {
+                            state.editor_runtime_result.perform( editor_paste(&warning) );
+                        }
 
                         let user = user.clone();
                         let sheet = sheet.clone();
+
+                        dprintln!("Attempt to run.");
+                        dprintln!("User: {:?}", user);
 
                         let (task, _handle) = Task::sip(
                             excel_runtime::run_program(user, sheet),
@@ -615,7 +607,7 @@ impl App {
 
         if !user.fetch_prices && !user.fetch_steam {
             content = content.push( container("").height( state.window_size.height / 2.0 - 75.0 ));
-            content = content.push( image( &state.ohnepixel ).width( Length::Fill ) );
+            content = content.push( image( &Handle::from_bytes(state.ohnepixel) ).width( Length::Fill ) );
             return content.align_x(Horizontal::Center).into();
         }
 
@@ -768,7 +760,7 @@ impl App {
         let sheet_name = text_input_template(
             "Name of the sheet in your xlsx file that you want to alter. Default name in new spreadsheet is Sheet1.",
             (300.0, 100.0),
-            "Sheet name?",
+            if user.fetch_steam {"Sheet name?"} else {"Sheet name"},
             "Ex: Sheet1",
             sheet.sheet_name.as_ref(),
             Exec::SheetName,
@@ -896,18 +888,16 @@ impl App {
                 FILL
             )
         };
-        let col_inspect_link = if !user.fetch_prices { column![] }
-        else {
-            text_input_template(
-                "Name of column where the inspect link for the items can be written and read \n(Ex: steam://rungame/730/76561202255233023/+csgo_econ_action_preview%20S76561198389123475A34543022281D9279926981479153949)",
-                (300.0, 100.0),
-                if matches!(user.iteminfo_provider, ItemInfoProvider::Steam) {"Col inspect link?"} else {"Col inspect link"},
-                "Ex: L",
-                sheet.col_inspect_link.as_ref(),
-                Exec::ColInspectLink,
-                FILL
-            )
-        };
+        let col_inspect_link = text_input_template(
+            "Name of column where the inspect link for the items can be written and read \n(Ex: steam://rungame/730/76561202255233023/+csgo_econ_action_preview%20S76561198389123475A34543022281D9279926981479153949)",
+            (300.0, 100.0),
+            "Col inspect link?",
+            "Ex: L",
+            sheet.col_inspect_link.as_ref(),
+            Exec::ColInspectLink,
+            FILL
+        );
+
         let col_csgoskins_link = text_input_template(
             "Name of column where a generated csgoskins.gg link can be written. This is if you want to check the price yourself.",
             (300.0, 100.0),
@@ -917,12 +907,13 @@ impl App {
             Exec::ColCsgoskinsLink,
             FILL
         );
+
         let col_assetid = if user.group_simular_items { column![] }
         else {
             text_input_template(
                 "Name of column where the assetID of the items in your inventory can be written and read. This is to seperate items with the same name when you do not want to group simular items.",
                 (350.0, 100.0),
-                "Col assetid",
+                if !user.fetch_prices {"Col assetid?"} else {"Col assetid"},
                 "Ex: N",
                 sheet.col_asset_id.as_ref(),
                 Exec::ColAssetId,
@@ -1092,5 +1083,3 @@ pub fn init_gui() -> Result<(), iced::Error> {
 
     app.run()
 }
-
-
