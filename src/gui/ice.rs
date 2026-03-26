@@ -472,10 +472,6 @@ impl App {
                         state.saved_data  = Ok(None);
                         state.loaded_data = Ok(None);
 
-                        if user.usd_to_x != Currencies::None && sheet.rowcol_usd_to_x.is_some() { user.usd_to_x = Currencies::None; }
-                        if sheet.col_asset_id.is_some() && user.group_simular_items { sheet.col_asset_id = None; }
-                        if sheet.col_quantity.is_some() && !user.group_simular_items { sheet.col_quantity = None; }
-
                         if let Some(warning) = warning {
                             state.editor_runtime_result.perform( editor_paste(&warning) );
                         }

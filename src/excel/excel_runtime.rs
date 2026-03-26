@@ -20,7 +20,7 @@ use crate::{
     },
     gui::{ice::Progress, templates_n_methods::IsEnglishAlphabetic},
     models::{
-        excel::ExcelData, price::{Doppler, PricingMode},
+        excel::ExcelData, price::{Doppler, PricingMode, Currencies},
         user_sheet::{SheetInfo, UserInfo},
         web::{ExtraItemData, ItemInfoProvider, Sites, SteamData}
     }
@@ -528,7 +528,7 @@ pub fn run_program(
 }
 
 // -------------------------------------------------------------------------------------------
-//                                                                Result<MAYBE WARNING , ERROR >
+// Result<MAYBE WARNING , ERROR >
 pub fn sanitize_and_check_user_input<'a>(
     user: &mut UserInfo,
     excel: &mut SheetInfo,
@@ -542,6 +542,10 @@ pub fn sanitize_and_check_user_input<'a>(
         excel.col_asset_id = None;
     } else {
         excel.col_quantity = None;
+    }
+    
+    if user.usd_to_x != Currencies::None && excel.rowcol_usd_to_x.is_some() { 
+        user.usd_to_x = Currencies::None; 
     }
 
     if !user.fetch_prices {
@@ -660,14 +664,9 @@ pub fn sanitize_and_check_user_input<'a>(
         .collect::<Vec<String>>();
 
     if user.fetch_prices {
-        let mut pass: bool = false;
-
         if preferred_markets_check.len() == 1 && preferred_markets_check[0].is_empty() {
             err_str.push_str("Preferred markets can't be empty when fetching prices.\n");
-            pass = true;
-        }
 
-        if !pass {
             for market in &preferred_markets_check {
                 if let Err(e) = Sites::from_str(market.as_str()) {
                     err_str.push_str( &format!("{}.\n", e) );
