@@ -26,18 +26,19 @@ use crate::models::{
 const FILL: Length = Length::Fill;
 const NAUR_BYTES: &[u8] = include_bytes!("../../assets/images/peak_naur.png");
 const WHATSAPP: &[u8] = include_bytes!("../../assets/images/whatsapp_is_calling_96x96.ico");
-const ADDITIONAL_INFO: &str = "IMPORTANT INFO: (scroll down) \
-    \n\nEXCEL FILE NEEDS TO CLOSED THE INSTANCE YOU START THE PROGRAM AND THE INSTANCE THE PROGRAM ENDS! HAVING THE FILE OPEN WHEN CLICKING 'Run' WILL RESULT IN AN ERROR. IF PROGRAM IS OPEN AT THE END OF ITERATION, WRITING TO THE EXCEL FILE WILL NOT BE SUCCESSFUL.
-    \nPlease always have a recent up-to-date backup of your spreadsheet(s) \
-    \nPlease make sure the rows of the table has no gaps in it. if it does the program will not recognize the whole table and add information in random, not intended places.
-    \n'?' next to the name of an input means that thing is OPTIONAL
-    \nFor some reason float and pattern on items out of tradehold does not show as of the 16th of October 2025, so older items might not include that metadata when using Steam as iteminfo provider.";
+const ADDITIONAL_INFO: &str = "IMPORTANT INFO (scroll with mousewheel or page up/page down): \
+    \n\nIf you're writing to an existing excel file, it has to be closed when you've clicked 'run' or else the updating of the file will result in an error.
+    \nAlways have a recent up-to-date backup of your spreadsheet(s). \
+    \nMake sure the rows of the table has no gaps in it. If it does, the program will not recognize the whole table and therefore might add entries right after the first gap it finds.
+    \n'?' next to the name of an input means that it is OPTIONAL.
+    \nSteam is sometimes inconsistent with the data it gives, and might not provide all the metadata (float, pattern, etc...) when using Steam as iteminfo provider. If this is the case in your spreadsheet, try again later.";
 
 const CS2TRADER: &str = "https://csgotrader.app/";
 const CS2TRADER_REPO: &str = "https://github.com/gergelyszabo94/csgo-trader-extension";
 const CS2EXCEL_REPO: &str = "https://github.com/maikLangel0/cs2excel";
 
 const GUISIZE: Size = Size { width: 1280.0, height: 960.0 };
+const MINGUISIZE: Size = Size { width: 1080.0, height: 810.0 };
 
 #[derive(Debug, Clone)]
 pub struct Progress {
@@ -894,7 +895,7 @@ impl App {
         };
         let col_inspect_link = text_input_template(
             "Name of column where the inspect link for the items can be written and read \n(Ex: steam://rungame/730/76561202255233023/+csgo_econ_action_preview%20S76561198389123475A34543022281D9279926981479153949)",
-            (300.0, 100.0),
+            (700.0, 100.0),
             "Col inspect link?",
             "Ex: L",
             sheet.col_inspect_link.as_ref(),
@@ -1048,7 +1049,7 @@ impl App {
             row![col_sold, col_inspect_link, col_csgoskins_link, cell_date, cell_usd_to_x].padding(4).spacing(5),
             rule::horizontal(5),
 
-            row![ text_editor_template(ADDITIONAL_INFO, "-#- Program Output -#-", "", &state.editor_runtime_result, Length::Fill, Length::Fill, (1000.0, 300.0), Exec::RuntimeResult)],
+            row![ text_editor_template(ADDITIONAL_INFO, "-#- Program Output -#-", "", &state.editor_runtime_result, Length::Fill, Length::Fill, (1080.0, 260.0), Exec::RuntimeResult)],
 
             row![cs2traderapp, cs2excel_repo, cs2traderapp_repo].padding(4).spacing(150),
             rule::horizontal(5),
@@ -1075,7 +1076,7 @@ pub fn init_gui() -> Result<(), iced::Error> {
         .window(
             Settings {
                 size: GUISIZE,
-                min_size: Some( GUISIZE ),
+                min_size: Some( MINGUISIZE ),
                 max_size: None,
                 resizable: true,
                 decorations: true,

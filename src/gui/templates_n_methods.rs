@@ -159,28 +159,30 @@ where
         text_input_value.unwrap_or( &String::from("") )
     ).on_input(exec)
     .style( text_input_style() )
-    .width( Length::Fill)
+    .width( Length::Fill )
 }
 
 pub fn btn_style_base() -> impl Fn(&Theme, button::Status) -> button::Style {
-    |_, status: button::Status| button::Style {
+    use iced::widget::button::{Status, Style};
+
+    |_, status: Status| Style {
         background: match status {
-            button::Status::Active => Some( Background::Color(BG_MAIN) ),
-            button::Status::Hovered => Some( Background::Color(BG_SEC) ),
-            button::Status::Pressed => Some( Background::Color(BG_TRI) ),
-            button::Status::Disabled => Some( Background::Color(BG_MAIN) ),
+            Status::Active => Some( Background::Color(BG_MAIN) ),
+            Status::Hovered => Some( Background::Color(BG_SEC) ),
+            Status::Pressed => Some( Background::Color(BG_TRI) ),
+            Status::Disabled => Some( Background::Color(BG_MAIN) ),
         },
         text_color: match status {
-            button::Status::Active => Color::BLACK,
-            button::Status::Hovered => Color::WHITE,
-            button::Status::Pressed => Color::WHITE,
-            button::Status::Disabled => Color::BLACK,
+            Status::Active => Color::BLACK,
+            Status::Hovered => Color::WHITE,
+            Status::Pressed => Color::WHITE,
+            Status::Disabled => Color::BLACK,
         },
         border: match status {
-            button::Status::Active => Border { color: BG_SEC, width: 1.0, radius: RAD_MAIN },
-            button::Status::Hovered => Border { color: BG_TRI, width: 1.0, radius: RAD_SEC },
-            button::Status::Pressed => Border { color: BG_QUAD, width: 1.0, radius: RAD_SEC },
-            button::Status::Disabled => Border { color: Color::BLACK, width: 0.0, radius: RAD_SEC },
+            Status::Active => Border { color: BG_SEC, width: 1.0, radius: RAD_MAIN },
+            Status::Hovered => Border { color: BG_TRI, width: 1.0, radius: RAD_SEC },
+            Status::Pressed => Border { color: BG_QUAD, width: 1.0, radius: RAD_SEC },
+            Status::Disabled => Border { color: Color::BLACK, width: 0.0, radius: RAD_SEC },
         },
         shadow: Shadow::default(),
         snap: true,
@@ -260,8 +262,7 @@ where
                     selection: BG_SEC
                 }
             )
-    ]
-    .width(width)
+    ].width(width)
 }
 
 pub fn pick_list_template<'a, T, L, V, F, Exec>(
