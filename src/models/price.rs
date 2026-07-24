@@ -3,7 +3,7 @@ use std::{fmt, str::FromStr};
 use serde::{Deserialize, Serialize};
 use strum::EnumIter;
 
-
+#[repr(u8)]
 #[derive(Debug, Deserialize, Serialize, Clone, EnumIter, PartialEq, Copy)]
 pub enum PricingMode {
     Cheapest,
@@ -98,6 +98,7 @@ impl PriceType {
 
 //--------------------
 
+#[repr(u8)]
 #[derive(PartialEq, EnumIter, Serialize, Deserialize, Debug, Clone, Copy, Hash, Eq)]
 pub enum Currencies {
     COP, SAR, PLN, ARS, SGD, GBP, USD,
@@ -170,6 +171,7 @@ impl Currencies {
 
 //--------------------
 
+#[repr(u8)]
 #[derive(Debug, Serialize, Deserialize, EnumIter, PartialEq, Clone)]
 pub enum Doppler {
     Phase1,

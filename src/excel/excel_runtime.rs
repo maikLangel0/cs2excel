@@ -2,7 +2,7 @@ use std::{str::FromStr, time::Duration};
 
 use reqwest::Client;
 use strum::IntoEnumIterator;
-use umya_spreadsheet::{Spreadsheet, Worksheet};
+use umya_spreadsheet::{Worksheet, Spreadsheet};
 use serde_json::Value;
 use ahash::{HashMap};
 use indexmap::IndexSet;
@@ -137,7 +137,7 @@ pub fn run_program(
                         "Failed to get the first sheet in the spreadsheet with path: \n{:?}", excel.path_to_sheet.as_ref())
                     )?
                 }
-            } else { book.get_sheet_mut(&0).ok_or("Failed to get first sheet provided by new file creation.")? }
+            } else { book.get_sheet_mut(&0).ok_or_else(|| "Failed to get first sheet provided by new file creation.")? }
         };
 
         let rate = get_exchange_rate(&user.usd_to_x, &excel.rowcol_usd_to_x, sheet).await?;
@@ -485,7 +485,7 @@ pub fn run_program(
                     mtc,
                     amp,
                     rate,
-                    &data.name,
+                    data.name.as_str(),
                     &doppler,
                     progress
                 ).await?
@@ -529,7 +529,7 @@ pub fn run_program(
 
 // -------------------------------------------------------------------------------------------
 // Result<MAYBE WARNING , ERROR >
-pub fn sanitize_and_check_user_input<'a>(
+pub fn sanitize_and_check_user_input(
     user: &mut UserInfo,
     excel: &mut SheetInfo,
     prefer_markets: &mut Content
@@ -543,9 +543,9 @@ pub fn sanitize_and_check_user_input<'a>(
     } else {
         excel.col_quantity = None;
     }
-    
-    if user.usd_to_x != Currencies::None && excel.rowcol_usd_to_x.is_some() { 
-        user.usd_to_x = Currencies::None; 
+
+    if user.usd_to_x != Currencies::None && excel.rowcol_usd_to_x.is_some() {
+        user.usd_to_x = Currencies::None;
     }
 
     if !user.fetch_prices {
@@ -562,16 +562,16 @@ pub fn sanitize_and_check_user_input<'a>(
     }
 
     if user.fetch_prices {
-        if user.iteminfo_provider == ItemInfoProvider::Steam {
+
+        if user.iteminfo_provider == ItemInfoProvider::Steam && excel.col_inspect_link.is_some() {
+            warn_str.push_str("WARNING: Inspect Link Column is defined but you're using Steam as the ItemInfoProvider so you will not be able to fetch_more_iteminfo (float, doppler phase, pattern, price of doppler).\n");
+        }
+        else if user.iteminfo_provider == ItemInfoProvider::Steam {
             warn_str.push_str("WARNING: Pricing for doppler phases will not be accurate with Steam as ItemInfoProvider.\n");
         }
 
-        if user.iteminfo_provider == ItemInfoProvider::Steam && excel.col_inspect_link.is_some() {
-            warn_str.push_str("WARNING: Inspect Link Column is not defined so you will not be able to fetch_more_iteminfo (float, doppler phase, pattern, price of doppler).\n");
-        }
-
         if user.iteminfo_provider != ItemInfoProvider::Steam && excel.col_inspect_link.is_some() && excel.col_phase.is_none() {
-            warn_str.push_str("WARNING: Phase of doppler knives will not be pricechecked correctly when reading over the spreadsheet in the future becuase column for phase is not set.\n" );
+            warn_str.push_str("WARNING: Phase of doppler knives will not be pricechecked correctly when reading over the spreadsheet in the future because column for phase is not set.\n" );
         }
     }
 
@@ -621,11 +621,10 @@ pub fn sanitize_and_check_user_input<'a>(
         err_str.push_str("Column for full names of the item(s) can't be empty.\n");
     }
 
-    if !user.fetch_prices {
-        if !user.group_simular_items && excel.col_asset_id.is_none() {
-            err_str.push_str("AssetID can't be None if you dont group similar items.\n");
-        }
+    if !user.fetch_prices && !user.group_simular_items && excel.col_asset_id.is_none() {
+        err_str.push_str("AssetID can't be None if you dont group similar items.\n");
     }
+
 
     if user.fetch_steam {
         match user.steamid.checked_ilog10() {
@@ -663,14 +662,14 @@ pub fn sanitize_and_check_user_input<'a>(
         .map(|s| s.trim().to_owned())
         .collect::<Vec<String>>();
 
-    if user.fetch_prices {
-        if preferred_markets_check.len() == 1 && preferred_markets_check[0].is_empty() {
-            err_str.push_str("Preferred markets can't be empty when fetching prices.\n");
+    if user.fetch_prices
+        && preferred_markets_check.len() == 1 && preferred_markets_check[0].is_empty() {
 
-            for market in &preferred_markets_check {
-                if let Err(e) = Sites::from_str(market.as_str()) {
-                    err_str.push_str( &format!("{}.\n", e) );
-                }
+        err_str.push_str("Preferred markets can't be empty when fetching prices.\n");
+
+        for market in &preferred_markets_check {
+            if let Err(e) = Sites::from_str(market.as_str()) {
+                err_str.push_str( &format!("{}.\n", e) );
             }
         }
     };

@@ -9,7 +9,7 @@ use iced::widget::text_editor::{Action, Edit};
 use iced::widget::{checkbox, text_editor, Column, Row, TextInput};
 use iced::{Background, Pixels, Size, Task};
 use iced::{widget::{button, container, pick_list, slider, text::{IntoFragment, Wrapping}, text_input, tooltip, Button, Container, Tooltip, column, row}, Border, Color, Length, Renderer, Shadow, Theme};
-use num_traits::FromPrimitive;
+use num_traits::{AsPrimitive, FromPrimitive};
 
 use crate::gui::ice::{Exec};
 
@@ -48,7 +48,7 @@ pub fn checkbox_default<'a, Exec, F> (
     tooltip_content: impl Into<String>,
     checkbox_state: bool,
     tooltip_size: impl Into<Size>,
-    exec: F,
+    callback: F,
 ) -> Row<'a, Exec>
 where
     F: Fn(bool) -> Exec + 'a,
@@ -62,7 +62,7 @@ where
     row![
         checkbox(checkbox_state)
             .label(checkbox_content.into())
-            .on_toggle(exec)
+            .on_toggle(callback)
             .size(17)
             .style(|_, status|
                 Style {
@@ -148,7 +148,7 @@ pub fn text_input_style() -> impl Fn(&Theme, text_input::Status) -> text_input::
 pub fn text_input_default<'a, Exec, F>(
     text_input_content: impl Into<String>,
     text_input_value: Option<&String>,
-    exec: F
+    callback: F
 ) -> TextInput<'a, Exec>
 where
     F: Fn(String) -> Exec + 'a,
@@ -157,7 +157,7 @@ where
     text_input(
         &text_input_content.into(),
         text_input_value.unwrap_or( &String::from("") )
-    ).on_input(exec)
+    ).on_input(callback)
     .style( text_input_style() )
     .width( Length::Fill )
 }
@@ -219,7 +219,7 @@ pub fn text_editor_template<'a, Exec, F>(
     editor_height: impl Into<Length>,
     width: impl Into<Length>,
     tooltip_size: impl Into<Size>,
-    exec: F,
+    callback: F,
 ) -> Column<'a, Exec>
 where
     Exec: 'a + Clone,
@@ -239,7 +239,7 @@ where
         .width(Length::Fill),
 
         text_editor(editor_state)
-            .on_action(exec)
+            .on_action(callback)
             .height(editor_height)
             .placeholder( field_placeholder.into() )
             .wrapping(Wrapping::WordOrGlyph)
@@ -271,7 +271,7 @@ pub fn pick_list_template<'a, T, L, V, F, Exec>(
     selected: Option<V>,
     options: &L,
     to_string: impl Fn(&T) -> String + 'a,
-    on_selected: F,
+    callback: F,
     tooltip_size: impl Into<Size>,
     width: impl Into<Length>,
 ) -> Column<'a, Exec>
@@ -297,7 +297,7 @@ where
             options.clone(),
             to_string
         ).width( Length::Fill )
-        .on_select(on_selected)
+        .on_select(callback)
         .style( |_, status| Style {
             text_color: match status {
                 Status::Active => { TEXT_WHITE },
@@ -343,7 +343,7 @@ pub fn text_input_template<'a, F, Exec>(
     field_name: impl Into<String>,
     field_placeholder: impl Into<String>,
     field_value: Option<&String>,
-    on_input: F,
+    callback: F,
     width: impl Into<Length>
 ) -> Column<'a, Exec>
 where
@@ -359,7 +359,7 @@ where
             iced::widget::text( field_name.into() ).width(Length::Fill).center(),
             padding_inner(30),
         ].spacing(5),
-        text_input_default(field_placeholder.into(), field_value, on_input)
+        text_input_default(field_placeholder.into(), field_value, callback)
     ].width( width )
     .padding(5)
     .spacing(5)
@@ -372,12 +372,12 @@ pub fn slider_template<'a, T, F, G, Exec>(
     range: std::ops::RangeInclusive<T>,
     value: T,
     text_value: &str,
-    on_submit: F,
-    on_input: G,
+    callback_on_submit: F,
+    callback_on_input: G,
     width: impl Into<Length>
 ) -> Column<'a, Exec>
 where
-    T: From<u8> + Into<f64> + FromPrimitive + ToString + Copy + PartialOrd + IntoFragment<'a> + 'a,
+    T: From<u8> + Into<f64> + FromPrimitive + ToString + Copy + PartialOrd + IntoFragment<'a> + AsPrimitive<f64> + 'a,
     Exec: Clone + 'a,
     F: Fn(T) -> Exec + Clone + 'a,
     G: Fn((String, T, T)) -> Exec + 'a
@@ -393,7 +393,7 @@ where
             iced::widget::text( field_name.into() ).width(Length::Fill).center(),
             padding_inner(20),
         ].spacing(5),
-        slider(range.clone(), value, on_submit.clone())
+        slider(range.clone(), value, callback_on_submit.clone())
             .style(|_, status| Style {
                 rail: Rail {
                     backgrounds: (Background::Color( Color::TRANSPARENT ), Background::Color( Color::TRANSPARENT) ),
@@ -420,10 +420,10 @@ where
                 }
             }),
         text_input( &value.to_string(), text_value ).style( text_input_style() )
-        .on_input(move |e| on_input((e, *on_input_range.start(), *on_input_range.end())))
+        .on_input(move |e| callback_on_input((e, *on_input_range.start(), *on_input_range.end())))
         .on_submit_maybe(
             Some(
-                on_submit( {
+                callback_on_submit( {
                     if value < *range.start() { *range.start() }
                     else if value > *range.end() { *range.end() }
                     else { value }

@@ -17,7 +17,7 @@ pub fn create_csgoskins_urls(s_m_n: &str) -> String {
     // Checks if the prefixes "pre" are in the name OR suffixes of "suff"
     // Patch, Charm, Sticker, Capsule, Case, Package and Pin implementation
     if pre.iter().any(|&prefix| name.starts_with(prefix)) || suff.iter().any(|&suffix| name.ends_with(suffix)) {
-        
+
         for sub in name.split("|") {
             url.push_str( &sub.replace("(", "").replace(")", "").replace(" ", "-") );
         }
@@ -25,7 +25,7 @@ pub fn create_csgoskins_urls(s_m_n: &str) -> String {
     }
     // Has to be a wear value | gun and knife/gloves implementation
     else if WEARS.iter().any( |&w| name.contains(w) ) {
-    
+
         let parts = name.split("(")
             .map(|n| n.to_string())
             .collect::<Vec<_>>();
@@ -50,23 +50,23 @@ pub fn create_csgoskins_urls(s_m_n: &str) -> String {
                 gun = gun.replace(&format!("{spec}-"), "")
                     .trim_start()
                     .to_string();
-                
+
                 tag = format!("{spec}-");
                 break;
             }
         }
 
         url.push_str(&format!("{}-{}/{}{}",
-            &gun[0..gun.len()]
+            gun[0..gun.len()]
                 .to_string()
                 .replace(" ", "-")
                 .replace(&tag, ""),
-            &name[1..name.len()]
+            name[1..name.len()]
                 .trim()
                 .to_string()
                 .replace(" ", "-"),
-            &tag,
-            &wear.replace(" ", "-")
+            tag,
+            wear.replace(" ", "-")
         )
         .replace("--", "-"));
     }
@@ -91,7 +91,7 @@ pub fn create_csgoskins_urls(s_m_n: &str) -> String {
             let mut part = sub.to_string();
 
             for spec in SPECIAL.iter() {
-                
+
                 if sub.contains(spec) {
                     part = sub.replace(spec, "")
                         .trim_start()

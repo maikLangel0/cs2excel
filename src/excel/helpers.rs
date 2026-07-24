@@ -75,7 +75,7 @@ pub async fn get_market_price(
             && let Some(price) = item_csgotrader::get_price(
                 item_name,
                 market_prices,
-                market,
+                *market,
                 PriceType::StartingAt,
                 doppler,
                 progress
@@ -274,13 +274,15 @@ pub async fn update_quantity_exceldata(
 
 #[inline]
 pub fn insert_number_in_sheet(sheet: &mut Worksheet, col: &str, row_in_excel: usize, value: impl Into<f64>) {
+    println!("{}", col);
     let cell = (col.to_column().unwrap(), row_in_excel as u32);
-    sheet.get_cell_value_mut(cell).set_value_number(value);
+    sheet.get_cell_mut(cell).set_value_number(value);
+
 }
 #[inline]
 pub fn insert_string_in_sheet(sheet: &mut Worksheet, col: &str, row_in_excel: usize, value: impl Into<String>) {
     let cell = (col.to_column().unwrap(), row_in_excel as u32);
-    sheet.get_cell_value_mut(cell).set_value_string(value);
+    sheet.get_cell_mut(cell).set_value(value);
 }
 
 pub async fn get_cached_markets_data(markets_to_check: &Vec<Sites>, pricing_provider: PricingProvider) -> Result<HashMap<Sites, serde_json::Value>, String> {
@@ -293,10 +295,10 @@ pub async fn get_cached_markets_data(markets_to_check: &Vec<Sites>, pricing_prov
     for market in markets_to_check {
         let market_prices = match pricing_provider {
             PricingProvider::Csgoskins => { // IF I IMPLEMENT CSGOSKINS IN THE FUTURE
-                get_cached_market_data(cache_dir.as_path(), PricingProvider::Csgotrader, market, csgotrader::get_market_data).await?
+                get_cached_market_data(cache_dir.as_path(), PricingProvider::Csgotrader, *market, csgotrader::get_market_data).await?
             },
             PricingProvider::Csgotrader => {
-                get_cached_market_data(cache_dir.as_path(), pricing_provider, market, csgotrader::get_market_data).await?
+                get_cached_market_data(cache_dir.as_path(), pricing_provider, *market, csgotrader::get_market_data).await?
             },
         };
 
@@ -358,9 +360,9 @@ async fn save_cache(cache_path: &Path, marketjson: &Value) -> Result<(), String>
 
 }
 
-async fn get_cached_market_data<'a, F, Fut>(cache_dir: &Path, iteminfo_provider: PricingProvider, market: &'a Sites, fetch: F) -> Result<serde_json::Value, String>
+async fn get_cached_market_data<'a, F, Fut>(cache_dir: &Path, iteminfo_provider: PricingProvider, market: Sites, fetch: F) -> Result<serde_json::Value, String>
 where
-    F: Fn(&'a Sites) -> Fut,
+    F: Fn(Sites) -> Fut,
     Fut: Future<Output = Result<serde_json::Value, String>>
 {
     let cache_path = cache_dir.join( format!("{}_cache_{}.json", market.as_str(), iteminfo_provider.as_str().to_lowercase()) );
@@ -421,14 +423,14 @@ pub trait ToColumn {
 
 impl ToColumn for &str {
     fn to_column(self) -> Option<u32> {
-        if self.chars().any(|c| !c.is_ascii()) { return None };
+        if !self.is_ascii() { return None };
 
         let mut res: u32 = 0;
         let mut base: u8;
 
         for letter in self.bytes() {
-            if letter >= b'a' && letter <= b'z' { base = b'a' }
-            else if letter >= b'A' && letter <= b'Z' { base = b'A' }
+            if letter.is_ascii_lowercase() { base = b'a' }
+            else if letter.is_ascii_uppercase() { base = b'A' }
             else { return None }
 
             res = res * 26 + (letter - base + 1) as u32;

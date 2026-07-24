@@ -23,8 +23,8 @@ pub async fn fetch_iteminfo(
         // dprintln!("\n\nFAILED RESPONSE HEADER: {:?}\n", response.headers()); 
         return Err( 
             format!("GET Request failed! {} Response text: {:#?}", 
-                &response.status(), 
-                &response.text().await.map_err(|_| String::from("Should never happen"))? 
+                response.status(), 
+                response.text().await.map_err(|_| String::from("Should never happen"))? 
             )
         ) 
     }

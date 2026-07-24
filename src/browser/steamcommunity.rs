@@ -32,11 +32,11 @@ impl SteamInventory {
     ///Initializes the connection to the steam inventory and stores the inventory JSON in self
     pub async fn init(steamid: u64, gameid: u32, cookie: Option<&str>) -> Result<Self, String> {
         let client = reqwest::Client::new();
-        let cookie = cookie.unwrap_or("").to_string();
+        let cookie = cookie.unwrap_or("");
 
         //                                              https://steamcommunity.com/inventory/76561198389123475/730/2?l=english&count=2000
         let mut data: SteamJson = client.get(format!("https://steamcommunity.com/inventory/{}/{}/2?l=english&count=2000", steamid, gameid))
-            .header(COOKIE, &cookie)
+            .header(COOKIE, cookie)
             .send()
             .await.map_err( |e| format!("Failed sending main HTTPS request to steam. Check internet connection or steam availability. \n{}", e) )?
             .json::<SteamJson>()
@@ -44,7 +44,7 @@ impl SteamInventory {
 
         let trade_protected: Option<SteamJson> = if !cookie.is_empty() && GAMES_TRADE_PROTECTED.contains(&gameid) {
             match client.get(format!("https://steamcommunity.com/inventory/{}/{}/16?l=english&count=2000", steamid, gameid))
-                .header(COOKIE, &cookie)
+                .header(COOKIE, cookie)
                 .send()
                 .await.map_err( |e| format!("Failed sending trade protect HTTPS request to steam. \n{}", e) ) {
                     // Fails silently and just returns None since user might not have any trade protected items in inv OR its not their inv
@@ -68,16 +68,16 @@ impl SteamInventory {
         Ok( SteamInventory { data, steamid } )
     }
 
-    ///Gets the names of the items in the inventory aswell as the quantity. 
-    /// 
+    ///Gets the names of the items in the inventory aswell as the quantity.
+    ///
     ///`marketable` is true if you only want items from inventory that can be traded and/or listed to the community market.
-    /// 
+    ///
     /// The assets serde_json::Value the de-facto iterator, while descriptions and asset_properties are turned into hashmaps.
-    pub fn get_steam_items(self: &SteamInventory, group_simular_items: bool, marketable: bool) -> Result<Vec<SteamData>, String> { 
-        
+    pub fn get_steam_items(self: &SteamInventory, group_simular_items: bool, marketable: bool) -> Result<Vec<SteamData>, String> {
+
         let mut desc_map: HashMap<u64, Description> = HashMap::new(); // classid key
         let mut asset_prop_map: HashMap<u64, Properties> = HashMap::new(); // assetid key
-        
+
         // construct hashmap for Descriptions
         for desc in &self.data.descriptions {
             let classid = desc.get("classid")
@@ -87,7 +87,7 @@ impl SteamInventory {
 
             let name_on_market: &str = desc.get("market_name")
                 .and_then( |v| v.as_str() )
-                .ok_or("Market name from desc failed wat.")?; 
+                .ok_or("Market name from desc failed wat.")?;
 
             let is_tradable = desc.get("tradable").and_then(|v| v.as_i64()).unwrap_or(0) != 0;
 
@@ -101,7 +101,7 @@ impl SteamInventory {
 
             desc_map.insert(classid, Description { inspect, name_on_market, is_tradable, has_owner_descriptions });
         }
-        
+
         // Construct hashmap for Properties
         if let Some(ass_prop) = &self.data.asset_properties {
             for prop in ass_prop {
@@ -117,7 +117,7 @@ impl SteamInventory {
                let mut float: Option<f64> = None;
                let mut pattern: Option<u32> = None;
 
-               // Loop here to future-proof the implementation 
+               // Loop here to future-proof the implementation
                for property in asset_properties {
                    if let Some(flt) = property.get("float_value")
                        .and_then(|v| v.as_str())
@@ -147,25 +147,25 @@ impl SteamInventory {
                 .ok_or("No classid in assets WHAT.")?;
 
             let description = desc_map.get(&class_id).ok_or("Description not found from hashmap WHAT.")?;
-            
-            if marketable && !description.is_tradable && !description.has_owner_descriptions { continue }
+
+            if marketable && !description.is_tradable && !description.has_owner_descriptions { continue } // Filters out stuff that holds no value on the market
 
             let asset_id: u64 = asset.get("assetid")
                 .and_then(|v| v.as_str())
                 .and_then(|v| v.parse::<u64>().ok())
                 .ok_or("No assetid in assets WHAT.")?;
-            
-            let (float, pattern): (Option<f64>, Option<u32>) = 
+
+            let (float, pattern): (Option<f64>, Option<u32>) =
                 if !asset_prop_map.is_empty() && let Some(property) = asset_prop_map.get(&asset_id) {
                     (property.float, property.pattern)
                 } else { (None, None) };
-                
-            intermediate.push( 
-                IntermediateSteamData { 
-                    inspect_link: description.inspect, 
-                    name_on_market: description.name_on_market, 
-                    asset_id, 
-                    float, 
+
+            intermediate.push(
+                IntermediateSteamData {
+                    inspect_link: description.inspect,
+                    name_on_market: description.name_on_market,
+                    asset_id,
+                    float,
                     pattern
                 }
             );
@@ -174,24 +174,24 @@ impl SteamInventory {
         let mut inventory: Vec<SteamData> = Vec::new();
 
         if group_simular_items {
-            struct NamedValues<'a> { 
+            struct NamedValues<'a> {
                 inspect_link: Option<&'a str>,
                 float: Option<f64>,
                 asset_id: u64,
                 pattern: Option<u32>,
-                quantity: u16, 
+                quantity: u16,
             }
 
             let mut data_mapped_with_quantity: HashMap<&str, NamedValues> = HashMap::new();
 
             for data in intermediate {
                 let entry = data_mapped_with_quantity.entry(data.name_on_market)
-                    .or_insert( 
-                        NamedValues { 
-                            inspect_link: data.inspect_link, 
-                            float: data.float, 
-                            asset_id: data.asset_id, 
-                            pattern: data.pattern, 
+                    .or_insert(
+                        NamedValues {
+                            inspect_link: data.inspect_link,
+                            float: data.float,
+                            asset_id: data.asset_id,
+                            pattern: data.pattern,
                             quantity: 0
                         }
                 );
@@ -200,16 +200,16 @@ impl SteamInventory {
 
             for (name, data) in data_mapped_with_quantity {
                 inventory.push(
-                    SteamData { 
-                        name: name.to_string(), 
-                        quantity: Some(data.quantity), 
+                    SteamData {
+                        name: name.to_string(),
+                        quantity: Some(data.quantity),
                         inspect_link: data.inspect_link.map(|s| s
                             .replace( "%owner_steamid%", &self.steamid.to_string() ) // Done here to not have to clone the inspect when initializing each new intermediate struct
-                            .replace( "%assetid%", &data.asset_id.to_string() ) 
-                        ), 
-                        float: data.float, 
-                        pattern: data.pattern, 
-                        asset_id: data.asset_id 
+                            .replace( "%assetid%", &data.asset_id.to_string() )
+                        ),
+                        float: data.float,
+                        pattern: data.pattern,
+                        asset_id: data.asset_id
                     }
                 );
             }
@@ -217,21 +217,21 @@ impl SteamInventory {
         else {
             for data in intermediate {
                 inventory.push(
-                    SteamData { 
-                        name: data.name_on_market.to_string(), 
-                        quantity: None, 
+                    SteamData {
+                        name: data.name_on_market.to_string(),
+                        quantity: None,
                         inspect_link: data.inspect_link.map(|s| s
                             .replace( "%owner_steamid%", &self.steamid.to_string() ) // what the comment above says aga
-                            .replace( "%assetid%", &data.asset_id.to_string() ) 
-                        ), 
-                        float: data.float, 
-                        pattern: data.pattern, 
-                        asset_id: data.asset_id 
+                            .replace( "%assetid%", &data.asset_id.to_string() )
+                        ),
+                        float: data.float,
+                        pattern: data.pattern,
+                        asset_id: data.asset_id
                     }
                 );
             }
         }
-        
+
         Ok(inventory)
     }
 
@@ -239,8 +239,7 @@ impl SteamInventory {
         self.data.assets.len()
     }
 
-    pub fn inventory_len(self: &SteamInventory) -> usize { 
+    pub fn inventory_len(self: &SteamInventory) -> usize {
         self.data.total_inventory_count as usize
     }
 }
-

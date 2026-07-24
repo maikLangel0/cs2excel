@@ -482,13 +482,11 @@ impl App {
                         dprintln!("Attempt to run.");
                         dprintln!("User: {:?}", user);
 
-                        let task = Task::sip(
+                        Task::sip(
                             excel_runtime::run_program(user, sheet),
                             Exec::UpdateRun,
                             Exec::FinishRun
-                        );
-
-                        task
+                        )
                     },
                     Err(e) => {
                         dprintln!("User input is not valid! \n{}", e);

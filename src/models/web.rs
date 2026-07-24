@@ -11,7 +11,8 @@ use super::price::Doppler;
 
 // ------------------------------------------------------------
 
-#[derive(Hash, Eq, PartialEq, Debug, Serialize, Deserialize, EnumIter, Clone)]
+#[repr(u8)]
+#[derive(Hash, Eq, PartialEq, Debug, Serialize, Deserialize, EnumIter, Clone, Copy)]
 pub enum Sites {
     CSFLOAT,
     BUFF163,

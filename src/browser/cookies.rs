@@ -10,7 +10,7 @@ pub struct FirefoxDb {
 impl FirefoxDb {
     ///Initializes the connection to cookies.sqlite
     pub fn init() -> Result<Self, String> {
-        let curr_user = whoami::username().unwrap();
+        let curr_user = whoami::username().map_err(|_| "Unable to get name of User on this PC.")?;
         let profiles_path: &str = &format!("C:/Users/{}/AppData/Roaming/Mozilla/Firefox/Profiles/", curr_user);
 
         // Traverses the dir with path "profiles_path" and returns the "profiles_path/xxxxxx.stable-release" (or panics)
@@ -28,7 +28,7 @@ impl FirefoxDb {
             ).next()
             .ok_or(String::from("No valid Firefox profile found."))?;
 
-        let db_path = PathBuf::from( format!("{}/cookies.sqlite", &user_profiles) );
+        let db_path = PathBuf::from( format!("{}/cookies.sqlite", user_profiles) );
 
         if !db_path.exists() {
             return Err("No cookies.sqlite found for firefox.".to_string())
