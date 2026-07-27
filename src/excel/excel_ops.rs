@@ -1,10 +1,17 @@
 use std::{path::PathBuf, str::FromStr};
-use sipper::Sender;
 use umya_spreadsheet::{reader, writer, Spreadsheet, Worksheet, XlsxError};
 
-use crate::{dprintln, excel::helpers::{generate_fallback_path, spot, ToColumn}, gui::ice::Progress, models::{excel::ExcelData, price::Doppler, user_sheet::SheetInfo}};
+use crate::{dprintln, excel::helpers::{ProgressSink, ToColumn, generate_fallback_path}, models::{excel::ExcelData, price::Doppler, user_sheet::SheetInfo}};
 
-pub async fn get_spreadsheet(path: &mut Option<PathBuf>, sheet_name: &mut Option<String>, progress: &mut Sender<Progress>, steamid: u64) -> Result<Spreadsheet, String> {
+pub async fn get_spreadsheet<P>(
+    path: &mut Option<PathBuf>,
+    sheet_name: &mut Option<String>,
+    steamid: u64,
+    progress: &mut P,
+) -> Result<Spreadsheet, String>
+where
+    P: ProgressSink
+{
     if let Some(pts) = path {
         let sheet = reader::xlsx::read(pts).map_err(|_| String::from("Failed to read file"))?;
         Ok(sheet)
@@ -21,10 +28,17 @@ pub async fn get_spreadsheet(path: &mut Option<PathBuf>, sheet_name: &mut Option
                 .split("\\")
                 .collect::<Vec<&str>>();
 
-            spot(progress, &format!("WARNING: Created a new spreadsheet as one with the name {} didn't exist.\n", filename[filename.len() - 1])).await;
+            progress.send_str(
+                &format!("WARNING: Created a new spreadsheet as one with the name {} didn't exist.\n", filename[filename.len() - 1])).await;
         }
         else {
-            spot(progress, &format!("WARNING: Created a new spreadsheet as one with the path\n{}\ndidn't exist.\n",path.clone().map(|p| p.to_string_lossy().to_string()).unwrap_or("C\\Users\\Goober".to_string()))).await;
+            progress.send_str(
+                &format!(
+                    "WARNING: Created a new spreadsheet as one with the path\n{}\ndidn't exist.\n",
+                    path.clone()
+                        .map(|p| p.to_string_lossy().to_string())
+                        .unwrap_or("C\\Users\\Goober".to_string()))
+            ).await;
         }
 
         Ok(umya_spreadsheet::new_file())

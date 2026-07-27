@@ -1,4 +1,4 @@
-use std::{fs::File, io::BufReader, path::PathBuf, str::FromStr};
+use std::{fs::File, path::PathBuf, str::FromStr};
 
 use indexmap::IndexSet;
 use strum::IntoEnumIterator;
@@ -11,7 +11,8 @@ use iced::widget::{Button, Column, Container, column, container, image, row, rul
 use iced::window::{Settings, icon};
 use iced::{Element, Length, Pixels, Size, Subscription, Task, window};
 
-use crate::dprintln;
+use crate::parsing;
+use crate::{dprintln, parsing::sanitizing};
 use crate::excel::excel_runtime;
 use crate::gui::templates_n_methods::{
     btn_base, checkbox_default, editor_paste, path_to_file_name, pick_list_template, slider_template, task_cell_if_english_alphabetic, task_col_if_english_alphabetic, text_editor_template, text_input_template,
@@ -113,7 +114,7 @@ pub enum Exec {
 
 #[derive(Debug)]
 pub struct App {
-    pub usersheet: UserSheet,
+    usersheet: UserSheet,
     loaded_data: Result<Option<String>, String>,
     saved_data: Result<Option<String>, String>,
     text_pause_time_ms: String,
@@ -429,43 +430,39 @@ impl App {
             Exec::FinishLoadData(file) => {
                 state.is_file_dialog_open = false;
 
-                if let Some(path) = &file {
-                    if let Ok(file) = File::open(path) {
-                        let read = BufReader::new(file);
+                let pathbuf: PathBuf;
+                if let Some(path) = file { pathbuf = path }
+                else { return Task::none() };
 
-                        match serde_json::from_reader::<_, UserSheet>(read) {
-                            Ok(load) => {
-                                *user = load.user;
-                                *sheet = load.sheet;
+                match parsing::load_file::load_usersheet(pathbuf.as_path(), user, sheet) {
+                    Ok(()) => {
+                        let isn_input: String = if let Some(isn) = &user.ingore_steam_names {
+                            isn.iter().cloned().collect::<Vec<String>>().join(", ")
+                        } else { String::new() };
 
-                                let isn_input: String = if let Some(isn) = &user.ingore_steam_names {
-                                    isn.iter().cloned().collect::<Vec<String>>().join(", ")
-                                } else { String::new() };
+                        let pm_input: String = if let Some(pm) = &user.prefer_markets {
+                            pm.iter().map(|m| m.as_str()).collect::<Vec<&str>>().join(", ")
+                        } else { String::new() };
 
-                                let pm_input: String = if let Some(pm) = &user.prefer_markets {
-                                    pm.iter().map(|m| m.as_str()).collect::<Vec<&str>>().join(", ")
-                                } else { String::new() };
-
-                                state.loaded_data = Ok( path_to_file_name(path) );
-                                state.saved_data = Ok(None);
-                                state.editor_ignore_steam_names = text_editor::Content::with_text( &isn_input );
-                                state.editor_prefer_markets = text_editor::Content::with_text( &pm_input );
-                                state.text_pause_time_ms = user.pause_time_ms.to_string();
-                                state.text_percent_threshold = user.percent_threshold.to_string();
-                                state.text_input_steamid = user.steamid.to_string();
-                                state.text_input_row_start_write_in_table = sheet.row_start_write_in_table.to_string();
-                                state.text_input_row_stop_write_in_table = sheet.row_stop_write_in_table.map(|s| s.to_string()).unwrap_or_default();
-
-                                dprintln!("STATE: {:#?}", state);
-                            },
-                            Err(_e) => { dprintln!("{_e}"); state.loaded_data = Err( String::from("Failed parsing file") ) }
-                        }
-                    } else { state.loaded_data = Err( String::from("Failed reading file")) }
+                        state.loaded_data = Ok( path_to_file_name(pathbuf.as_path()) );
+                        state.saved_data = Ok(None);
+                        state.editor_ignore_steam_names = text_editor::Content::with_text( &isn_input );
+                        state.editor_prefer_markets = text_editor::Content::with_text( &pm_input );
+                        state.text_pause_time_ms = user.pause_time_ms.to_string();
+                        state.text_percent_threshold = user.percent_threshold.to_string();
+                        state.text_input_steamid = user.steamid.to_string();
+                        state.text_input_row_start_write_in_table = sheet.row_start_write_in_table.to_string();
+                        state.text_input_row_stop_write_in_table = sheet.row_stop_write_in_table.map(|s| s.to_string()).unwrap_or_default();
+                    }
+                    Err(e) => {
+                        dprintln!("{e}");
+                        state.loaded_data = Err(e);
+                    }
                 }
                 Task::none()
             }
             Exec::BeginRun => {
-                match excel_runtime::sanitize_and_check_user_input(user, sheet, prefer_markets) {
+                match sanitizing::sanitize_and_check_user_input(user, sheet, prefer_markets) {
                     Ok(warning) => {
                         state.is_excel_running = true;
                         state.editor_runtime_result = text_editor::Content::new();
@@ -483,7 +480,7 @@ impl App {
                         dprintln!("User: {:?}", user);
 
                         Task::sip(
-                            excel_runtime::run_program(user, sheet),
+                            excel_runtime::run_program_gui(user, sheet),
                             Exec::UpdateRun,
                             Exec::FinishRun
                         )

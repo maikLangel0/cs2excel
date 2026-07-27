@@ -2,6 +2,7 @@ use std::{env, path::{Path, PathBuf}};
 use ahash::{HashMap, HashMapExt};
 use chrono::Utc;
 use serde_json::Value;
+use sipper::Sender;
 use tokio::{fs, io::AsyncWriteExt};
 
 use reqwest::Client;
@@ -50,15 +51,18 @@ pub async fn get_exchange_rate(
     } else { Ok(1.0) }
 }
 
-pub async fn get_market_price(
+pub async fn get_market_price<P>(
     user: &UserInfo,
     markets_to_check: &Vec<Sites>,
     all_market_prices: &HashMap<Sites, Value>,
     rate: f64,
     item_name: &str,
     doppler: &Option<Doppler>,
-    progress: &mut sipper::Sender<Progress>
-) -> Result<(Option<String>, Option<f64>), String> {
+    progress: &mut P
+) -> Result<(Option<String>, Option<f64>), String>
+where
+    P: ProgressSink
+{
     if !user.fetch_prices { Ok((None, None)) }
     else {
         #[derive(Clone, Copy)]
@@ -115,25 +119,28 @@ pub async fn get_market_price(
 
 
 
-pub async fn fetch_iteminfo_via_itemprovider_persistent(
+pub async fn fetch_iteminfo_via_itemprovider_persistent<P>(
     client: &mut Client,
     col_inspect_link: &Option<String>,
     iteminfo_provider: &ItemInfoProvider,
     inspect_link: &Option<String>,
     pause_time_ms: u16,
-    progress: &mut sipper::Sender<Progress>
-) -> Result<Option<Value>, String> {
+    progress: &mut P
+) -> Result<Option<Value>, String>
+where
+    P: ProgressSink
+{
 
     if col_inspect_link.is_some() {
         if let Some(inspect) = inspect_link {
             match iteminfo_provider {
                 ItemInfoProvider::Csfloat => {
-                    let tmp = csfloat::fetch_iteminfo_persistent(client, progress, inspect, 10, pause_time_ms as u64).await?;
+                    let tmp = csfloat::fetch_iteminfo_persistent(client, inspect, 10, pause_time_ms as u64, progress).await?;
                     Ok(tmp)
                 }
                 ItemInfoProvider::Csgotrader => {
                     // TODO: MB IMPLEMENT FETCH_ITEMINFO_PERSISTENT for CSGOTRADER
-                    let tmp = csfloat::fetch_iteminfo_persistent(client, progress, inspect, 10, pause_time_ms as u64).await?;
+                    let tmp = csfloat::fetch_iteminfo_persistent(client, inspect, 10, pause_time_ms as u64, progress).await?;
                     Ok(tmp)
                 }
                 ItemInfoProvider::Steam => { Ok(None) }
@@ -143,14 +150,17 @@ pub async fn fetch_iteminfo_via_itemprovider_persistent(
     } else { Ok(None) }
 }
 
-pub async fn wrapper_fetch_iteminfo_via_itemprovider_persistent(
+pub async fn wrapper_fetch_iteminfo_via_itemprovider_persistent<P>(
     client: &mut Client,
     iteminfo_provider: &ItemInfoProvider,
     col_inspect_link: &Option<String>,
     pause_time_ms: u16,
     steamdata: &SteamData,
-    progress: &mut sipper::Sender<Progress>
-) -> Result<Option<ExtraItemData>, String> {
+    progress: &mut P
+) -> Result<Option<ExtraItemData>, String>
+where
+    P: ProgressSink
+{
 
     let json_response = fetch_iteminfo_via_itemprovider_persistent(
         client,
@@ -176,7 +186,7 @@ pub async fn wrapper_fetch_iteminfo_via_itemprovider_persistent(
     } else { Ok(None) }
 }
 
-pub async fn insert_new_exceldata(
+pub async fn insert_new_exceldata<P>(
     user: &UserInfo,
     excel: &SheetInfo,
     steamdata: &SteamData,
@@ -186,8 +196,11 @@ pub async fn insert_new_exceldata(
     rate: f64,
     row_in_excel: usize,
     sheet: &mut Worksheet,
-    progress: &mut sipper::Sender<Progress>
-) -> Result<ExcelData, String> {
+    progress: &mut P,
+) -> Result<ExcelData, String>
+where
+    P: ProgressSink
+{
 
     let doppler: Option<Doppler> = extra_itemdata.as_ref()
         .and_then(|ei| ei.phase.clone());
@@ -239,7 +252,7 @@ pub async fn insert_new_exceldata(
         insert_string_in_sheet(sheet, col_csgoskins_link, row_in_excel, &link);
     }
 
-    spot(progress, format!("\t* INSERTING: {:-<75} | ROW: {}\n", &steamdata.name, row_in_excel)).await;
+    progress.send_str(&format!("\t* INSERTING: {:-<75} | ROW: {}\n", &steamdata.name, row_in_excel)).await;
 
     Ok(ExcelData {
         name: steamdata.name.clone(),
@@ -252,21 +265,31 @@ pub async fn insert_new_exceldata(
     })
 }
 
-pub async fn update_quantity_exceldata(
+pub async fn update_quantity_exceldata<P>(
     steamdata: &SteamData,
     col_quantity: &Option<String>,
     data: &mut ExcelData,
     row_in_excel: usize,
     sheet: &mut Worksheet,
-    progress: &mut sipper::Sender<Progress>
-) {
+    progress: &mut P,
+)
+where
+    P: ProgressSink
+{
     if data.sold.is_none()
     && let Some(col_quantity) = col_quantity
     && let Some(steam_quantity) = steamdata.quantity
     && let Some(data_quantity) = data.quantity
     && data_quantity < steam_quantity
     {
-        spot(progress, format!("\t* UPDATING QUANTITY OF {:-<75} FROM => {} TO => {} ROW: {}\n", &steamdata.name, &data.quantity.unwrap_or(0), steam_quantity, &row_in_excel)).await;
+        progress.send_str(&format!(
+            "\t* UPDATING QUANTITY OF {:-<75} FROM => {} TO => {} ROW: {}\n",
+            &steamdata.name,
+            &data.quantity.unwrap_or(0),
+            steam_quantity,
+            &row_in_excel)
+        ).await;
+
         data.quantity = Some(steam_quantity);
         insert_number_in_sheet(sheet, col_quantity, row_in_excel, steam_quantity);
     }
@@ -410,13 +433,6 @@ pub fn clear_extra_iteminfo_given_quantity(sheet: &mut Worksheet, quantity: Opti
     }
 }
 
-/// Send progress only text
-pub async fn spot<T>(sender: &mut sipper::Sender<Progress>, msg: T)
-where T: Into<String>
-{
-    sender.send( Progress { message: msg.into(), percent: 0.0 }).await;
-}
-
 pub trait ToColumn {
     fn to_column(self) -> Option<u32>;
 }
@@ -465,5 +481,49 @@ impl LastInX for &str {
 impl LastInX for String {
     fn take_last_x(self, x: usize) -> String {
         self.as_str().take_last_x(x)
+    }
+}
+
+// ----- SINKS FOR LOGGING -----
+
+pub struct IcedProgressSink {
+    sender: Sender<Progress>,
+}
+
+pub struct ConsoleProgressSink;
+
+pub trait ProgressSink {
+    async fn send(&mut self, progress: Progress);
+    async fn send_str(&mut self, progress: &str);
+}
+
+impl ProgressSink for IcedProgressSink {
+    async fn send(&mut self, progress: Progress) {
+        self.sender.send(progress).await;
+    }
+
+    async fn send_str(&mut self, progress: &str) {
+        self.sender.send(Progress { message: progress.to_string(), percent: 0.0 }).await;
+    }
+}
+
+impl IcedProgressSink {
+    pub fn new(sender: Sender<Progress>) -> IcedProgressSink {
+        Self { sender: sender }
+    }
+}
+
+impl ProgressSink for ConsoleProgressSink {
+    async fn send(&mut self, progress: Progress) {
+        println!("{}, {}", progress.message, progress.percent);
+    }
+    async fn send_str(&mut self, progress: &str) {
+        println!("{}", progress);
+    }
+}
+
+impl ConsoleProgressSink {
+    pub fn new() -> ConsoleProgressSink {
+        Self
     }
 }

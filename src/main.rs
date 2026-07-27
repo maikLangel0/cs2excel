@@ -1,10 +1,13 @@
-#![windows_subsystem = "windows"]
+// #![windows_subsystem = "windows"]
+
+use std::env;
 
 mod excel;
 mod models;
 mod parsing;
 mod browser;
 mod gui;
+mod cli;
 
 #[cfg(feature = "dhat-heap")]
 #[global_allocator]
@@ -28,12 +31,7 @@ fn main() -> Result<(), iced::Error> {
     #[cfg(feature = "dhat-heap")]
     let _profiler = dhat::Profiler::new_heap();
 
+    println!("Haii");
+    println!("{:?}", env::args());
     gui::ice::init_gui()
 }
-//
-// #[tokio::main]
-// async fn main() -> Result<(), String> {
-    // let app = gui::ice::App::default();
-    // let _ = excel::excel_runtime::run_program(app.usersheet.user, app.usersheet.sheet).await?;
-    // Ok(())
-// }
