@@ -13,7 +13,7 @@ use iced::{Element, Length, Pixels, Size, Subscription, Task, window};
 
 use crate::parsing;
 use crate::{dprintln, parsing::sanitizing};
-use crate::excel::excel_runtime;
+use crate::excel::{excel_runtime, helpers::Progress};
 use crate::gui::templates_n_methods::{
     btn_base, checkbox_default, editor_paste, path_to_file_name, pick_list_template, slider_template, task_cell_if_english_alphabetic, task_col_if_english_alphabetic, text_editor_template, text_input_template,
     ToNumeric, ToOption
@@ -40,12 +40,6 @@ const CS2EXCEL_REPO: &str = "https://github.com/maikLangel0/cs2excel";
 
 const GUISIZE: Size = Size { width: 1280.0, height: 960.0 };
 const MINGUISIZE: Size = Size { width: 1080.0, height: 810.0 };
-
-#[derive(Debug, Clone)]
-pub struct Progress {
-    pub message: String,
-    pub percent: f32,
-}
 
 #[derive(Debug, Clone)]
 pub enum Exec {

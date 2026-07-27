@@ -13,8 +13,9 @@ use crate::{
     browser::{csfloat, csgotrader, steamcommunity::SteamInventory}, dprintln, excel::{
         excel_ops::{get_exceldata, get_spreadsheet, set_spreadsheet}, helpers::{
             IcedProgressSink, LastInX, ProgressSink, clear_extra_iteminfo_given_quantity, get_cached_markets_data, get_exchange_rate, get_market_price, get_steamloginsecure, insert_new_exceldata, insert_number_in_sheet, insert_string_in_sheet, update_quantity_exceldata, wrapper_fetch_iteminfo_via_itemprovider_persistent
-        }
-    }, gui::{ice::Progress}, models::{
+        },
+        helpers::Progress
+    }, models::{
         excel::ExcelData, price::Doppler, user_sheet::{SheetInfo, UserInfo}, web::{ExtraItemData, ItemInfoProvider, Sites, SteamData}
     }
 };

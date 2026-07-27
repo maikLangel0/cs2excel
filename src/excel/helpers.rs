@@ -9,7 +9,24 @@ use reqwest::Client;
 use umya_spreadsheet::Worksheet;
 
 use crate::{
-    browser::{cookies::FirefoxDb, csfloat, csgotrader}, dprintln, gui::ice::Progress, models::{excel::ExcelData, price::{Currencies, Doppler, PriceType, PricingMode, PricingProvider}, user_sheet::{SheetInfo, UserInfo}, web::{CachedMarket, ExtraItemData, ItemInfoProvider, Sites, SteamData}}, parsing::{self, csgoskins_url, item_csgotrader, market_name_parse}, CACHE_TIME
+    browser::{
+        cookies::FirefoxDb, csfloat, csgotrader
+    },
+    dprintln,
+    models::{
+        excel::ExcelData,
+        price::{
+            Currencies, Doppler, PriceType, PricingMode, PricingProvider
+        },
+        user_sheet::{SheetInfo, UserInfo},
+        web::{
+            CachedMarket, ExtraItemData, ItemInfoProvider, Sites, SteamData
+        }
+    },
+    parsing::{
+        self, csgoskins_url, item_csgotrader, market_name_parse
+    },
+    CACHE_TIME
 };
 
 pub fn get_steamloginsecure(sls: &Option<String>) -> Option<Vec<String>> {
@@ -486,11 +503,15 @@ impl LastInX for String {
 
 // ----- SINKS FOR LOGGING -----
 
+#[derive(Debug, Clone)]
+pub struct Progress {
+    pub message: String,
+    pub percent: f32,
+}
+
 pub struct IcedProgressSink {
     sender: Sender<Progress>,
 }
-
-pub struct ConsoleProgressSink;
 
 pub trait ProgressSink {
     async fn send(&mut self, progress: Progress);
@@ -510,20 +531,5 @@ impl ProgressSink for IcedProgressSink {
 impl IcedProgressSink {
     pub fn new(sender: Sender<Progress>) -> IcedProgressSink {
         Self { sender: sender }
-    }
-}
-
-impl ProgressSink for ConsoleProgressSink {
-    async fn send(&mut self, progress: Progress) {
-        println!("{}, {}", progress.message, progress.percent);
-    }
-    async fn send_str(&mut self, progress: &str) {
-        println!("{}", progress);
-    }
-}
-
-impl ConsoleProgressSink {
-    pub fn new() -> ConsoleProgressSink {
-        Self
     }
 }
