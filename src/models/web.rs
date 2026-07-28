@@ -152,6 +152,12 @@ impl fmt::Display for ItemInfoProvider {
     }
 }
 
+impl Default for ItemInfoProvider {
+    fn default() -> Self {
+        Self::Csgotrader
+    }
+}
+
 // ---------------------------------------------------------------------------
 
 pub const GAMES_TRADE_PROTECTED: [u32; 1] = [730];

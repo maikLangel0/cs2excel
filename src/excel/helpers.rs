@@ -1,4 +1,4 @@
-use std::{env, path::{Path, PathBuf}};
+use std::{env, path::{Path, PathBuf}, future::Future};
 use ahash::{HashMap, HashMapExt};
 use chrono::Utc;
 use serde_json::Value;
@@ -314,7 +314,6 @@ where
 
 #[inline]
 pub fn insert_number_in_sheet(sheet: &mut Worksheet, col: &str, row_in_excel: usize, value: impl Into<f64>) {
-    println!("{}", col);
     let cell = (col.to_column().unwrap(), row_in_excel as u32);
     sheet.get_cell_mut(cell).set_value_number(value);
 
@@ -353,9 +352,9 @@ async fn load_cache(cache_path: &Path) -> Result<CachedMarket, String> {
     Ok(read)
 }
 
-async fn save_cache(cache_path: &Path, marketjson: &Value) -> Result<(), String> {
+async fn save_cache(cache_path: &Path, marketjson: Value) -> Result<(), String> {
     let cached = CachedMarket {
-        prices: marketjson.clone(),
+        prices: marketjson,
         timestamp: Utc::now()
     };
 
@@ -382,20 +381,20 @@ async fn save_cache(cache_path: &Path, marketjson: &Value) -> Result<(), String>
         .open(cache_path).await {
             Ok(f) => {f},
             Err(e) =>  {
-                dprintln!("Error building OpenOptions | {}", e);
-                return Err( format!("Error building OpenOptions | {}", e) );
+                dprintln!("Error building OpenOptions: {}", e);
+                return Err( format!("Error building OpenOptions: {}", e) );
             },
         };
 
     match file.write_all(&bytes).await {
         Ok(_) => {dprintln!("Cache saved successfully!")},
         Err(e) => {
-            dprintln!("Error saving cache | {}", e);
-            return Err( format!("Error saving cache | {}", e))
+            dprintln!("Error saving cache: {}", e);
+            return Err( format!("Error saving cache: {}", e))
         },
     }
 
-    file.flush().await.map_err(|e| format!("Error flushing file | {}", e))?;
+    file.flush().await.map_err(|e| format!("Error flushing file: {}", e))?;
     Ok(())
 
 }
@@ -415,7 +414,7 @@ where
                     Ok(cm.prices)
                 } else {
                     let market_data = fetch(market).await?;
-                    save_cache(&cache_path, &market_data).await?;
+                    save_cache(&cache_path, market_data.clone()).await?;
                     Ok(market_data)
                 }
             },
@@ -425,7 +424,7 @@ where
         }
     } else {
         let market_data = fetch(market).await?;
-        save_cache(&cache_path, &market_data).await?;
+        save_cache(&cache_path, market_data.clone()).await?;
         Ok(market_data)
     }
 }
@@ -442,7 +441,12 @@ pub fn generate_fallback_path(path: &mut Option<PathBuf>, steamid: u64) {
 }
 
 #[inline]
-pub fn clear_extra_iteminfo_given_quantity(sheet: &mut Worksheet, quantity: Option<u16>, row_in_excel: usize, cols: [Option<&str>; 3] ) {
+pub fn clear_extra_iteminfo_given_quantity(
+    sheet: &mut Worksheet,
+    quantity: Option<u16>,
+    row_in_excel: usize,
+    cols: [Option<&str>; 3]
+) {
     if quantity != Some(1) && quantity.is_some() {
         for col in cols.iter().flatten() {
             insert_string_in_sheet(sheet, col, row_in_excel, "");
@@ -501,7 +505,7 @@ impl LastInX for String {
     }
 }
 
-// ----- SINKS FOR LOGGING -----
+// ----- SINK TRAIT AND ICED SINK FOR LOGGING -----
 
 #[derive(Debug, Clone)]
 pub struct Progress {
@@ -514,8 +518,8 @@ pub struct IcedProgressSink {
 }
 
 pub trait ProgressSink {
-    async fn send(&mut self, progress: Progress);
-    async fn send_str(&mut self, progress: &str);
+    fn send(&mut self, progress: Progress) -> impl Future<Output = ()> + Send;
+    fn send_str(&mut self, progress: &str) -> impl Future<Output = ()> + Send;
 }
 
 impl ProgressSink for IcedProgressSink {

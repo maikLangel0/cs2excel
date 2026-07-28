@@ -12,6 +12,7 @@ use iced::{widget::{button, container, pick_list, slider, text::{IntoFragment, W
 use num_traits::{AsPrimitive, FromPrimitive};
 
 use crate::gui::ice::{Exec};
+use crate::parsing::sanitizing::IsEnglishAlphabetic;
 
 const BG_MAIN: Color = Color::from_rgba8(181, 100, 255, 1.0);
 const BG_SEC: Color = Color::from_rgba8(161, 105, 222, 1.0);
@@ -26,8 +27,6 @@ const BORDER_HOVERED: Color = Color::from_rgba8(192, 192, 192, 0.8);
 
 const RAD_MAIN: Radius = Radius { top_left: 2.0, top_right: 2.0, bottom_right: 2.0, bottom_left: 2.0 };
 const RAD_SEC: Radius = Radius { top_left: 1.0, top_right: 1.0, bottom_right: 1.0, bottom_left: 1.0 };
-
-const ENGLISH_CHARS: [char; 26] = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'];
 
 pub fn path_to_file_name(path: &Path) -> Option<String> {
     path.to_str()
@@ -444,16 +443,6 @@ pub trait ToOption {
     fn to_option<T>(&self) -> Option<T>
     where
         T: FromStr;
-}
-
-pub trait IsEnglishAlphabetic {
-    fn is_english_alphabetic(&self) -> bool;
-}
-
-impl IsEnglishAlphabetic for char {
-    fn is_english_alphabetic(&self) -> bool {
-        ENGLISH_CHARS.contains(&self.to_ascii_uppercase())
-    }
 }
 
 impl ToNumeric for String {

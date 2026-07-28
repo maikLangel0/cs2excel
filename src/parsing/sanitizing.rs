@@ -4,11 +4,22 @@ use crate::{
         price::{Currencies, PricingMode},
         web::{ItemInfoProvider, Sites}
     },
-    gui::templates_n_methods::IsEnglishAlphabetic,
     dprintln
 };
 use iced::widget::text_editor::Content;
 use std::str::FromStr;
+
+const ENGLISH_CHARS: [char; 26] = ['A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z'];
+
+pub trait IsEnglishAlphabetic {
+    fn is_english_alphabetic(&self) -> bool;
+}
+
+impl IsEnglishAlphabetic for char {
+    fn is_english_alphabetic(&self) -> bool {
+        ENGLISH_CHARS.contains(&self.to_ascii_uppercase())
+    }
+}
 
 // Result<MAYBE WARNING , ERROR >
 pub fn sanitize_and_check_user_input(

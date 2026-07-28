@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use super::{price::{Currencies, PricingMode, PricingProvider}, web::{ItemInfoProvider, Sites}};
 
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct UserInfo {
     pub prefer_markets: Option< IndexSet<Sites> >, 
     pub ingore_steam_names: Option< IndexSet<String> >,  
@@ -24,7 +24,7 @@ pub struct UserInfo {
     pub fetch_steam: bool
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct SheetInfo {
     pub path_to_sheet: Option<PathBuf>, // Full path to the spreadsheet
     pub row_stop_write_in_table: Option<u32>, // Row of where to stop adding to the 
@@ -49,7 +49,7 @@ pub struct SheetInfo {
 
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, Default)]
 pub struct UserSheet {
     pub user: UserInfo,
     pub sheet: SheetInfo

@@ -6,15 +6,26 @@ authors = ["Mikael Lunde Isaksen"]
 license = "GPL-3.0"
 description = "Create, manage, update and track your CS2 inventory value."
 
-[[bin]]
-name = "cs2excel"
-path = "src/main.rs"
-
 [profile.release]
 opt-level = "z"
 lto = true
 panic = "abort"
 debug = false
+
+[[bin]]
+name = "cs2excel"
+path = "src/bin/cs2excel.rs"
+required-features = ["cli", "gui"]
+
+[[bin]]
+name = "cs2excel_cli"
+path = "src/bin/cs2excel_cli.rs"
+required-features = ["cli"]
+
+[[bin]]
+name = "cs2excel_gui"
+path = "src/bin/cs2excel_gui.rs"
+required-features = ["gui"]
 
 [dependencies]
 serde = { version = "1.0.229", features = ["derive"] }
@@ -44,7 +55,13 @@ num-traits = "0.2.19"
 dhat = { version = "0.3.3" }
 
 [features]
+default  = ["cli", "gui"]
+
+gui = []
+cli = []
+
 dhat-heap = []
+
 
 [build-dependencies]
 winresource = "0.1.31"

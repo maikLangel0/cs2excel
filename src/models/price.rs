@@ -46,6 +46,12 @@ impl fmt::Display for PricingMode {
     }
 }
 
+impl Default for PricingMode {
+    fn default() -> Self {
+        Self::Cheapest
+    }
+}
+
 //--------------------
 
 #[derive(Debug, Deserialize, Serialize, Clone, Copy, EnumIter, PartialEq)]
@@ -77,6 +83,12 @@ impl FromStr for PricingProvider {
 impl fmt::Display for PricingProvider {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.as_str())
+    }
+}
+
+impl Default for PricingProvider {
+    fn default() -> Self {
+        Self::Csgotrader
     }
 }
 
@@ -166,6 +178,12 @@ impl Currencies {
             Currencies::IDR => "IDR", Currencies::KWD => "KWD", Currencies::FET => "FET",
             Currencies::None => "None",
         }
+    }
+}
+
+impl Default for Currencies {
+    fn default() -> Self {
+        Self::USD
     }
 }
 
