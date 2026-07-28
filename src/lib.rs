@@ -1,11 +1,6 @@
 #[cfg(feature = "dhat-heap")]
 #[global_allocator]
-static ALLOC: dhat::Alloc = dhat::Alloc;
-
-pub mod excel;
-pub mod models;
-pub mod parsing;
-pub mod browser;
+pub static ALLOC: dhat::Alloc = dhat::Alloc;
 
 #[cfg(feature = "gui")]
 pub mod gui;
@@ -13,6 +8,10 @@ pub mod gui;
 #[cfg(feature = "cli")]
 pub mod cli;
 
+pub mod excel;
+pub mod models;
+pub mod parsing;
+pub mod browser;
 
 const CACHE_TIME: std::time::Duration = std::time::Duration::from_secs(60 * 60 * 6);
 

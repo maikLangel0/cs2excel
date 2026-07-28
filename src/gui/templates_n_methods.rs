@@ -30,7 +30,7 @@ const RAD_SEC: Radius = Radius { top_left: 1.0, top_right: 1.0, bottom_right: 1.
 
 pub fn path_to_file_name(path: &Path) -> Option<String> {
     path.to_str()
-        .map(|s| s.split("\\").collect::<Vec<&str>>() )
+        .map(|s| s.split(|c| c == '\\' || c == '/').collect::<Vec<&str>>() )
         .map(|p| p[p.len() - 1].to_string())
 }
 
