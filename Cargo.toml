@@ -1,6 +1,6 @@
 [package]
 name = "cs2excel"
-version = "0.1.8" #cosmetic versioning LOL
+version = "0.2.0" #cosmetic versioning LOL
 edition = "2024"
 authors = ["Mikael Lunde Isaksen"]
 license = "GPL-3.0"
