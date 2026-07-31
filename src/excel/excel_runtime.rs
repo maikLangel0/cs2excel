@@ -2,7 +2,7 @@ use std::{str::FromStr, time::Duration};
 
 use reqwest::Client;
 use strum::IntoEnumIterator;
-use umya_spreadsheet::{Worksheet, Spreadsheet};
+use umya_spreadsheet::{Spreadsheet, Worksheet, XlsxError};
 use serde_json::Value;
 use ahash::{HashMap};
 use indexmap::IndexSet;
@@ -52,11 +52,13 @@ where
         ItemInfoProvider::Steam => { Client::new() }, // Not needed for steam
     };
 
-    let iteminfo_client: &mut Client = &mut iteminfo_client_base;
+    let iteminfo_client = &mut iteminfo_client_base;
 
     // -----------------------------------------------------------------------------------------------
 
-    let steamcookie: Option<Vec<String>> = if user.fetch_steam { get_steamloginsecure(&user.steamloginsecure) } else { None };
+    let steamcookie: Option<Vec<String>> = if let Some(ref sls) = user.steamloginsecure {
+        Some( Vec::from([sls.to_owned()]) )
+    } else { get_steamloginsecure() };
 
     if steamcookie.is_some() { progress.send_str("Found steamcookie(s).\n").await; }
     else if user.fetch_steam { progress.send_str("Didn't find steamcookie(s).\n").await }
@@ -77,8 +79,9 @@ where
                     ).await;
 
                     inv = Some( SteamInventory::init(user.steamid, 730, Some(cookie)).await? );
+                    let inv_tmp = inv.as_ref().unwrap(); // Safe cuz look @ line above lmao
 
-                    if let Some(v) = &inv && v.assets_len() == v.inventory_len() {
+                    if inv_tmp.assets_len() == inv_tmp.inventory_len() {
                         progress.send_str("Found full inventory.\n").await;
                         break
                     }
@@ -112,27 +115,36 @@ where
         )
     } else { None };
 
-    let all_market_prices: Option<HashMap<Sites, Value>> = if let Some(m_t_c) = &markets_to_check {
-        Some( get_cached_markets_data(m_t_c, user.pricing_provider).await? )
-    } else { None };
+    let all_market_prices: Option<HashMap<Sites, Value>> = match &markets_to_check {
+        Some(mtc) => Some( get_cached_markets_data(mtc, user.pricing_provider).await? ),
+        None => None
+    };
 
-    if let Some(m_t_p) = &markets_to_check {
+    if let Some(mtc) = &markets_to_check {
         progress.send_str(
-            &format!("Fetched prices from {}.\n", m_t_p.iter().map(|m| m.as_str()).collect::<Vec<&str>>().join(", "))
+            &format!("Fetched prices from {}.\n", mtc.iter().map(|m| m.as_str()).collect::<Vec<&str>>().join(", "))
         ).await;
     }
 
-    if cs_inv.is_some() {
-        progress.send_str("Reading data from cs inventory and applying it to spreadsheet...\n").await;
-    }
-    let cs_inv_len = cs_inv.as_ref().map(|i| i.len()).unwrap_or(0);
+    let cs_inv_len: usize = {
+        if let Some(inv) = &cs_inv {
+            progress.send_str("Reading data from cs inventory and applying it to spreadsheet...\n").await;
+            inv.len()
+        }
+        else { 0 }
+    };
 
     // -----------------------------------------------------------------------------------------------
 
     // BIG BRAIN; READ THE EXCEL SPREADSHEET FIRST TO GET ALL THE INFO AND THEN GET PRICES WOWOWO
 
     // Getting the Worksheet from either existing book or new book
-    let mut book: Spreadsheet = get_spreadsheet(&mut excel.path_to_sheet, &mut excel.sheet_name, user.steamid, &mut progress).await?;
+    let mut book: Spreadsheet = get_spreadsheet(
+        &mut excel.path_to_sheet,
+        &mut excel.sheet_name,
+        user.steamid,
+        &mut progress
+    ).await?;
 
     let sheet: &mut Worksheet = {
         if let Some(sn) = &excel.sheet_name {
@@ -141,8 +153,8 @@ where
                 dprintln!("WARNING: Automatically fetched first sheet in spreadsheet because {} was not found.\n", sn);
                 progress.send_str(&format!("WARNING: Automatically fetched first sheet in spreadsheet because {} was not found.", sn)).await;
 
-                book.get_sheet_mut(&0).ok_or_else(|| format!(
-                    "Failed to get the first sheet in the spreadsheet with path: \n{:?}", excel.path_to_sheet.as_ref())
+                book.get_sheet_mut(&0).ok_or_else(||
+                    format!("Failed to get the first sheet in the spreadsheet with path: \n{:?}", excel.path_to_sheet.as_ref())
                 )?
             }
         } else { book.get_sheet_mut(&0).ok_or_else(|| "Failed to get first sheet provided by new file creation.")? }
@@ -194,14 +206,14 @@ where
         progress.send( Progress {
             message: if user.group_simular_items {
                 format!(
-                    "\tNAME: {:-<75} QUANTITY: {} LINK: {}",
+                    "\tNAME: {:-<75} QUANTITY: {} LINK: {}\n",
                     steamdata.name,
                     steamdata.quantity.unwrap_or(0),
                     if steamdata.inspect_link.is_some() {"YES"} else {"NO"}
                 )
             } else {
                 format!(
-                    "\tNAME: {:-<75} ASSETID: {} LINK: {}",
+                    "\tNAME: {:-<75} ASSETID: {} LINK: {}\n",
                     steamdata.name,
                     steamdata.asset_id,
                     if steamdata.inspect_link.is_some() {"YES"} else {"NO"}
@@ -229,14 +241,14 @@ where
                         // Doing the check here would not cover that possibility so it has to be its´ own loop.
                     }
 
-                    // FOR CASES WHERE DOPPLER GOT FETCHED FIRST USING STEAM THEN FETCHED LATER USING 3RD PARTY API
+                    // FOR CASES WHERE DOPPLER GOT FETCHED FIRST USING STEAM THEN FETCHED LATER USING 3RD PARTY API | HOLY WORKAROUND WHAT WAS I SMOKING
                     else if data.phase.is_none()
                     && user.iteminfo_provider != ItemInfoProvider::Steam
                     && steamdata.inspect_link.is_some()
                     && data.quantity == Some(1)
                     && let Some(col_phase) = &excel.col_phase
-                    && let Some(a_m_p) = &all_market_prices
-                    && let Some(m_t_c) = &markets_to_check
+                    && let Some(amp) = &all_market_prices
+                    && let Some(mtc) = &markets_to_check
                     && data.name.to_lowercase().contains(" doppler")
                     {
                         let iteminfo: ExtraItemData = wrapper_fetch_iteminfo_via_itemprovider_persistent(
@@ -250,8 +262,8 @@ where
 
                         let (market, price) = get_market_price(
                             &user,
-                            m_t_c,
-                            a_m_p,
+                            mtc,
+                            amp,
                             rate,
                             &steamdata.name,
                             &iteminfo.phase,
@@ -298,7 +310,7 @@ where
 
                     let extra_itemdata: Option<ExtraItemData> =
                         if steamdata.quantity == Some(1) || steamdata.name.to_lowercase().contains( " doppler") {
-                            // Min retarda ass bygde extra iteminfo checken inn i wrapper funksjonen så trust at hvis IteminfoProvider er Steam så blir denne None
+                            // Min doofus ass bygde extra iteminfo checken inn i wrapper funksjonen så trust at hvis IteminfoProvider er Steam så blir denne None
                             wrapper_fetch_iteminfo_via_itemprovider_persistent(
                                 iteminfo_client,
                                 &user.iteminfo_provider,
@@ -474,20 +486,20 @@ where
 
         if data.sold.is_some() && user.ignore_already_sold { continue; }
 
-        if let Some(ignore) = &user.ingore_steam_names && ignore.iter().any(|s| *s == data.name) {
+        if user.ingore_steam_names.as_ref().is_some_and(|isn| isn.iter().any(|sn| *sn == data.name)) {
             continue;
         }
 
         let row_in_excel = i + excel.row_start_write_in_table as usize;
 
-        if let Some(stop_write) = excel.row_stop_write_in_table && row_in_excel >= stop_write as usize {
+        if excel.row_stop_write_in_table.is_some_and(|stop| row_in_excel >= stop as usize) {
             break
         }
 
         let doppler: Option<Doppler> = data.phase.as_ref()
             .and_then(|p| Doppler::from_str(p).ok());
 
-        let (market, price): (Option<String>, Option<f64>) = if let Some(amp) = &all_market_prices && let Some(mtc) = &markets_to_check {
+        let (market, price): (Option<String>, Option<f64>) = if let (Some(amp), Some(mtc)) = (&all_market_prices, &markets_to_check) {
             get_market_price(
                 &user,
                 mtc,
@@ -500,7 +512,7 @@ where
         } else { (None, None) };
 
         if let Some(pris) = price { insert_number_in_sheet(sheet, &excel.col_price, row_in_excel, pris); }
-        if let Some(marked) = market && let Some(col_market) = &excel.col_market { insert_string_in_sheet(sheet, col_market, row_in_excel, &marked); }
+        if let (Some(market), Some(col_market)) = (&market, &excel.col_market) { insert_string_in_sheet(sheet, col_market, row_in_excel, market); }
     }
 
     let finishtime = chrono::Local::now()
@@ -514,7 +526,14 @@ where
 
     // Writes the modified data to the spreadsheet
     set_spreadsheet(&excel.path_to_sheet, user.steamid, book).await
-        .map_err(|e| format!("Couldnt write to spreadsheet! : {}", e))?;
+        .map_err(|e|
+            format!(
+                "Couldnt write to spreadsheet! : {}",
+                if matches!(e, XlsxError::Io(_)) {
+                    format!("{} | Close Excel/LibreOffice/OpenOffice if it is open.", e)
+                } else { e.to_string() }
+            )
+        )?;
 
     if let Some(inv) = &sm_inv {
         progress.send( Progress {

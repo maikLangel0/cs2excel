@@ -1,5 +1,5 @@
 <h1 align="center">CS2EXCEL</h1>
-<h2 align="center">Utility to create, update and manage your CS2 inventory</h2>
+<h2 align="center">Utility to create, manage and update your CS2 inventory</h2>
 <h2 align="center">GUI, CLI, and GUI + CLI versions available</h2>
 <h3>How quick it is to update your portfolio:</h3>
 <img src=".\assets\images\cs2excel_showcase.gif"/>

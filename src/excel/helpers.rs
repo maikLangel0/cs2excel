@@ -29,9 +29,8 @@ use crate::{
     CACHE_TIME
 };
 
-pub fn get_steamloginsecure(sls: &Option<String>) -> Option<Vec<String>> {
-    if let Some(sls) = sls { Some( Vec::from([sls.to_string()]) ) }
-    else if let Ok(db) = FirefoxDb::init() {
+pub fn get_steamloginsecure() -> Option<Vec<String>> {
+    if let Ok(db) = FirefoxDb::init() {
         match db.get_cookies(vec!["name", "value"], "steamcommunity.com", vec!["steamLoginSecure"]) {
             Ok(cookie) => Some(cookie),
             Err(_e) => { dprintln!("FRICK.\n{}", _e); None }
